@@ -1,14 +1,20 @@
 package no.ks.eventstore2.eventstore;
 
+import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
-import akka.event.EventStream;
 import com.google.common.collect.ImmutableSet;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class EventProjection extends UntypedActor{
+public class ProjectionA extends UntypedActor{
     List<Event> eventProjection = new ArrayList<Event>();
+
+    @Override
+    public void preStart(){
+        final ActorRef eventStoreRef = getContext().actorFor("akka://default/user/eventStore");
+        eventStoreRef.tell(new Subscription("A1"), self());
+    }
 
     @Override
     public void onReceive(Object o) throws Exception {
@@ -24,11 +30,5 @@ public class EventProjection extends UntypedActor{
 
     private void getProjectedEvents() {
         sender().tell(ImmutableSet.copyOf(eventProjection), self());
-    }
-
-    @Override
-    public void preStart(){
-        EventStream eventStream = getContext().system().eventStream();
-        eventStream.subscribe(self(), Event.class);
     }
 }

@@ -31,7 +31,7 @@ public abstract class Projection extends UntypedActor {
     }
 
     public void handleEvent(Event event) {
-        Method method = handleEventMap.get(new ProjectionEventBind(getClass(), event.getClass()));
+        Method method = handleEventMap.get(event.getClass());
         if (method != null)
             try {
                 method.invoke(this, event);
@@ -40,18 +40,18 @@ public abstract class Projection extends UntypedActor {
             }
     }
 
-    private Map<ProjectionEventBind, Method> handleEventMap = null;
+    private Map<Class<? extends Event>, Method> handleEventMap = null;
 
     private void init() {
-        handleEventMap = new HashMap<ProjectionEventBind, Method>();
+        handleEventMap = new HashMap<Class<? extends Event>, Method>();
         try {
-            Class<? extends Projection> projectionClass = (Class<? extends Projection>) this.getClass();
+            Class<? extends Projection> projectionClass = this.getClass();
             ListensTo annotation = projectionClass.getAnnotation(ListensTo.class);
-            if (annotation != null) {    // Compatibility with 'old' ebc code
+            if (annotation != null) {
                 Class[] handledEventClasses = annotation.value();
                 for (Class<? extends Event> handledEventClass : handledEventClasses) {
                     Method handleEventMethod = projectionClass.getMethod("handleEvent", handledEventClass);
-                    handleEventMap.put(new ProjectionEventBind(projectionClass, handledEventClass), handleEventMethod);
+                    handleEventMap.put(handledEventClass, handleEventMethod);
                 }
             }
         } catch (Exception e) {
@@ -66,35 +66,6 @@ public abstract class Projection extends UntypedActor {
                 eventStore.tell(new Subscription(aggregate), self());
     }
 
-
-
-    private static class ProjectionEventBind {
-        public final Class<? extends Projection> projectionClass;
-        public final Class<? extends Event> eventClass;
-
-        private ProjectionEventBind(Class<? extends Projection> projectionClass, Class<? extends Event> eventClass) {
-            this.projectionClass = projectionClass;
-            this.eventClass = eventClass;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof ProjectionEventBind)) return false;
-
-            ProjectionEventBind that = (ProjectionEventBind) o;
-
-            return !(eventClass != null ? !eventClass.equals(that.eventClass) : that.eventClass != null)
-                    && !(projectionClass != null ? !projectionClass.equals(that.projectionClass) : that.projectionClass != null);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = projectionClass != null ? projectionClass.hashCode() : 0;
-            result = 31 * result + (eventClass != null ? eventClass.hashCode() : 0);
-            return result;
-        }
-    }
 }
 
 

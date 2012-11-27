@@ -4,18 +4,15 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
-import akka.util.Timeout;
 import com.google.common.collect.ImmutableSet;
 import com.typesafe.config.ConfigFactory;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.eventstore.testImplementations.EventA1;
 import no.ks.eventstore2.eventstore.testImplementations.ProjectionA;
 import no.ks.eventstore2.saga.SagaInMemoryRepository;
-import no.ks.eventstore2.saga.SagaManager;
 import org.junit.Test;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
-import scala.concurrent.duration.Duration;
 
 import static akka.pattern.Patterns.ask;
 import static akka.testkit.JavaTestKit.duration;

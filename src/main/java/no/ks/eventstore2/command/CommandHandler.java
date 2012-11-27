@@ -2,6 +2,7 @@ package no.ks.eventstore2.command;
 
 import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
+import com.google.common.collect.ImmutableSet;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -11,17 +12,23 @@ public abstract class CommandHandler extends UntypedActor{
 
     protected ActorRef eventStore;
 
+    public CommandHandler(ActorRef eventStore) {
+        this.eventStore = eventStore;
+    }
+
     @Override
     public void preStart() {
         super.preStart();
         init();
-        eventStore = getContext().actorFor("akka://default/user/eventStore");
     }
 
     @Override
     public void onReceive(Object o) throws Exception{
         if (o instanceof Command)
             handleCommand((Command) o);
+        if("HandlesClasses".equals(o)){
+            sender().tell(ImmutableSet.copyOf(handleCommandMap.keySet()),self());
+        }
     }
 
     public void handleCommand(Command command) {

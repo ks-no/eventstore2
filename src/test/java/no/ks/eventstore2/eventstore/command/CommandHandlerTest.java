@@ -1,10 +1,12 @@
 package no.ks.eventstore2.eventstore.command;
 
+import akka.actor.Actor;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
+import no.ks.eventstore2.command.CommandHandlerFactory;
 import no.ks.eventstore2.eventstore.testImplementations.NotificationCommandHandler;
 import no.ks.eventstore2.eventstore.testImplementations.NotificationSendt;
 import no.ks.eventstore2.eventstore.testImplementations.SendNotification;
@@ -22,9 +24,13 @@ public class CommandHandlerTest extends TestKit {
 
     @Test
     public void testCommandHandlerReceivesCommandAndDispatchesCorrespondingEvent() throws Exception {
-        final TestActorRef<NotificationCommandHandler> ref = TestActorRef.create(_system, new Props(NotificationCommandHandler.class), "notification_handler");
+        final TestActorRef<NotificationCommandHandler> ref = TestActorRef.create(_system, new Props(new CommandHandlerFactory() {
+            @Override
+            public Actor create() throws Exception {
+                return new NotificationCommandHandler(eventStore);
+            }
+        }), "notification_handler");
         ReflectionTestUtils.setField(ref.underlyingActor(), "eventStore", super.testActor());
-
         ref.tell(new SendNotification(), super.testActor());
         expectMsgClass(NotificationSendt.class);
     }

@@ -1,4 +1,4 @@
-package no.ks.eventstore2.eventstore;
+package no.ks.eventstore2.eventstore.projection;
 
 import akka.actor.ActorSystem;
 import akka.actor.Props;

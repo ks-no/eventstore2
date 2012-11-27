@@ -1,4 +1,4 @@
-package no.ks.eventstore2.eventstore;
+package no.ks.eventstore2.eventstore.saga;
 
 import akka.actor.*;
 import akka.testkit.TestActorRef;

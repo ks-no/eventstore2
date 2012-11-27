@@ -1,4 +1,4 @@
-package no.ks.eventstore2.eventstore;
+package no.ks.eventstore2.eventstore.integration;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
@@ -6,6 +6,8 @@ import akka.actor.Props;
 import akka.testkit.JavaTestKit;
 import com.google.common.collect.ImmutableSet;
 import no.ks.eventstore2.Event;
+import no.ks.eventstore2.eventstore.EmbeddedDatabaseTest;
+import no.ks.eventstore2.eventstore.EventStoreFactory;
 import no.ks.eventstore2.eventstore.testImplementations.EventA1;
 import no.ks.eventstore2.eventstore.testImplementations.EventA2;
 import no.ks.eventstore2.eventstore.testImplementations.ProjectionA;

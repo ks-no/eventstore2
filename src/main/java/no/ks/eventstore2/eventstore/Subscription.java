@@ -10,5 +10,4 @@ public class Subscription {
     public String getAggregateId() {
         return aggregateId;
     }
-
 }

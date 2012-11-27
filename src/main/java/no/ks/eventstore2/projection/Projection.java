@@ -12,6 +12,7 @@ import java.util.Map;
 public abstract class Projection extends UntypedActor {
 
     protected ActorRef eventStore;
+    private Map<Class<? extends Event>, Method> handleEventMap = null;
 
     protected Projection() {
         init();
@@ -40,8 +41,6 @@ public abstract class Projection extends UntypedActor {
             }
     }
 
-    private Map<Class<? extends Event>, Method> handleEventMap = null;
-
     private void init() {
         handleEventMap = new HashMap<Class<? extends Event>, Method>();
         try {
@@ -65,7 +64,6 @@ public abstract class Projection extends UntypedActor {
             for (String aggregate : annotation.aggregates())
                 eventStore.tell(new Subscription(aggregate), self());
     }
-
 }
 
 

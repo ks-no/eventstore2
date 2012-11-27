@@ -77,7 +77,6 @@ class EventStore extends UntypedActor {
 
     private void publishEvents(String aggregateid) {
         for (Event event : loadEvents(aggregateid)) {
-            System.out.println("publiserer en event: " + aggregateid);
             sender().tell(event,self());
         }
     }
@@ -95,7 +94,6 @@ class EventStore extends UntypedActor {
                 }
             }
         );
-
     }
 
     private List<Event> loadEvents(String aggregate) {

@@ -11,6 +11,7 @@ import java.util.Map;
 public abstract class CommandHandler extends UntypedActor{
 
     protected ActorRef eventStore;
+    private Map<Class<? extends Command>, Method> handleCommandMap = null;
 
     public CommandHandler(ActorRef eventStore) {
         this.eventStore = eventStore;
@@ -27,7 +28,7 @@ public abstract class CommandHandler extends UntypedActor{
         if (o instanceof Command)
             handleCommand((Command) o);
         if("HandlesClasses".equals(o)){
-            sender().tell(ImmutableSet.copyOf(handleCommandMap.keySet()),self());
+            sender().tell(ImmutableSet.copyOf(handleCommandMap.keySet()), self());
         }
     }
 
@@ -39,8 +40,6 @@ public abstract class CommandHandler extends UntypedActor{
             throw new RuntimeException(e);
         }
     }
-
-    private Map<Class<? extends Command>, Method> handleCommandMap = null;
 
     private void init() {
         handleCommandMap = new HashMap<Class<? extends Command>, Method>();

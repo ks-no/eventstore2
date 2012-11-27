@@ -8,7 +8,6 @@ import java.util.List;
 
 public class CommandDispatcherFactory implements UntypedActorFactory {
 
-
     private List<CommandHandlerFactory> commandHandlerFactories;
     private ActorRef eventStore;
 

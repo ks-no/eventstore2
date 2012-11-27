@@ -1,4 +1,3 @@
 package no.ks.eventstore2.command;
 
-public class Command {
-}
+public abstract class Command {}

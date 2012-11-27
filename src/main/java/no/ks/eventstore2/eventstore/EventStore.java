@@ -2,7 +2,23 @@ package no.ks.eventstore2.eventstore;
 
 import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import no.ks.eventstore2.Event;
+import no.ks.eventstore2.json.Adapter;
+import org.joda.time.DateTime;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.support.AbstractLobCreatingPreparedStatementCallback;
+import org.springframework.jdbc.support.lob.DefaultLobHandler;
+import org.springframework.jdbc.support.lob.LobCreator;
+import org.springframework.jdbc.support.lob.LobHandler;
 
+import javax.sql.DataSource;
+import java.sql.Clob;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -10,8 +26,19 @@ import java.util.Map;
 
 class EventStore extends UntypedActor {
 
-    List<Event> store = new ArrayList<Event>();
+    private Gson gson = new Gson();
+    private JdbcTemplate template;
+
     Map<String, List<ActorRef>> aggregateSubscribers = new HashMap<String, List<ActorRef>>();
+
+    public EventStore(DataSource dataSource, List<Adapter> adapters) {
+        template = new JdbcTemplate(dataSource);
+        GsonBuilder builder = new GsonBuilder();
+        for(Adapter adapter : adapters){
+            builder.registerTypeAdapter(adapter.getType(), adapter.getTypeAdapter());
+        }
+        gson = builder.create();
+    }
 
     @Override
     public void preStart(){
@@ -20,13 +47,15 @@ class EventStore extends UntypedActor {
 
     public void onReceive(Object o) throws Exception {
         if (o instanceof Event){
-            store.add((Event) o);
+            storeEvent((Event) o);
             publishEvent((Event) o);
         } else if (o instanceof Subscription){
             Subscription subscription = (Subscription) o;
 
             publishEvents(subscription.getAggregateId());
             addSubscriber(subscription);
+        }  else {
+            sender().tell(o, self());
         }
     }
 
@@ -47,11 +76,43 @@ class EventStore extends UntypedActor {
     }
 
     private void publishEvents(String aggregateid) {
-        for (Event event : store) {
-            if(aggregateid.equals(event.getAggregateId())){
-                sender().tell(event,self());
-            }
+        for (Event event : loadEvents(aggregateid)) {
+            System.out.println("publiserer en event: " + aggregateid);
+            sender().tell(event,self());
         }
+    }
+
+    public void storeEvent(final Event event) {
+        event.setCreated(new DateTime());
+        final String json = gson.toJson(event);
+        LobHandler lobHandler = new DefaultLobHandler();
+        template.execute("insert into event (id,aggregateid,event, class) values(seq.nextval,?,?,?)",
+            new AbstractLobCreatingPreparedStatementCallback(lobHandler) {
+                protected void setValues(PreparedStatement ps, LobCreator lobCreator) throws SQLException {
+                    lobCreator.setClobAsString(ps, 2, json);
+                    ps.setString(3, event.getClass().getName());
+                    ps.setString(1, event.getAggregateId());
+                }
+            }
+        );
+
+    }
+
+    private List<Event> loadEvents(String aggregate) {
+        return template.query("select * from event where aggregateid = ? order by ID", new Object[]{aggregate}, new RowMapper<Event>() {
+            public Event mapRow(ResultSet resultSet, int i) throws SQLException {
+                String clazz = resultSet.getString("class");
+                Class<?> classOfT;
+                try {
+                    classOfT = Class.forName(clazz);
+                } catch (ClassNotFoundException e) {
+                    throw new RuntimeException(e);
+                }
+                Clob json = resultSet.getClob("event");
+
+                return (Event) gson.fromJson(json.getCharacterStream(), classOfT);
+            }
+        });
     }
 
 }

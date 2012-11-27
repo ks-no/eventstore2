@@ -2,10 +2,10 @@ package no.ks.eventstore2.saga;
 
 public class SagaCompositeId {
 
-        private Class clz;
+        private Class<?> clz;
         private String id;
 
-        public SagaCompositeId(Class clz, String id) {
+        public SagaCompositeId(Class<?> clz, String id) {
             this.clz = clz;
             this.id = id;
         }

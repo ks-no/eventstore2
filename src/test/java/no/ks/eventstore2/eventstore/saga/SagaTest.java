@@ -60,8 +60,7 @@ public class SagaTest extends TestKit {
     private Props getNotificationSagaProps(final String sagaId) {
         final ActorRef commandDispatcher = super.testActor();
         return new Props(new UntypedActorFactory(){
-            @Override
-            public Actor create() throws Exception {
+			public Actor create() throws Exception {
                 return new NotificationSaga(sagaId, commandDispatcher, sagaInMemoryRepository);
             }
         });

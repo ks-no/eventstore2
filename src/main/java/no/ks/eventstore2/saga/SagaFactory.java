@@ -17,7 +17,6 @@ public class SagaFactory implements UntypedActorFactory {
         this.sagaId = sagaId;
     }
 
-    @Override
     public Actor create() throws Exception {
         return clz.getConstructor(String.class, ActorRef.class, SagaRepository.class).newInstance(sagaId, commandDispatcher, repository);
     }

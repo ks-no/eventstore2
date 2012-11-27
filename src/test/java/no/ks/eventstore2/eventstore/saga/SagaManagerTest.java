@@ -74,8 +74,7 @@ public class SagaManagerTest extends TestKit {
     private Props getSagaManagerProps() {
         final ActorRef commandDispatcher = super.testActor();
         return new Props(new UntypedActorFactory(){
-            @Override
-            public Actor create() throws Exception {
+			public Actor create() throws Exception {
                 return new SagaManager(commandDispatcher, sagaInMemoryRepository);
             }
         });

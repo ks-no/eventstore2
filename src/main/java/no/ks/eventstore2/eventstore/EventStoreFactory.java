@@ -13,9 +13,9 @@ import java.util.List;
 
 @Component
 public class EventStoreFactory implements UntypedActorFactory {
-    private DataSource ds;
 
-    @Override
+	private DataSource ds;
+
     public Actor create() throws Exception {
        return new EventStore(ds, getAdapters());
     }

@@ -4,8 +4,9 @@ import akka.actor.*;
 import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
-import no.ks.eventstore2.eventstore.testImplementations.LetterReceived;
-import no.ks.eventstore2.eventstore.testImplementations.NotificationSaga;
+import no.ks.eventstore2.eventstore.formProcessorProject.FormProcess;
+import no.ks.eventstore2.eventstore.formProcessorProject.FormReceived;
+import no.ks.eventstore2.eventstore.formProcessorProject.ParseForm;
 import no.ks.eventstore2.saga.SagaInMemoryRepository;
 import org.junit.Test;
 
@@ -26,34 +27,34 @@ public class SagaTest extends TestKit {
     @Test
     public void sagaChangesStateOnMessageRecieved() {
         final Props props = getNotificationSagaProps();
-        final TestActorRef<NotificationSaga> ref = TestActorRef.create(_system, props, "not_saga_a");
-        final NotificationSaga saga = ref.underlyingActor();
-        ref.tell(new LetterReceived(), null);
+        final TestActorRef<FormProcess> ref = TestActorRef.create(_system, props, "not_saga_a");
+        final FormProcess saga = ref.underlyingActor();
+        ref.tell(new FormReceived("1"), null);
         assertEquals(2, saga.getState());
     }
 
     @Test
     public void testSagaDispatchesCommandOnMessageRecieved() throws Exception {
         final Props props = getNotificationSagaProps();
-        final TestActorRef<NotificationSaga> ref = TestActorRef.create(_system, props, "not_saga_b");
-        ref.tell(new LetterReceived(), super.testActor());
-        expectMsg("Send notification command");
+        final TestActorRef<FormProcess> ref = TestActorRef.create(_system, props, "not_saga_b");
+        ref.tell(new FormReceived("1"), super.testActor());
+        expectMsgClass(ParseForm.class);
     }
 
     @Test
     public void testSagaPersistsState() throws Exception {
         final Props props = getNotificationSagaProps();
-        final TestActorRef<NotificationSaga> ref = TestActorRef.create(_system, props, "not_saga_c");
-        ref.tell(new LetterReceived(), super.testActor());
-        assertEquals(2, sagaInMemoryRepository.getState(NotificationSaga.class, "123"));
+        final TestActorRef<FormProcess> ref = TestActorRef.create(_system, props, "not_saga_c");
+        ref.tell(new FormReceived("1"), super.testActor());
+        assertEquals(2, sagaInMemoryRepository.getState(FormProcess.class, "123"));
     }
 
     @Test
     public void testSagaRestoresStateFromRepository() throws Exception {
         final Props props = getNotificationSagaProps("123123");
-        sagaInMemoryRepository.saveState(NotificationSaga.class, "123123", (byte) 5);
-        final TestActorRef<NotificationSaga> ref = TestActorRef.create(_system, props, "not_saga_d");
-        final NotificationSaga saga = ref.underlyingActor();
+        sagaInMemoryRepository.saveState(FormProcess.class, "123123", (byte) 5);
+        final TestActorRef<FormProcess> ref = TestActorRef.create(_system, props, "not_saga_d");
+        final FormProcess saga = ref.underlyingActor();
         assertEquals(5, saga.getState());
     }
 
@@ -61,7 +62,7 @@ public class SagaTest extends TestKit {
         final ActorRef commandDispatcher = super.testActor();
         return new Props(new UntypedActorFactory(){
 			public Actor create() throws Exception {
-                return new NotificationSaga(sagaId, commandDispatcher, sagaInMemoryRepository);
+                return new FormProcess(sagaId, commandDispatcher, sagaInMemoryRepository);
             }
         });
     }

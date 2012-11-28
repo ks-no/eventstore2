@@ -1,11 +1,11 @@
-package no.ks.eventstore2.eventstore.formProcessor;
+package no.ks.eventstore2.eventstore.formProcessorProject;
 
 import no.ks.eventstore2.command.Command;
 
-public class ParseForm extends Command {
+public class DeliverForm extends Command {
     private String formId;
 
-    public ParseForm(String formId) {
+    public DeliverForm(String formId) {
         this.formId = formId;
     }
 
@@ -16,5 +16,4 @@ public class ParseForm extends Command {
     public void setFormId(String formId) {
         this.formId = formId;
     }
-
 }

@@ -1,4 +1,4 @@
-package no.ks.eventstore2.eventstore.formProcessor;
+package no.ks.eventstore2.eventstore.formProcessorProject;
 
 import no.ks.eventstore2.Event;
 

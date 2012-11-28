@@ -4,10 +4,7 @@ import akka.actor.*;
 import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
-import no.ks.eventstore2.eventstore.testImplementations.DummyActor;
-import no.ks.eventstore2.eventstore.testImplementations.LetterReceived;
-import no.ks.eventstore2.eventstore.testImplementations.NotificationSaga;
-import no.ks.eventstore2.eventstore.testImplementations.NotificationSendt;
+import no.ks.eventstore2.eventstore.formProcessorProject.*;
 import no.ks.eventstore2.saga.SagaCompositeId;
 import no.ks.eventstore2.saga.SagaInMemoryRepository;
 import no.ks.eventstore2.saga.SagaManager;
@@ -34,44 +31,39 @@ public class SagaManagerTest extends TestKit {
         final Props props = getSagaManagerProps();
         final TestActorRef<SagaManager> ref = TestActorRef.create(_system, props, "sagaManager");
 
-        LetterReceived letterRecieved = new LetterReceived();
-        letterRecieved.setAggregateId("notification");
-        letterRecieved.setLetterId("1");
-        ref.tell(letterRecieved, super.testActor());
-        expectMsg("Send notification command");
+        FormReceived formReceived = new FormReceived("1");
+        formReceived.setAggregateId("FORM");
+        ref.tell(formReceived, super.testActor());
+        expectMsgClass(ParseForm.class);
     }
 
     @Test
     public void testIncomingEventWithExistingIdIsDispatchedToExistingSaga() throws Exception {
         final Props props = getSagaManagerProps();
         final TestActorRef<SagaManager> ref = TestActorRef.create(_system, props, "sagaManager1");
-        LetterReceived letterRecieved = new LetterReceived();
-        letterRecieved.setAggregateId("notification");
-        letterRecieved.setLetterId("2");
-        ref.tell(letterRecieved, super.testActor());
-        expectMsg("Send notification command");
-        NotificationSendt notificationSendt = new NotificationSendt();
-        notificationSendt.setAggregateId("notification");
-        notificationSendt.setLetterId("2");
-        ref.tell(notificationSendt, super.testActor());
-        expectMsg("Update logs");
+        FormReceived formReceived = new FormReceived("2");
+        formReceived.setAggregateId("FORM");
+        ref.tell(formReceived, super.testActor());
+        expectMsgClass(ParseForm.class);
+        FormParsed formParsed = new FormParsed("2");
+        formParsed.setAggregateId("FORM");
+        ref.tell(formParsed, super.testActor());
+        expectMsgClass(DeliverForm.class);
     }
 
     @Test
     public void testSagaStateSurvivesExceptionAndRestart() throws Exception {
         final Props props = getSagaManagerProps();
         final TestActorRef<SagaManager> ref = TestActorRef.create(_system, props, "sagaManager2");
-        LetterReceived letterRecieved = new LetterReceived();
-        letterRecieved.setAggregateId("notification");
-        letterRecieved.setLetterId("2");
-        ref.tell(letterRecieved, super.testActor());
-        ((HashMap <SagaCompositeId, ActorRef>)ReflectionTestUtils.getField(ref.underlyingActor(), "sagas")).get(new SagaCompositeId(NotificationSaga.class, "2")).tell("BOOM!", super.testActor());
-        expectMsg("Send notification command");
-        NotificationSendt notificationSendt = new NotificationSendt();
-        notificationSendt.setAggregateId("notification");
-        notificationSendt.setLetterId("2");
-        ref.tell(notificationSendt, super.testActor());
-        expectMsg("Update logs");
+        FormReceived formReceived = new FormReceived("2");
+        formReceived.setAggregateId("FORM");
+        ref.tell(formReceived, super.testActor());
+        ((HashMap <SagaCompositeId, ActorRef>)ReflectionTestUtils.getField(ref.underlyingActor(), "sagas")).get(new SagaCompositeId(FormProcess.class, "2")).tell("BOOM!", super.testActor());
+        expectMsgClass(ParseForm.class);
+        FormParsed formParsed = new FormParsed("2");
+        formParsed.setAggregateId("FORM");
+        ref.tell(formParsed, super.testActor());
+        expectMsgClass(DeliverForm.class);
     }
 
     private Props getSagaManagerProps() {

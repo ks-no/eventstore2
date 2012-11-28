@@ -1,11 +1,11 @@
-package no.ks.eventstore2.eventstore.formProcessor;
+package no.ks.eventstore2.eventstore.formProcessorProject;
 
 import no.ks.eventstore2.Event;
 
-public class FormReceived extends Event {
+public class FormDelivered extends Event {
     private String formId;
 
-    public FormReceived(String formId) {
+    public FormDelivered(String formId) {
         this.formId = formId;
         this.aggregateId = "FORM";
     }

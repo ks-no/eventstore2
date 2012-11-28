@@ -7,9 +7,9 @@ import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
 import no.ks.eventstore2.command.CommandHandlerFactory;
-import no.ks.eventstore2.eventstore.testImplementations.NotificationCommandHandler;
-import no.ks.eventstore2.eventstore.testImplementations.NotificationSendt;
-import no.ks.eventstore2.eventstore.testImplementations.SendNotification;
+import no.ks.eventstore2.eventstore.formProcessorProject.FormParsed;
+import no.ks.eventstore2.eventstore.formProcessorProject.FormParser;
+import no.ks.eventstore2.eventstore.formProcessorProject.ParseForm;
 import org.junit.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -24,14 +24,14 @@ public class CommandHandlerTest extends TestKit {
 
     @Test
     public void testCommandHandlerReceivesCommandAndDispatchesCorrespondingEvent() throws Exception {
-        final TestActorRef<NotificationCommandHandler> ref = TestActorRef.create(_system, new Props(new CommandHandlerFactory() {
+        final TestActorRef<FormParser> ref = TestActorRef.create(_system, new Props(new CommandHandlerFactory() {
             @Override
             public Actor create() throws Exception {
-                return new NotificationCommandHandler(eventStore);
+                return new FormParser(eventStore);
             }
         }), "notification_handler");
         ReflectionTestUtils.setField(ref.underlyingActor(), "eventStore", super.testActor());
-        ref.tell(new SendNotification(), super.testActor());
-        expectMsgClass(NotificationSendt.class);
+        ref.tell(new ParseForm("formId"), super.testActor());
+        expectMsgClass(FormParsed.class);
     }
 }

@@ -1,4 +1,4 @@
-package no.ks.eventstore2.eventstore.formProcessor.test;
+package no.ks.eventstore2.eventstore;
 
 import akka.actor.Actor;
 import akka.actor.ActorRef;
@@ -7,10 +7,7 @@ import akka.actor.Props;
 import akka.testkit.JavaTestKit;
 import no.ks.eventstore2.command.CommandDispatcherFactory;
 import no.ks.eventstore2.command.CommandHandlerFactory;
-import no.ks.eventstore2.eventstore.EmbeddedDatabaseTest;
-import no.ks.eventstore2.eventstore.EventStoreFactory;
-import no.ks.eventstore2.eventstore.Subscription;
-import no.ks.eventstore2.eventstore.formProcessor.*;
+import no.ks.eventstore2.eventstore.formProcessorProject.*;
 import no.ks.eventstore2.saga.SagaInMemoryRepository;
 import no.ks.eventstore2.saga.SagaManagerFactory;
 import org.junit.AfterClass;
@@ -19,7 +16,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 
-public class FormProcessTest extends EmbeddedDatabaseTest {
+public class FormProcessorIntegrationTest extends EmbeddedDatabaseTest {
 
     static ActorSystem system;
 

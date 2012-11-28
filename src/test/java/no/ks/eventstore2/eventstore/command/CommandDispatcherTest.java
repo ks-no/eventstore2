@@ -8,9 +8,9 @@ import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
 import no.ks.eventstore2.command.CommandDispatcherFactory;
 import no.ks.eventstore2.command.CommandHandlerFactory;
-import no.ks.eventstore2.eventstore.testImplementations.NotificationCommandHandler;
-import no.ks.eventstore2.eventstore.testImplementations.NotificationSendt;
-import no.ks.eventstore2.eventstore.testImplementations.SendNotification;
+import no.ks.eventstore2.eventstore.formProcessorProject.FormParsed;
+import no.ks.eventstore2.eventstore.formProcessorProject.FormParser;
+import no.ks.eventstore2.eventstore.formProcessorProject.ParseForm;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -35,14 +35,14 @@ public class CommandDispatcherTest extends TestKit {
 
             @Override
             public Actor create() throws Exception {
-                return new NotificationCommandHandler(eventStore);
+                return new FormParser(eventStore);
             }
         });
         factory.setCommandHandlerFactories(factories);
         factory.setEventStore(super.testActor());
         TestActorRef commandDispatcherRef = TestActorRef.create(_system, new Props(factory), "commandDispatcherKing");
 
-        commandDispatcherRef.tell(new SendNotification(), super.testActor());
-        expectMsgClass(duration("300 seconds"),NotificationSendt.class);
+        commandDispatcherRef.tell(new ParseForm("1"), super.testActor());
+        expectMsgClass(duration("300 seconds"), FormParsed.class);
     }
 }

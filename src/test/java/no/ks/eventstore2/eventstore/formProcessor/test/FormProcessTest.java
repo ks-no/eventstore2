@@ -16,11 +16,8 @@ import no.ks.eventstore2.saga.SagaManagerFactory;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import scala.concurrent.Future;
 
 import java.util.ArrayList;
-
-import static akka.pattern.Patterns.ask;
 
 public class FormProcessTest extends EmbeddedDatabaseTest {
 

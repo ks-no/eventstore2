@@ -29,6 +29,8 @@ public abstract class Projection extends UntypedActor {
     public void onReceive(Object o) throws Exception{
         if (o instanceof Event)
             handleEvent((Event) o);
+        else if (o instanceof Call)
+            handleCall((Call) o);
     }
 
     public void handleEvent(Event event) {
@@ -40,6 +42,33 @@ public abstract class Projection extends UntypedActor {
                 throw new RuntimeException(e);
             }
     }
+
+    public void handleCall(Call call) {
+        System.out.println("handling call: " + call);
+        Method method = getCallMethod(call);
+        try {
+            sender().tell(method.invoke(this, call.getArgs()), self());
+        } catch (Exception e) {
+            throw new RuntimeException("Error calling method!", e);
+        }
+    }
+
+    private Method getCallMethod(Call call) {
+        java.lang.reflect.Method method;
+        try {
+            Class<?>[] classes = new Class<?>[call.getArgs().length];
+            for (int i = 0; i < call.getArgs().length; i++) {
+                classes[i] = call.getArgs()[i].getClass();
+            }
+            method = this.getClass().getMethod(call.getMethodName(), classes);
+            return method;
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException("No valid method to call!", e);
+        }
+
+    }
+
+
 
     private void init() {
         handleEventMap = new HashMap<Class<? extends Event>, Method>();

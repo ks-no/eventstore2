@@ -2,6 +2,11 @@ package no.ks.eventstore2.saga;
 
 import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
+import no.ks.eventstore2.Event;
+import no.ks.eventstore2.projection.*;
+
+import java.lang.reflect.Method;
+import java.util.HashMap;
 
 public abstract class Saga extends UntypedActor {
 
@@ -14,8 +19,9 @@ public abstract class Saga extends UntypedActor {
 	private byte state = STATE_INITIAL;
 	protected ActorRef commandDispatcher;
     protected SagaRepository repository;
+	private HashMap<Class<? extends Event>, Method> handleEventMap;
 
-    public Saga(String id, ActorRef commandDispatcher, SagaRepository repository) {
+	public Saga(String id, ActorRef commandDispatcher, SagaRepository repository) {
 		this.id = id;
         this.commandDispatcher = commandDispatcher;
         this.repository = repository;
@@ -25,9 +31,17 @@ public abstract class Saga extends UntypedActor {
     public void preStart() {
         super.preStart();
         loadPersistedState();
+		init();
     }
 
-    private void loadPersistedState() {
+	@Override
+	public void onReceive(Object o) throws Exception {
+		if(o instanceof Event){
+			handleEventMap.get(o.getClass()).invoke(this,o);
+		}
+	}
+
+	private void loadPersistedState() {
         state = repository.getState(this.getClass(),id);
     }
 
@@ -65,4 +79,23 @@ public abstract class Saga extends UntypedActor {
 		this.state = state;
 	}
 
+	private void init() {
+		handleEventMap = new HashMap<Class<? extends Event>, Method>();
+		try {
+			Class<? extends Saga> projectionClass = this.getClass();
+			ListensTo annotation = projectionClass.getAnnotation(ListensTo.class);
+			if (annotation != null) {
+				EventIdBind[] handledEventClasses = annotation.value();
+				for (EventIdBind eventIdBind : handledEventClasses) {
+					Method handleEventMethod = null;
+					handleEventMethod = projectionClass.getMethod("handleEvent", eventIdBind.eventClass());
+					handleEventMap.put(eventIdBind.eventClass(), handleEventMethod);
+				}
+
+
+			}
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
 }

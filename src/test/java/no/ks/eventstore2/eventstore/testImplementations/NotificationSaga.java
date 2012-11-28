@@ -16,16 +16,25 @@ public class NotificationSaga extends Saga {
         super(id, commandDispatcher, repository);
     }
 
-    @Override
-    public void onReceive(Object o) throws Exception {
-        if (o instanceof LetterReceived && getState() == STATE_INITIAL){
-            transitionState((byte)2);
-            commandDispatcher.tell("Send notification command", self());
-        } else if (o instanceof NotificationSendt && getState() == 2){
-            transitionState((byte)3);
-            commandDispatcher.tell("Update logs", self());
-        } else if ("BOOM!".equals(o)){
-            throw new RuntimeException("BOOM!");
-        }
+    public void handleEvent(LetterReceived event){
+			if (getState() == STATE_INITIAL){
+				transitionState((byte)2);
+				commandDispatcher.tell("Send notification command", self());
+			}
+	}
+	public void handleEvent(NotificationSendt event){
+			if (getState() == 2){
+				transitionState((byte)3);
+				commandDispatcher.tell("Update logs", self());
+			}
+
     }
+
+	@Override
+	public void onReceive(Object o) throws Exception {
+		if ("BOOM!".equals(o)){
+			throw new RuntimeException("BOOM!");
+		} else
+			super.onReceive(o);
+	}
 }

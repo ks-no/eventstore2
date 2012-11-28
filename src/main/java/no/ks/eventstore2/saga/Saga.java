@@ -3,7 +3,6 @@ package no.ks.eventstore2.saga;
 import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
 import no.ks.eventstore2.Event;
-import no.ks.eventstore2.projection.*;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;

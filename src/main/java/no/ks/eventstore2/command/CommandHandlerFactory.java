@@ -5,6 +5,8 @@ import akka.actor.UntypedActorFactory;
 
 public abstract class CommandHandlerFactory implements UntypedActorFactory {
 
+
+
     public void setEventStore(ActorRef eventStore) {
         this.eventStore = eventStore;
     }

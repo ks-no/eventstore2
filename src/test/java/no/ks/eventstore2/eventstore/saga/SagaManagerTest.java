@@ -4,6 +4,7 @@ import akka.actor.*;
 import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
+import no.ks.eventstore2.eventstore.testImplementations.DummyActor;
 import no.ks.eventstore2.eventstore.testImplementations.LetterReceived;
 import no.ks.eventstore2.eventstore.testImplementations.NotificationSaga;
 import no.ks.eventstore2.eventstore.testImplementations.NotificationSendt;
@@ -14,6 +15,7 @@ import org.junit.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.HashMap;
+import java.util.UUID;
 
 public class SagaManagerTest extends TestKit {
 
@@ -21,6 +23,7 @@ public class SagaManagerTest extends TestKit {
             .load().getConfig("TestSys"));
 
     private SagaInMemoryRepository sagaInMemoryRepository;
+
 
     public SagaManagerTest() {
         super(_system);
@@ -31,6 +34,7 @@ public class SagaManagerTest extends TestKit {
     public void testIncomingEventWithNewIdIsDispatchedToNewSaga() throws Exception {
         final Props props = getSagaManagerProps();
         final TestActorRef<SagaManager> ref = TestActorRef.create(_system, props, "sagaManager");
+
         LetterReceived letterRecieved = new LetterReceived();
         letterRecieved.setAggregateId("notification");
         letterRecieved.setLetterId("1");
@@ -72,10 +76,10 @@ public class SagaManagerTest extends TestKit {
     }
 
     private Props getSagaManagerProps() {
-        final ActorRef commandDispatcher = super.testActor();
+        final ActorRef testActor = super.testActor();
         return new Props(new UntypedActorFactory(){
 			public Actor create() throws Exception {
-                return new SagaManager(commandDispatcher, sagaInMemoryRepository);
+                return new SagaManager(testActor, sagaInMemoryRepository, TestActorRef.create(_system, new Props(DummyActor.class), UUID.randomUUID().toString()));
             }
         });
     }

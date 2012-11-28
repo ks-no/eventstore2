@@ -4,6 +4,7 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
 import no.ks.eventstore2.Event;
+import no.ks.eventstore2.eventstore.Subscription;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
@@ -16,12 +17,22 @@ import java.util.*;
 public class SagaManager extends UntypedActor {
     private final ActorRef commandDispatcher;
     private final SagaRepository repository;
+    private ActorRef eventstore;
 
     private Map<SagaCompositeId, ActorRef> sagas = new HashMap<SagaCompositeId, ActorRef>();
 
-    public SagaManager(ActorRef commandDispatcher, SagaRepository repository) {
+    public SagaManager(ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore) {
         this.commandDispatcher = commandDispatcher;
         this.repository = repository;
+        this.eventstore = eventstore;
+    }
+
+
+    @Override
+    public void preStart() {
+        for (String aggregate : aggregates) {
+            eventstore.tell(new Subscription(aggregate), self());
+        }
     }
 
     @Override

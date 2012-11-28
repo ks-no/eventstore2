@@ -54,8 +54,8 @@ class EventStore extends UntypedActor {
 
             publishEvents(subscription.getAggregateId());
             addSubscriber(subscription);
-        }  else {
-            sender().tell(o, self());
+        }  else if ("ping".equals(o)){
+            sender().tell("pong", self());
         }
     }
 

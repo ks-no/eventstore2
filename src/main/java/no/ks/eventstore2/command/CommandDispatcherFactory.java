@@ -11,6 +11,14 @@ public class CommandDispatcherFactory implements UntypedActorFactory {
     private List<CommandHandlerFactory> commandHandlerFactories;
     private ActorRef eventStore;
 
+    public CommandDispatcherFactory(List<CommandHandlerFactory> commandHandlerFactories, ActorRef eventStore) {
+        this.commandHandlerFactories = commandHandlerFactories;
+        this.eventStore = eventStore;
+    }
+
+    public CommandDispatcherFactory() {
+    }
+
     @Override
     public Actor create() throws Exception {
         return new CommandDispatcher(eventStore, commandHandlerFactories);

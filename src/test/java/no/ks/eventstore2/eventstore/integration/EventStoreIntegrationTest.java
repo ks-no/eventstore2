@@ -56,13 +56,13 @@ public class EventStoreIntegrationTest extends EmbeddedDatabaseTest {
             System.out.println("projection b created");
 
 
-            new Within(duration("300 seconds")) {
+            new Within(duration("3 seconds")) {
                 protected void run() {
                     eventStoreRef.tell(new EventA1(), getRef());
                     eventStoreRef.tell(new EventA1(), getRef());
                     eventStoreRef.tell(new EventA2(), getRef());
                     eventStoreRef.tell(new EventA2(), getRef());
-                    final Future<Object> future = ask(eventStoreRef,  "Hvordan går det", 300000);
+                    final Future<Object> future = ask(eventStoreRef,  "ping", 3000);
                     new AwaitCond() {
                         protected boolean cond() {
                             return future.isCompleted();
@@ -72,10 +72,10 @@ public class EventStoreIntegrationTest extends EmbeddedDatabaseTest {
             };
 
 
-            new Within(duration("300 seconds")) {
+            new Within(duration("3 seconds")) {
                 protected void run() {
-                    final Future<Object> futureEventsA = ask(projectionARef, "getProjectedEvents", 300000);
-                    final Future<Object> futureEventsB = ask(projectionBRef, "getProjectedEvents", 300000);
+                    final Future<Object> futureEventsA = ask(projectionARef, "getProjectedEvents", 3000);
+                    final Future<Object> futureEventsB = ask(projectionBRef, "getProjectedEvents", 3000);
 
                     new AwaitCond() {
                         protected boolean cond() {

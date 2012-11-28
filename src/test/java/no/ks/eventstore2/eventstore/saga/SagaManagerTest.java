@@ -15,7 +15,6 @@ import org.junit.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.HashMap;
-import java.util.UUID;
 
 public class SagaManagerTest extends TestKit {
 
@@ -79,7 +78,7 @@ public class SagaManagerTest extends TestKit {
         final ActorRef testActor = super.testActor();
         return new Props(new UntypedActorFactory(){
 			public Actor create() throws Exception {
-                return new SagaManager(testActor, sagaInMemoryRepository, TestActorRef.create(_system, new Props(DummyActor.class), UUID.randomUUID().toString()));
+                return new SagaManager(testActor, sagaInMemoryRepository, _system.actorOf(new Props(DummyActor.class)));
             }
         });
     }

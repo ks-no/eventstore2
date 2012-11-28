@@ -64,18 +64,8 @@ public class FormProcessTest extends EmbeddedDatabaseTest {
             final ActorRef commandDispatcher = system.actorOf(new Props(new CommandDispatcherFactory(commandHandlerFactories, eventStore)), "commandDispatcher");
             final ActorRef sagaManager = system.actorOf(new Props(new SagaManagerFactory(new SagaInMemoryRepository(), commandDispatcher, eventStore)), "sagaManager");
 
-            new Within(duration("3 seconds")) {
-                protected void run() {
-                    eventStore.tell(new FormReceived("form_id_1"), getRef());
-                    final Future<Object> future = ask(eventStore,  "ping", 3000);
-                    new AwaitCond() {
-                        protected boolean cond() {
-                            return future.isCompleted();
-                        }
-                    };
-                }
-            };
-            eventStore.tell(new Subscription("FORM"),getRef());
+            eventStore.tell(new FormReceived("form_id_1"), getRef());
+            eventStore.tell(new Subscription("FORM"), getRef());
             expectMsgClass(FormReceived.class);
             expectMsgClass(FormParsed.class);
             expectMsgClass(FormDelivered.class);

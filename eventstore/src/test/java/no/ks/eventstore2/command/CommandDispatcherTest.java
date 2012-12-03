@@ -1,4 +1,4 @@
-package no.ks.eventstore2.eventstore.command;
+package no.ks.eventstore2.command;
 
 import akka.actor.Actor;
 import akka.actor.ActorSystem;
@@ -6,11 +6,9 @@ import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
-import no.ks.eventstore2.command.CommandDispatcherFactory;
-import no.ks.eventstore2.command.CommandHandlerFactory;
-import no.ks.eventstore2.eventstore.formProcessorProject.FormParsed;
-import no.ks.eventstore2.eventstore.formProcessorProject.FormParser;
-import no.ks.eventstore2.eventstore.formProcessorProject.ParseForm;
+import no.ks.eventstore2.formProcessorProject.FormParsed;
+import no.ks.eventstore2.formProcessorProject.FormParser;
+import no.ks.eventstore2.formProcessorProject.ParseForm;
 import org.junit.Test;
 
 import java.util.ArrayList;

@@ -1,4 +1,4 @@
-package no.ks.eventstore2.eventstore.formProcessorProject;
+package no.ks.eventstore2.formProcessorProject;
 
 public enum FormStatus {
     DELIVERED, PARSED, RECEIVED

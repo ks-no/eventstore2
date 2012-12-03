@@ -1,14 +1,14 @@
-package no.ks.eventstore2.eventstore.projection;
+package no.ks.eventstore2.projection;
 
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
-import no.ks.eventstore2.eventstore.formProcessorProject.FormParsed;
-import no.ks.eventstore2.eventstore.formProcessorProject.FormReceived;
-import no.ks.eventstore2.eventstore.formProcessorProject.FormStatus;
-import no.ks.eventstore2.eventstore.formProcessorProject.FormStatuses;
+import no.ks.eventstore2.formProcessorProject.FormParsed;
+import no.ks.eventstore2.formProcessorProject.FormReceived;
+import no.ks.eventstore2.formProcessorProject.FormStatus;
+import no.ks.eventstore2.formProcessorProject.FormStatuses;
 import org.junit.Test;
 import scala.concurrent.Await;
 import scala.concurrent.Future;

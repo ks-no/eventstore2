@@ -1,13 +1,10 @@
-package no.ks.eventstore2.eventstore.saga;
+package no.ks.eventstore2.saga;
 
 import akka.actor.*;
 import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
-import no.ks.eventstore2.eventstore.formProcessorProject.*;
-import no.ks.eventstore2.saga.SagaCompositeId;
-import no.ks.eventstore2.saga.SagaInMemoryRepository;
-import no.ks.eventstore2.saga.SagaManager;
+import no.ks.eventstore2.formProcessorProject.*;
 import org.junit.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 

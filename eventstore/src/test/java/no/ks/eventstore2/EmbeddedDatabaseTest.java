@@ -1,4 +1,4 @@
-package no.ks.eventstore2.eventstore;
+package no.ks.eventstore2;
 
 import org.junit.After;
 import org.junit.Before;

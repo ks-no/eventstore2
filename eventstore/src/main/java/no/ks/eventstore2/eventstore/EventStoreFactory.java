@@ -16,7 +16,7 @@ public class EventStoreFactory implements UntypedActorFactory {
 
 	private DataSource ds;
 
-    public Actor create() throws Exception {
+    public Actor create() {
        return new EventStore(ds, getAdapters());
     }
 

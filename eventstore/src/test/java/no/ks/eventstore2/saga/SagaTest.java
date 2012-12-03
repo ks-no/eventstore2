@@ -1,13 +1,12 @@
-package no.ks.eventstore2.eventstore.saga;
+package no.ks.eventstore2.saga;
 
 import akka.actor.*;
 import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
-import no.ks.eventstore2.eventstore.formProcessorProject.FormProcess;
-import no.ks.eventstore2.eventstore.formProcessorProject.FormReceived;
-import no.ks.eventstore2.eventstore.formProcessorProject.ParseForm;
-import no.ks.eventstore2.saga.SagaInMemoryRepository;
+import no.ks.eventstore2.formProcessorProject.FormProcess;
+import no.ks.eventstore2.formProcessorProject.FormReceived;
+import no.ks.eventstore2.formProcessorProject.ParseForm;
 import org.junit.Test;
 
 import static junit.framework.Assert.assertEquals;

@@ -30,9 +30,11 @@ class EventStore extends UntypedActor {
     private JdbcTemplate template;
 
     Map<String, List<ActorRef>> aggregateSubscribers = new HashMap<String, List<ActorRef>>();
+	private List<ActorRef> remoteActors;
 
-    public EventStore(DataSource dataSource, List<Adapter> adapters) {
-        template = new JdbcTemplate(dataSource);
+	public EventStore(DataSource dataSource, List<Adapter> adapters, List<ActorRef> remoteActors) {
+		this.remoteActors = remoteActors;
+		template = new JdbcTemplate(dataSource);
         GsonBuilder builder = new GsonBuilder();
         for(Adapter adapter : adapters){
             builder.registerTypeAdapter(adapter.getType(), adapter.getTypeAdapter());
@@ -42,6 +44,9 @@ class EventStore extends UntypedActor {
 
     @Override
     public void preStart(){
+		for (ActorRef remoteEventStore : remoteActors) {
+			remoteEventStore.tell("Hi", self());
+		}
         System.out.println(getSelf().path().toString());
     }
 
@@ -54,9 +59,23 @@ class EventStore extends UntypedActor {
 
             publishEvents(subscription.getAggregateId());
             addSubscriber(subscription);
-        }  else if ("ping".equals(o)){
+			System.out.println("Got subscription on " + subscription.getAggregateId() + " from " + sender().path());
+			for (ActorRef remoteEventStore : remoteActors) {
+				remoteEventStore.tell(new RemoteSubscription(subscription),self());
+			}
+
+        } else if(o instanceof RemoteSubscription){
+			RemoteSubscription subscription = (RemoteSubscription) o;
+			addSubscriber(new Subscription(subscription.getAggregateId()));
+			System.out.println("Got remotesubscription on " + subscription.getAggregateId() + " from " + sender().path());
+
+		} else if ("ping".equals(o)){
             sender().tell("pong", self());
-        }
+        }  else if ("Hi".equals(o)){
+			for (String aggregateid : aggregateSubscribers.keySet()) {
+				sender().tell(new RemoteSubscription(aggregateid),self());
+			}
+		}
     }
 
     private void publishEvent(Event event) {

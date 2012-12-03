@@ -6,28 +6,16 @@ import akka.remote.testkit.{MultiNodeSpecCallbacks, MultiNodeConfig, MultiNodeSp
 import org.scalatest.{BeforeAndAfterAll, WordSpec}
 import org.scalatest.matchers.MustMatchers
 import sample.multinode.STMultiNodeSpec
+import no.ks.eventstore2.eventstore.EventStoreFactory
+import org.springframework.jdbc.datasource.embedded.{EmbeddedDatabaseType, EmbeddedDatabaseBuilder}
+import akka.cluster.routing.{ClusterRouterSettings, ClusterRouterConfig}
+import akka.routing.RoundRobinRouter
+import scala.concurrent.duration._
+import sample.cluster.{Increase, TestProjection}
+import concurrent.Await
 
 class MultiNodeSampleSpecMultiJvmNode1 extends MultiNodeSample
 class MultiNodeSampleSpecMultiJvmNode2 extends MultiNodeSample
-
-
-object SampleMultiJvmNode1 {
-  def main(args: Array[String]) {
-    println("Hello from node 1")
-  }
-}
-
-object SampleMultiJvmNode2 {
-  def main(args: Array[String]) {
-    println("Hello from node 2")
-  }
-}
-
-object SampleMultiJvmNode3 {
-  def main(args: Array[String]) {
-    println("Hello from node 3")
-  }
-}
 
 object MultiNodeSampleConfig extends MultiNodeConfig {
   val node1 = role("node1")
@@ -48,22 +36,46 @@ with STMultiNodeSpec with ImplicitSender {
     }
 
     "send to and receive from a remote node" in {
-      runOn(node1) {
-        enterBarrier("deployed")
-        val ponger = system.actorFor(node(node2) / "user" / "ponger")
-        ponger ! "ping"
-        expectMsg("pong")
+
+      runOn(node1){
+        val eventStoreFactory: EventStoreFactory = new EventStoreFactory()
+        val builder: EmbeddedDatabaseBuilder = new EmbeddedDatabaseBuilder
+        val db = builder.setType(EmbeddedDatabaseType.H2).addScript("schema.sql").build
+        eventStoreFactory.setDs(db);
+        eventStoreFactory.addRemoteEventStores(system.actorFor(node(node2) / "user" / "eventStore"));
+        println("setup" + system.actorOf(Props(eventStoreFactory),name = "eventStore").path)
+
+        system.actorOf(Props[TestProjection],"testProjection")
       }
 
-      runOn(node2) {
-        system.actorOf(Props(new Actor {
-          def receive = {
-            case "ping" => sender ! "pong"
-          }
-        }), "ponger")
-        enterBarrier("deployed")
+      runOn(node2){
+        val eventStoreFactory: EventStoreFactory = new EventStoreFactory()
+        val builder: EmbeddedDatabaseBuilder = new EmbeddedDatabaseBuilder
+        val db = builder.setType(EmbeddedDatabaseType.H2).addScript("schema.sql").build
+        eventStoreFactory.setDs(db);
+        eventStoreFactory.addRemoteEventStores(system.actorFor(node(node1) / "user" / "eventStore"));
+        println("setup" + system.actorOf(Props(eventStoreFactory),name = "eventStore").path)
       }
+      enterBarrier("startup_finished")
+    }
 
+    "Send event" in {
+      runOn(node2){
+        system.actorFor(node(node1) / "user" / "eventStore") ! new Increase
+      }
+      Thread.sleep(1000);
+      enterBarrier("per")
+    }
+
+    "projection is updated" in {
+      runOn(node1){
+        import no.ks.eventstore2.projection.CallProjection.call
+        import akka.pattern.{ ask, pipe}
+
+        val future = system.actorFor("akka://MultiNodeSample/user/testProjection").ask(call("getCount"))(5 seconds)
+        val result = Await.result(future, 5.seconds).asInstanceOf[Integer]
+        assert(result == 1)
+      }
       enterBarrier("finished")
     }
   }

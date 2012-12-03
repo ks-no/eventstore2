@@ -2,7 +2,9 @@ package no.ks.eventstore2;
 
 import org.joda.time.DateTime;
 
-public abstract class Event {
+import java.io.Serializable;
+
+public abstract class Event implements Serializable{
 
     protected String aggregateId;
 

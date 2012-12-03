@@ -1,6 +1,8 @@
 package no.ks.eventstore2.eventstore;
 
-public class Subscription {
+import java.io.Serializable;
+
+public class Subscription implements Serializable{
     private String aggregateId;
 
     public Subscription(String aggregateId) {

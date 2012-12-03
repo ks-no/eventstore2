@@ -37,6 +37,7 @@ object ExampleBuild extends Build {
       // ---- application dependencies ----
       "com.typesafe.akka" %% "akka-actor" % "2.1.0-RC2" cross CrossVersion.full,
       "com.typesafe.akka" %% "akka-remote" % "2.1.0-RC2" cross CrossVersion.full,
+      "com.typesafe.akka" %% "akka-cluster-experimental" % "2.1.0-RC2" cross CrossVersion.full,
       // ---- test dependencies ----
       "com.typesafe.akka" %% "akka-testkit" % "2.1.0-RC2" %
         "test" cross CrossVersion.full,

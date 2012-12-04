@@ -37,56 +37,56 @@ abstract class EventStore2Test
 
   val reaperWaitingTime = 30.seconds.dilated
 
-  /*"testing eventstore2" must {
+  "testing eventstore2" must {
 
     "cluster start up correctly" in {
 
       awaitClusterUp(first, second)
-
+    }
+    "send event to projection on other node" in {
+      var eventStore = "";
       runOn(first){
         val eventStoreFactory: EventStoreFactory = new EventStoreFactory()
         val builder: EmbeddedDatabaseBuilder = new EmbeddedDatabaseBuilder
         val db = builder.setType(EmbeddedDatabaseType.H2).addScript("schema.sql").build
         eventStoreFactory.setDs(db);
-        eventStoreFactory.addRemoteEventStores(system.actorFor(node(second) / "user" / "eventStore"));
-        println(system.actorOf(Props(eventStoreFactory).withRouter(
-          ClusterRouterConfig(RoundRobinRouter(1), ClusterRouterSettings(
-            totalInstances = 1, routeesPath = "/user/localEventStore",
-            allowLocalRoutees = true))),
-          name = "eventStore").path.address)
+        eventStore = system.actorOf(Props(eventStoreFactory), name = "eventStore").path.toString;
       }
       runOn(second){
         val eventStoreFactory: EventStoreFactory = new EventStoreFactory()
         val builder: EmbeddedDatabaseBuilder = new EmbeddedDatabaseBuilder
         val db = builder.setType(EmbeddedDatabaseType.H2).addScript("schema.sql").build
         eventStoreFactory.setDs(db);
-        eventStoreFactory.addRemoteEventStores(system.actorFor(node(first) / "user" / "eventStore"));
-        println(system.actorOf(Props(eventStoreFactory).withRouter(
-          ClusterRouterConfig(RoundRobinRouter(1), ClusterRouterSettings(
-            totalInstances = 1, routeesPath = "/user/localEventStore",
-            allowLocalRoutees = true))),
-          name = "eventStore").path.address)
+        eventStore = system.actorOf(Props(eventStoreFactory), name = "eventStore").path.toString;
       }
       enterBarrier("afterEeventStore")
       runOn(second){
         system.actorOf(Props[TestProjection],"testProjection");
       }
+
       enterBarrier("BeforeFirstEvent")
       runOn(first) {
-        system.actorFor("eventStore") ! new Increase
+          println(eventStore)
+          system.actorFor(eventStore) ! new Increase
       }
       enterBarrier("Count")
       runOn(second){
         import no.ks.eventstore2.projection.CallProjection.call
         import akka.pattern.{ ask, pipe}
-
-
-        val future = system.actorFor("cluster:///user/testProjection").ask(call("getCount"))(5 seconds)
-        val result = Await.result(future, 5.seconds).asInstanceOf[Integer]
-        assert(result == 0)
+        var result = 0;
+        val startTime = java.lang.System.currentTimeMillis();
+        var endTime = startTime
+        while(result == 0 && endTime < startTime + 1000*3){
+          Thread.sleep(100);
+          val future = system.actorFor(node(second) / "user" / "testProjection").ask(call("getCount"))(5 seconds)
+          result = Await.result(future, 5.seconds).asInstanceOf[Integer]
+          endTime = java.lang.System.currentTimeMillis();
+        }
+        System.out.println("Result is " + result)
+        assert(result == 1)
       }
 
-      enterBarrier("per")
+      enterBarrier("finished")
       /*runOn(first) {
         cluster.leave(second)
       }*/
@@ -108,5 +108,5 @@ abstract class EventStore2Test
 
       enterBarrier("finished")
     }
-  } */
+  }
 }

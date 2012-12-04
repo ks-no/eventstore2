@@ -1,7 +1,7 @@
 package sample.multinode
 
 import akka.testkit.ImplicitSender
-import akka.actor.{Props, Actor}
+import akka.actor.{ActorSystem, Props, Actor}
 import akka.remote.testkit.{MultiNodeSpecCallbacks, MultiNodeConfig, MultiNodeSpec}
 import org.scalatest.{BeforeAndAfterAll, WordSpec}
 import org.scalatest.matchers.MustMatchers
@@ -13,6 +13,7 @@ import akka.routing.RoundRobinRouter
 import scala.concurrent.duration._
 import sample.cluster.{Increase, TestProjection}
 import concurrent.Await
+import com.typesafe.config.ConfigFactory
 
 class MultiNodeSampleSpecMultiJvmNode1 extends MultiNodeSample
 class MultiNodeSampleSpecMultiJvmNode2 extends MultiNodeSample
@@ -35,7 +36,7 @@ with STMultiNodeSpec with ImplicitSender {
       enterBarrier("startup")
     }
 
-    "send to and receive from a remote node" in {
+   /* "be able to send event from one node to another" in {
 
       runOn(node1){
         val eventStoreFactory: EventStoreFactory = new EventStoreFactory()
@@ -57,27 +58,35 @@ with STMultiNodeSpec with ImplicitSender {
         println("setup" + system.actorOf(Props(eventStoreFactory),name = "eventStore").path)
       }
       enterBarrier("startup_finished")
-    }
-
-    "Send event" in {
       runOn(node2){
         system.actorFor(node(node1) / "user" / "eventStore") ! new Increase
       }
-      Thread.sleep(1000);
-      enterBarrier("per")
-    }
 
-    "projection is updated" in {
       runOn(node1){
         import no.ks.eventstore2.projection.CallProjection.call
         import akka.pattern.{ ask, pipe}
+        var result = 0;
+        while(result == 0){
+          Thread.sleep(100);
+          val future = system.actorFor("akka://MultiNodeSample/user/testProjection").ask(call("getCount"))(5 seconds)
+          result = Await.result(future, 5.seconds).asInstanceOf[Integer]
 
-        val future = system.actorFor("akka://MultiNodeSample/user/testProjection").ask(call("getCount"))(5 seconds)
-        val result = Await.result(future, 5.seconds).asInstanceOf[Integer]
+        }
         assert(result == 1)
       }
       enterBarrier("finished")
     }
+
+    "be able to handle node down" in {
+       runOn(node2){
+         system.shutdown();
+
+         testConductor.removeNode(myself)
+
+       }
+
+
+    }*/
   }
 }
 

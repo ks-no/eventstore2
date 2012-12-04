@@ -9,7 +9,7 @@ public class TestProjection extends Projection {
 
     @Override
     public void preStart() {
-        eventStore = getContext().actorFor("akka://MultiNodeSample/user/eventStore");
+        eventStore = getContext().actorFor("akka://EventStore2Test/user/eventStore");
         subscribe(eventStore);
     }
 

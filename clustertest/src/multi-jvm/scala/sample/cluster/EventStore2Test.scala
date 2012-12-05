@@ -11,9 +11,9 @@ import akka.remote.testkit.MultiNodeSpec
 import akka.testkit._
 import scala.concurrent.duration._
 import no.ks.eventstore2.eventstore.{Subscription, EventStoreFactory}
-import akka.actor.{Actor, Props}
+import akka.actor.{Address, Actor, Props}
 import org.springframework.jdbc.datasource.embedded.{EmbeddedDatabaseType, EmbeddedDatabaseBuilder}
-import sample.cluster.{Increase, TestProjection}
+import sample.cluster.{Database, Increase, TestProjection}
 import actors.ActorRef
 import akka.util.Timeout
 import concurrent.Await
@@ -22,12 +22,14 @@ import akka.routing.RoundRobinRouter
 object NodeLeavingAndExitingAndBeingRemovedMultiJvmSpec extends MultiNodeConfig {
   val first = role("first")
   val second = role("second")
+  val third = role("third")
 
-  commonConfig(debugConfig(on = false).withFallback(MultiNodeClusterSpec.clusterConfigWithFailureDetectorPuppet))
+  commonConfig(debugConfig(on = false).withFallback(MultiNodeClusterSpec.clusterConfigWithFailureDetectorPuppet).withFallback(ConfigFactory.parseString("akka.cluster.auto-join = off")))
 }
 
 class Eventstore2MultiJvmNode1 extends EventStore2Test
 class Eventstore2MultiJvmNode2 extends EventStore2Test
+class Eventstore2MultiJvmNode3 extends EventStore2Test
 
 abstract class EventStore2Test
   extends MultiNodeSpec(NodeLeavingAndExitingAndBeingRemovedMultiJvmSpec)
@@ -37,26 +39,38 @@ abstract class EventStore2Test
 
   val reaperWaitingTime = 30.seconds.dilated
 
+  def seedNodes: IndexedSeq[Address] = IndexedSeq(first,second)
+
+  override def afterAll {
+    Database.cleanDatabase
+  }
+
+  override def beforeAll{
+    runOn(first){
+      Database.setupDatabase(Database.datasource)
+    }
+  }
+
   "testing eventstore2" must {
 
     "cluster start up correctly" in {
-
-      awaitClusterUp(first, second)
+      enterBarrier("before cluster start")
+      runOn(first, second){
+        cluster.joinSeedNodes(seedNodes)
+        awaitUpConvergence(2)
+      }
+      enterBarrier("cluster started")
     }
     "send event to projection on other node" in {
       var eventStore = "";
       runOn(first){
         val eventStoreFactory: EventStoreFactory = new EventStoreFactory()
-        val builder: EmbeddedDatabaseBuilder = new EmbeddedDatabaseBuilder
-        val db = builder.setType(EmbeddedDatabaseType.H2).addScript("schema.sql").build
-        eventStoreFactory.setDs(db);
+        eventStoreFactory.setDs(Database.datasource);
         eventStore = system.actorOf(Props(eventStoreFactory), name = "eventStore").path.toString;
       }
       runOn(second){
         val eventStoreFactory: EventStoreFactory = new EventStoreFactory()
-        val builder: EmbeddedDatabaseBuilder = new EmbeddedDatabaseBuilder
-        val db = builder.setType(EmbeddedDatabaseType.H2).addScript("schema.sql").build
-        eventStoreFactory.setDs(db);
+        eventStoreFactory.setDs(Database.datasource);
         eventStore = system.actorOf(Props(eventStoreFactory), name = "eventStore").path.toString;
       }
       enterBarrier("afterEeventStore")
@@ -87,12 +101,20 @@ abstract class EventStore2Test
       }
 
       enterBarrier("finished")
-      /*runOn(first) {
+
+    }
+
+    def seedNodes: IndexedSeq[Address] = IndexedSeq(first)
+
+
+    "a node leave and reconnect" in {
+      enterBarrier("start")
+      runOn(first) {
         cluster.leave(second)
-      }*/
+      }
       enterBarrier("second-left")
 
-      /*runOn(first) {
+      runOn(first) {
         // verify that the 'second' node is no longer part of the 'members' set
         awaitCond(clusterView.members.forall(_.address != address(second)), reaperWaitingTime)
 
@@ -104,9 +126,39 @@ abstract class EventStore2Test
         // verify that the second node is shut down and has status REMOVED
         awaitCond(!cluster.isRunning, reaperWaitingTime)
         awaitCond(clusterView.status == MemberStatus.Removed, reaperWaitingTime)
-      } */
+      }
+      enterBarrier("Node shut down")
+      runOn(third) {
+        cluster.joinSeedNodes(seedNodes);
+      }
+      runOn(first, third){
+        awaitUpConvergence(2)
+      }
+      runOn(third){
+          val eventStoreFactory: EventStoreFactory = new EventStoreFactory()
 
-      enterBarrier("finished")
+          eventStoreFactory.setDs(Database.datasource);
+          val eventStore = system.actorOf(Props(eventStoreFactory), name = "eventStore");
+      }
+      runOn(third){
+        system.actorOf(Props[TestProjection],"testProjection");
+      }
+      runOn(third){
+        import no.ks.eventstore2.projection.CallProjection.call
+        import akka.pattern.{ ask, pipe}
+        var result = 0;
+        val startTime = java.lang.System.currentTimeMillis();
+        var endTime = startTime
+        while(result == 0 && endTime < startTime + 1000*3){
+          Thread.sleep(100);
+          val future = system.actorFor(node(third) / "user" / "testProjection").ask(call("getCount"))(5 seconds)
+          result = Await.result(future, 5.seconds).asInstanceOf[Integer]
+          endTime = java.lang.System.currentTimeMillis();
+        }
+        System.out.println("Result is " + result)
+        assert(result == 1)
+      }
+      enterBarrier("finished2")
     }
   }
 }

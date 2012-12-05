@@ -5,6 +5,7 @@ import akka.actor.ActorRef;
 import akka.actor.Address;
 import akka.actor.UntypedActor;
 import akka.cluster.Cluster;
+import akka.cluster.ClusterEvent;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import no.ks.eventstore2.Event;
@@ -47,6 +48,21 @@ class EventStore extends UntypedActor {
 
 	@Override
 	public void preStart() {
+		updateLeaderState();
+		subscribeToClusterEvents();
+		System.out.println(getSelf().path().toString());
+	}
+
+	private void subscribeToClusterEvents() {
+		try {
+			Cluster cluster = Cluster.get(getContext().system());
+			cluster.subscribe(self(), ClusterEvent.ClusterDomainEvent.class);
+		} catch (ConfigurationException e) {
+
+		}
+	}
+
+	private void updateLeaderState() {
 		try {
 			Cluster cluster = Cluster.get(getContext().system());
 			leader = cluster.readView().isLeader();
@@ -59,11 +75,12 @@ class EventStore extends UntypedActor {
 			System.out.println("Not cluster system");
 			leader = true;
 		}
-		System.out.println(getSelf().path().toString());
 	}
 
 	public void onReceive(Object o) throws Exception {
-		if (o instanceof Event) {
+		if( o instanceof ClusterEvent.LeaderChanged){
+			updateLeaderState();
+		} else if (o instanceof Event) {
 			System.out.println("Got event " + o);
 			if (leader) {
 				storeEvent((Event) o);

@@ -18,6 +18,7 @@ import actors.ActorRef
 import akka.util.Timeout
 import concurrent.Await
 import akka.routing.RoundRobinRouter
+import akka.remote.testconductor.RoleName
 
 object NodeLeavingAndExitingAndBeingRemovedMultiJvmSpec extends MultiNodeConfig {
   val first = role("first")
@@ -57,6 +58,24 @@ abstract class EventStore2Test
     system.actorOf(Props(eventStoreFactory), name = "eventStore").path.toString;
   }
 
+  def checkProjection(checknode:RoleName) {
+    runOn(checknode){
+      import no.ks.eventstore2.projection.CallProjection.call
+      import akka.pattern.{ ask, pipe}
+      var result = 0;
+      val startTime = java.lang.System.currentTimeMillis();
+      var endTime = startTime
+      while(result == 0 && endTime < startTime + 1000*3){
+        Thread.sleep(100);
+        val future = system.actorFor(node(checknode) / "user" / "testProjection").ask(call("getCount"))(5 seconds)
+        result = Await.result(future, 5.seconds).asInstanceOf[Integer]
+        endTime = java.lang.System.currentTimeMillis();
+      }
+      System.out.println("Result is " + result)
+      assert(result == 1)
+    }
+  }
+
   "testing eventstore2" must {
 
     "cluster start up correctly" in {
@@ -83,21 +102,7 @@ abstract class EventStore2Test
           system.actorFor(eventStore) ! new Increase
       }
       enterBarrier("Count")
-      runOn(second){
-        import no.ks.eventstore2.projection.CallProjection.call
-        import akka.pattern.{ ask, pipe}
-        var result = 0;
-        val startTime = java.lang.System.currentTimeMillis();
-        var endTime = startTime
-        while(result == 0 && endTime < startTime + 1000*3){
-          Thread.sleep(100);
-          val future = system.actorFor(node(second) / "user" / "testProjection").ask(call("getCount"))(5 seconds)
-          result = Await.result(future, 5.seconds).asInstanceOf[Integer]
-          endTime = java.lang.System.currentTimeMillis();
-        }
-        System.out.println("Result is " + result)
-        assert(result == 1)
-      }
+      checkProjection(second)
 
       enterBarrier("finished")
 
@@ -138,21 +143,7 @@ abstract class EventStore2Test
       runOn(third){
         system.actorOf(Props[TestProjection],"testProjection");
       }
-      runOn(third){
-        import no.ks.eventstore2.projection.CallProjection.call
-        import akka.pattern.{ ask, pipe}
-        var result = 0;
-        val startTime = java.lang.System.currentTimeMillis();
-        var endTime = startTime
-        while(result == 0 && endTime < startTime + 1000*3){
-          Thread.sleep(100);
-          val future = system.actorFor(node(third) / "user" / "testProjection").ask(call("getCount"))(5 seconds)
-          result = Await.result(future, 5.seconds).asInstanceOf[Integer]
-          endTime = java.lang.System.currentTimeMillis();
-        }
-        System.out.println("Result is " + result)
-        assert(result == 1)
-      }
+      checkProjection(third)
       enterBarrier("finished2")
     }
   }

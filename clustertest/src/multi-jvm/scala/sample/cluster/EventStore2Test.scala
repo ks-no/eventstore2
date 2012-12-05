@@ -51,6 +51,12 @@ abstract class EventStore2Test
     }
   }
 
+  def startEventStore = {
+    val eventStoreFactory: EventStoreFactory = new EventStoreFactory()
+    eventStoreFactory.setDs(Database.datasource);
+    system.actorOf(Props(eventStoreFactory), name = "eventStore").path.toString;
+  }
+
   "testing eventstore2" must {
 
     "cluster start up correctly" in {
@@ -63,15 +69,8 @@ abstract class EventStore2Test
     }
     "send event to projection on other node" in {
       var eventStore = "";
-      runOn(first){
-        val eventStoreFactory: EventStoreFactory = new EventStoreFactory()
-        eventStoreFactory.setDs(Database.datasource);
-        eventStore = system.actorOf(Props(eventStoreFactory), name = "eventStore").path.toString;
-      }
-      runOn(second){
-        val eventStoreFactory: EventStoreFactory = new EventStoreFactory()
-        eventStoreFactory.setDs(Database.datasource);
-        eventStore = system.actorOf(Props(eventStoreFactory), name = "eventStore").path.toString;
+      runOn(first,second){
+        eventStore= startEventStore;
       }
       enterBarrier("afterEeventStore")
       runOn(second){
@@ -117,7 +116,6 @@ abstract class EventStore2Test
       runOn(first) {
         // verify that the 'second' node is no longer part of the 'members' set
         awaitCond(clusterView.members.forall(_.address != address(second)), reaperWaitingTime)
-
         // verify that the 'second' node is not part of the 'unreachable' set
         awaitCond(clusterView.unreachableMembers.forall(_.address != address(second)), reaperWaitingTime)
       }
@@ -135,10 +133,7 @@ abstract class EventStore2Test
         awaitUpConvergence(2)
       }
       runOn(third){
-          val eventStoreFactory: EventStoreFactory = new EventStoreFactory()
-
-          eventStoreFactory.setDs(Database.datasource);
-          val eventStore = system.actorOf(Props(eventStoreFactory), name = "eventStore");
+          startEventStore
       }
       runOn(third){
         system.actorOf(Props[TestProjection],"testProjection");

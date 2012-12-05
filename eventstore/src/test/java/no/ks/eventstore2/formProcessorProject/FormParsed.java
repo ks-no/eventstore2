@@ -17,4 +17,9 @@ public class FormParsed extends Event {
     public void setFormId(String formId) {
         this.formId = formId;
     }
+
+    @Override
+    public String getLogMessage() {
+        return "Form has been parsed";
+    }
 }

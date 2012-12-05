@@ -25,4 +25,6 @@ public abstract class Event implements Serializable{
     public void setCreated(DateTime created) {
         this.created = created;
     }
+
+    public abstract String getLogMessage();
 }

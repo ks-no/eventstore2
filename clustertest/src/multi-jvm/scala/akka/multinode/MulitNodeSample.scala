@@ -1,17 +1,17 @@
-package sample.multinode
+package akka.multinode
 
 import akka.testkit.ImplicitSender
 import akka.actor.{ActorSystem, Props, Actor}
 import akka.remote.testkit.{MultiNodeSpecCallbacks, MultiNodeConfig, MultiNodeSpec}
 import org.scalatest.{BeforeAndAfterAll, WordSpec}
 import org.scalatest.matchers.MustMatchers
-import sample.multinode.STMultiNodeSpec
+import akka.multinode.STMultiNodeSpec
 import no.ks.eventstore2.eventstore.EventStoreFactory
 import org.springframework.jdbc.datasource.embedded.{EmbeddedDatabaseType, EmbeddedDatabaseBuilder}
 import akka.cluster.routing.{ClusterRouterSettings, ClusterRouterConfig}
 import akka.routing.RoundRobinRouter
 import scala.concurrent.duration._
-import sample.cluster.{Increase, TestProjection}
+import akka.cluster.{Increase, TestProjection}
 import concurrent.Await
 import com.typesafe.config.ConfigFactory
 

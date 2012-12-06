@@ -19,7 +19,7 @@ import akka.actor.ActorPath
 import akka.actor.RootActorPath
 import akka.event.Logging.ErrorLevel
 import akka.actor.ActorSystem
-import sample.multinode.STMultiNodeSpec
+import akka.multinode.STMultiNodeSpec
 
 object MultiNodeClusterSpec {
 

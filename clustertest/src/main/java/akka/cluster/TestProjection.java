@@ -1,4 +1,4 @@
-package sample.cluster;
+package akka.cluster;
 
 import no.ks.eventstore2.projection.ListensTo;
 import no.ks.eventstore2.projection.Projection;

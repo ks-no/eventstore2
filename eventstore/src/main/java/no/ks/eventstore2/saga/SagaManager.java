@@ -1,8 +1,12 @@
 package no.ks.eventstore2.saga;
 
+import akka.ConfigurationException;
 import akka.actor.ActorRef;
+import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
+import akka.cluster.Cluster;
+import akka.cluster.ClusterEvent;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.eventstore.Subscription;
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -20,8 +24,9 @@ public class SagaManager extends UntypedActor {
     private ActorRef eventstore;
 
     private Map<SagaCompositeId, ActorRef> sagas = new HashMap<SagaCompositeId, ActorRef>();
+	private boolean leader;
 
-    public SagaManager(ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore) {
+	public SagaManager(ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore) {
         this.commandDispatcher = commandDispatcher;
         this.repository = repository;
         this.eventstore = eventstore;
@@ -30,6 +35,8 @@ public class SagaManager extends UntypedActor {
 
     @Override
     public void preStart() {
+		updateLeaderState();
+		subscribeToClusterEvents();
         for (String aggregate : aggregates) {
             eventstore.tell(new Subscription(aggregate), self());
         }
@@ -37,14 +44,18 @@ public class SagaManager extends UntypedActor {
 
     @Override
     public void onReceive(Object o) throws Exception {
-        if (o instanceof Event){
+		System.out.println("Sagamanager Received Event " + o + " is leader " + leader);
+        if (o instanceof Event && leader){
+			System.out.println("Sagamanager processing Event " + o);
             Event event = (Event) o;
             for (Class<? extends Saga> clz : getSagaClassesForEvent(event.getClass())) {
                 String sagaId = (String) propertyMap.get(new SagaEventId(clz, event.getClass())).invoke(event);
                 ActorRef sagaRef = getOrCreateSaga(clz, sagaId);
                 sagaRef.tell(event, self());
             }
-        }
+        } else if( o instanceof ClusterEvent.LeaderChanged){
+			updateLeaderState();
+		}
     }
 
     private ActorRef getOrCreateSaga(Class<? extends Saga> clz, String sagaId) {
@@ -104,4 +115,37 @@ public class SagaManager extends UntypedActor {
     private static void registerEventToSaga(Class<? extends Event> eventClass, Class<? extends Saga> saga) {
         getSagaClassesForEvent(eventClass).add(saga);
     }
+
+	private void subscribeToClusterEvents() {
+		try {
+			Cluster cluster = Cluster.get(getContext().system());
+			cluster.subscribe(self(), ClusterEvent.ClusterDomainEvent.class);
+		} catch (ConfigurationException e) {
+
+		}
+	}
+
+	private void updateLeaderState() {
+		try {
+			Cluster cluster = Cluster.get(getContext().system());
+			System.out.println("SagaManager was leader? " + leader);
+			boolean oldleader = leader;
+			leader = cluster.readView().isLeader();
+			System.out.println("SagaManager is leader? " + leader);
+			if(oldleader && !leader){
+				removeOldActorsWithWrongState();
+			}
+		} catch (ConfigurationException e) {
+			System.out.println("Not cluster system");
+			leader = true;
+		}
+	}
+
+	private void removeOldActorsWithWrongState() {
+		for (SagaCompositeId sagaCompositeId : sagas.keySet()) {
+			System.out.println("Removing actor " + sagas.get(sagaCompositeId).path());
+			sagas.get(sagaCompositeId).tell(PoisonPill.getInstance(), null);
+		}
+		sagas = new HashMap<SagaCompositeId, ActorRef>();
+	}
 }

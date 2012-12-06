@@ -13,7 +13,6 @@ import scala.concurrent.duration._
 import no.ks.eventstore2.eventstore.{Subscription, EventStoreFactory}
 import akka.actor.{Address, Actor, Props}
 import org.springframework.jdbc.datasource.embedded.{EmbeddedDatabaseType, EmbeddedDatabaseBuilder}
-import sample.cluster.{Database, Increase, TestProjection}
 import actors.ActorRef
 import akka.util.Timeout
 import concurrent.Await

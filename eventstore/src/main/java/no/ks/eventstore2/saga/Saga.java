@@ -54,7 +54,7 @@ public abstract class Saga extends UntypedActor {
 
 	protected void transitionState(byte state){
 		this.state = state;
-        repository.saveState(this.getClass(), id, state);
+		repository.saveState(this.getClass(), id, state);
 	}
 
 	@Override

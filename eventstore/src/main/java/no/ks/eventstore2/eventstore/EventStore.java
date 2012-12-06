@@ -6,6 +6,7 @@ import akka.actor.Address;
 import akka.actor.UntypedActor;
 import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
+import akka.cluster.MemberStatus;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import no.ks.eventstore2.Event;
@@ -71,6 +72,11 @@ class EventStore extends UntypedActor {
 			System.out.println("leader adress " + leaderAdress);
 			leaderEventStore = getContext().actorFor(leaderAdress.toString() + "/user/eventStore");
 			System.out.println("Leader eventstore is " + leaderEventStore.path());
+			System.out.println("Member status is " + cluster.readView().self().status());
+			if(!leader && cluster.readView().self().status().equals(MemberStatus.up()))
+				for (String s : aggregateSubscribers.keySet()) {
+					leaderEventStore.tell(new SubscriptionRefresh(s,aggregateSubscribers.get(s)));
+				}
 		} catch (ConfigurationException e) {
 			System.out.println("Not cluster system");
 			leader = true;
@@ -96,9 +102,20 @@ class EventStore extends UntypedActor {
 				publishEvents(subscription.getAggregateId());
 			else
 				leaderEventStore.tell(subscription, sender());
+		} else if (o instanceof SubscriptionRefresh) {
+			SubscriptionRefresh subscriptionRefresh = (SubscriptionRefresh) o;
+			System.out.println("Refreshing subscription for " + subscriptionRefresh);
+			addSubscriber(subscriptionRefresh);
 		} else if ("ping".equals(o)) {
 			sender().tell("pong", self());
 		}
+	}
+
+	private void addSubscriber(SubscriptionRefresh refresh) {
+		if(!aggregateSubscribers.containsKey(refresh.getAggregateId())){
+			aggregateSubscribers.put(refresh.getAggregateId(),new ArrayList<ActorRef>());
+		}
+		aggregateSubscribers.get(refresh.getAggregateId()).addAll(refresh.getSubscribers());
 	}
 
 	private void publishEvent(Event event) {

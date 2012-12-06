@@ -1,4 +1,4 @@
-package sample.cluster
+package akka.cluster
 
 import org.h2.jdbcx.JdbcDataSource
 import org.springframework.test.jdbc.{JdbcTestUtils, SimpleJdbcTestUtils}

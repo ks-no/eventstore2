@@ -7,6 +7,7 @@ package akka.cluster
 import akka.actor.{ Address, ActorSystem }
 import akka.event.{ Logging, LogSource }
 import akka.remote.testkit.MultiNodeConfig
+import akka.cluster.{FailureDetector, ClusterSettings}
 
 /**
  * User controllable "puppet" failure detector.

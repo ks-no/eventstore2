@@ -1,4 +1,4 @@
-package sample.cluster
+package akka.multinode
 
 import akka.remote.testkit.MultiNodeSpecCallbacks
 import org.scalatest.matchers.MustMatchers

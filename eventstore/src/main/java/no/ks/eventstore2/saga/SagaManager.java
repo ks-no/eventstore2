@@ -9,6 +9,8 @@ import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.eventstore.Subscription;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
@@ -19,6 +21,9 @@ import java.lang.reflect.Method;
 import java.util.*;
 
 public class SagaManager extends UntypedActor {
+
+	static final Logger log = LoggerFactory.getLogger(SagaManager.class);
+
     private final ActorRef commandDispatcher;
     private final SagaRepository repository;
     private ActorRef eventstore;
@@ -44,9 +49,9 @@ public class SagaManager extends UntypedActor {
 
     @Override
     public void onReceive(Object o) throws Exception {
-		System.out.println("Sagamanager Received Event " + o + " is leader " + leader);
+		log.debug("Sagamanager Received Event {} is leader {}", o, leader);
         if (o instanceof Event && leader){
-			System.out.println("Sagamanager processing Event " + o);
+			log.debug("Sagamanager processing Event {}", o);
             Event event = (Event) o;
             for (Class<? extends Saga> clz : getSagaClassesForEvent(event.getClass())) {
                 String sagaId = (String) propertyMap.get(new SagaEventId(clz, event.getClass())).invoke(event);
@@ -128,22 +133,22 @@ public class SagaManager extends UntypedActor {
 	private void updateLeaderState() {
 		try {
 			Cluster cluster = Cluster.get(getContext().system());
-			System.out.println("SagaManager was leader? " + leader);
+			log.debug("SagaManager was leader? {}", leader);
 			boolean oldleader = leader;
 			leader = cluster.readView().isLeader();
-			System.out.println("SagaManager is leader? " + leader);
+			log.debug("SagaManager is leader? {}", leader);
 			if(oldleader && !leader){
 				removeOldActorsWithWrongState();
 			}
 		} catch (ConfigurationException e) {
-			System.out.println("Not cluster system");
+			log.debug("Not cluster system");
 			leader = true;
 		}
 	}
 
 	private void removeOldActorsWithWrongState() {
 		for (SagaCompositeId sagaCompositeId : sagas.keySet()) {
-			System.out.println("Removing actor " + sagas.get(sagaCompositeId).path());
+			log.debug("Removing actor {}", sagas.get(sagaCompositeId).path());
 			sagas.get(sagaCompositeId).tell(PoisonPill.getInstance(), null);
 		}
 		sagas = new HashMap<SagaCompositeId, ActorRef>();

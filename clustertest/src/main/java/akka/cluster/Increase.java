@@ -19,9 +19,16 @@ public class Increase extends Event {
     }
 
     @Override
+    public String getLogMessage() {
+        return toString();
+    }
+
+    @Override
     public String toString() {
         return "Increase{" +
                 "id='" + id + '\'' +
                 '}';
     }
+
+
 }

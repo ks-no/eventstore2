@@ -4,6 +4,8 @@ import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.eventstore.Subscription;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -11,6 +13,7 @@ import java.util.Map;
 
 public abstract class Projection extends UntypedActor {
 
+	static final Logger log = LoggerFactory.getLogger(Projection.class);
     protected ActorRef eventStore;
     private Map<Class<? extends Event>, Method> handleEventMap = null;
 
@@ -44,7 +47,7 @@ public abstract class Projection extends UntypedActor {
     }
 
     public void handleCall(Call call) {
-        System.out.println("handling call: " + call);
+        log.debug("handling call: {}", call);
         Method method = getCallMethod(call);
         try {
             sender().tell(method.invoke(this, call.getArgs()), self());

@@ -12,12 +12,15 @@ import com.google.gson.GsonBuilder;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.json.Adapter;
 import org.joda.time.DateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.support.AbstractLobCreatingPreparedStatementCallback;
 import org.springframework.jdbc.support.lob.DefaultLobHandler;
 import org.springframework.jdbc.support.lob.LobCreator;
 import org.springframework.jdbc.support.lob.LobHandler;
+
 
 import javax.sql.DataSource;
 import java.sql.Clob;
@@ -31,6 +34,8 @@ import java.util.Map;
 
 class EventStore extends UntypedActor {
 
+
+	static final Logger log = LoggerFactory.getLogger(EventStore.class);
 	private Gson gson = new Gson();
 	private JdbcTemplate template;
 
@@ -51,7 +56,7 @@ class EventStore extends UntypedActor {
 	public void preStart() {
 		updateLeaderState();
 		subscribeToClusterEvents();
-		System.out.println(getSelf().path().toString());
+		log.debug("Eventstore started with adress {}", getSelf().path());
 	}
 
 	private void subscribeToClusterEvents() {
@@ -67,18 +72,18 @@ class EventStore extends UntypedActor {
 		try {
 			Cluster cluster = Cluster.get(getContext().system());
 			leader = cluster.readView().isLeader();
-			System.out.println("Is leader? " + leader);
+			log.debug("Is leader? {}", leader);
 			Address leaderAdress = cluster.readView().leader().get();
-			System.out.println("leader adress " + leaderAdress);
+			log.debug("leader adress {}",leaderAdress);
 			leaderEventStore = getContext().actorFor(leaderAdress.toString() + "/user/eventStore");
-			System.out.println("Leader eventstore is " + leaderEventStore.path());
-			System.out.println("Member status is " + cluster.readView().self().status());
+			log.debug("Leader eventstore is {}",leaderEventStore.path());
+			log.debug("Member status is {}", cluster.readView().self().status());
 			if(!leader && cluster.readView().self().status().equals(MemberStatus.up()))
 				for (String s : aggregateSubscribers.keySet()) {
 					leaderEventStore.tell(new SubscriptionRefresh(s,aggregateSubscribers.get(s)));
 				}
 		} catch (ConfigurationException e) {
-			System.out.println("Not cluster system");
+			log.debug("Not cluster system");
 			leader = true;
 		}
 	}
@@ -87,7 +92,7 @@ class EventStore extends UntypedActor {
 		if( o instanceof ClusterEvent.LeaderChanged){
 			updateLeaderState();
 		} else if (o instanceof Event) {
-			System.out.println("Got event " + o);
+			log.debug("Got event {}",o);
 			if (leader) {
 				storeEvent((Event) o);
 				publishEvent((Event) o);
@@ -96,7 +101,7 @@ class EventStore extends UntypedActor {
 			}
 		} else if (o instanceof Subscription) {
 			Subscription subscription = (Subscription) o;
-			System.out.println("Got subscription on " + subscription.getAggregateId() + " from " + sender().path());
+			log.debug("Got subscription on {} from {}",  subscription.getAggregateId()  , sender().path());
 			addSubscriber(subscription);
 			if (leader)
 				publishEvents(subscription.getAggregateId());
@@ -104,7 +109,7 @@ class EventStore extends UntypedActor {
 				leaderEventStore.tell(subscription, sender());
 		} else if (o instanceof SubscriptionRefresh) {
 			SubscriptionRefresh subscriptionRefresh = (SubscriptionRefresh) o;
-			System.out.println("Refreshing subscription for " + subscriptionRefresh);
+			log.debug("Refreshing subscription for {}", subscriptionRefresh);
 			addSubscriber(subscriptionRefresh);
 		} else if ("ping".equals(o)) {
 			sender().tell("pong", self());
@@ -123,7 +128,7 @@ class EventStore extends UntypedActor {
 		if (actorRefs == null)
 			return;
 		for (ActorRef ref : actorRefs) {
-			System.out.println("Publishing event to " + ref.path().toString());
+			log.debug("Publishing event to {}", ref.path());
 			ref.tell(event, self());
 		}
 	}

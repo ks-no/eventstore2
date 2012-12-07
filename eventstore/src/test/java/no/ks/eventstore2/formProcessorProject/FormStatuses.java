@@ -1,5 +1,6 @@
 package no.ks.eventstore2.formProcessorProject;
 
+import akka.actor.ActorRef;
 import no.ks.eventstore2.projection.ListensTo;
 import no.ks.eventstore2.projection.Projection;
 
@@ -10,6 +11,10 @@ import java.util.Map;
 public class FormStatuses extends Projection {
 
     Map<String, FormStatus> statuses = new LinkedHashMap<String, FormStatus>();
+
+    public FormStatuses(ActorRef eventStore) {
+        super(eventStore);
+    }
 
     public int getNumberOfForms() {
         return statuses.size();

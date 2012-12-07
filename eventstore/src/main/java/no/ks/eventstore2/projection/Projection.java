@@ -17,14 +17,14 @@ public abstract class Projection extends UntypedActor {
     protected ActorRef eventStore;
     private Map<Class<? extends Event>, Method> handleEventMap = null;
 
-    protected Projection() {
+    public Projection(ActorRef eventStore) {
+        this.eventStore = eventStore;
         init();
     }
 
     @Override
     public void preStart(){
         System.out.println(getSelf().path().toString());
-        eventStore = getContext().actorFor("akka://default/user/eventStore");
         subscribe(eventStore);
     }
 

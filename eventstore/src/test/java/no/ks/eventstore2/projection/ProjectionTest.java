@@ -1,5 +1,7 @@
 package no.ks.eventstore2.projection;
 
+import akka.actor.Actor;
+import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
@@ -29,7 +31,13 @@ public class ProjectionTest extends TestKit{
 
     @Test
     public void testProjectionReturnsStatusOnCallWithNoArgs() throws Exception {
-        final TestActorRef<FormStatuses> ref = TestActorRef.create(_system, new Props(FormStatuses.class), "lastFormStatus1");
+        final TestActorRef<FormStatuses> ref = TestActorRef.create(_system, new Props(new ProjectionFactory(super.testActor()){
+            @Override
+            public Actor create() throws Exception {
+                return new FormStatuses(eventstore);
+            }
+        }), "lastFormStatus1");
+
         ref.tell(new FormReceived("1"), super.testActor());
         Future<Object> numberOfForms = ask(ref, call("getNumberOfForms"), 3000);
 
@@ -39,7 +47,12 @@ public class ProjectionTest extends TestKit{
     @Test
     public void testProjectionReturnsStatusForSpecifiedFormOnCallWithArgs() throws Exception {
 
-        final TestActorRef<FormStatuses> ref = TestActorRef.create(_system, new Props(FormStatuses.class), "lastFormStatus2");
+        final TestActorRef<FormStatuses> ref = TestActorRef.create(_system, new Props(new ProjectionFactory(super.testActor()){
+            @Override
+            public Actor create() throws Exception {
+                return new FormStatuses(eventstore);
+            }
+        }), "lastFormStatus2");
 
         ref.tell(new FormReceived("2"), super.testActor());
         ref.tell(new FormReceived("3"), super.testActor());

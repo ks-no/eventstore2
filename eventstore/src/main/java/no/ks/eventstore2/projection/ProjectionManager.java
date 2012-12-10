@@ -4,11 +4,12 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class ProjectionManager extends UntypedActor {
-    private Map<Class<? extends Projection>, ActorRef> projections;
+    private Map<Class<? extends Projection>, ActorRef> projections = new HashMap<Class<? extends Projection>, ActorRef>();
 
     public ProjectionManager(List<ProjectionFactory> projectionFactories) {
 

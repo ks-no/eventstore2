@@ -11,13 +11,14 @@ import akka.remote.testkit.MultiNodeSpec
 import akka.testkit._
 import scala.concurrent.duration._
 import no.ks.eventstore2.eventstore.{Subscription, EventStoreFactory}
-import akka.actor.{Address, Actor, Props}
+import akka.actor.{ActorRef, Address, Actor, Props}
 import org.springframework.jdbc.datasource.embedded.{EmbeddedDatabaseType, EmbeddedDatabaseBuilder}
 import actors.ActorRef
 import akka.util.Timeout
 import concurrent.Await
 import akka.routing.RoundRobinRouter
 import akka.remote.testconductor.RoleName
+import no.ks.eventstore2.projection.ProjectionFactory
 
 object NodeLeavingAndExitingAndBeingRemovedMultiJvmSpec extends MultiNodeConfig {
   val first = role("first")
@@ -92,7 +93,8 @@ abstract class EventStore2Test
       }
       enterBarrier("afterEeventStore")
       runOn(second){
-        system.actorOf(Props[TestProjection],"testProjection");
+        val projecfactory = new TestProjectionFactory(system.actorFor(eventStore));
+        system.actorOf(Props(projecfactory),"testProjection");
       }
 
       enterBarrier("BeforeFirstEvent")
@@ -136,11 +138,13 @@ abstract class EventStore2Test
       runOn(first, third){
         awaitUpConvergence(2)
       }
+      var eventStore = "";
       runOn(third){
-          startEventStore
+          eventStore = startEventStore
       }
       runOn(third){
-        system.actorOf(Props[TestProjection],"testProjection");
+        val projecfactory = new TestProjectionFactory(system.actorFor(eventStore));
+        system.actorOf(Props(projecfactory),"testProjection");
       }
       checkProjection(third)
       enterBarrier("finished2")

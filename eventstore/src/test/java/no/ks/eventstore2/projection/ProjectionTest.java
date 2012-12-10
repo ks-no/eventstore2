@@ -36,6 +36,11 @@ public class ProjectionTest extends TestKit{
             public Actor create() throws Exception {
                 return new FormStatuses(eventstore);
             }
+
+            @Override
+            public Class<? extends Projection> getProjectionClass() {
+                return FormStatuses.class;
+            }
         }), "lastFormStatus1");
 
         ref.tell(new FormReceived("1"), super.testActor());
@@ -51,6 +56,11 @@ public class ProjectionTest extends TestKit{
             @Override
             public Actor create() throws Exception {
                 return new FormStatuses(eventstore);
+            }
+
+            @Override
+            public Class<? extends Projection> getProjectionClass() {
+                return FormStatuses.class;
             }
         }), "lastFormStatus2");
 

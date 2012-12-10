@@ -9,4 +9,6 @@ public abstract class ProjectionFactory implements UntypedActorFactory {
     protected ProjectionFactory(ActorRef eventstore) {
         this.eventstore = eventstore;
     }
+
+    public abstract Class<? extends Projection> getProjectionClass();
 }

@@ -21,7 +21,6 @@ import org.springframework.jdbc.support.lob.DefaultLobHandler;
 import org.springframework.jdbc.support.lob.LobCreator;
 import org.springframework.jdbc.support.lob.LobHandler;
 
-
 import javax.sql.DataSource;
 import java.sql.Clob;
 import java.sql.PreparedStatement;

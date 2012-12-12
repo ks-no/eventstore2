@@ -70,6 +70,14 @@ class EventStore extends UntypedActor {
 	private void updateLeaderState() {
 		try {
 			Cluster cluster = Cluster.get(getContext().system());
+            boolean notReady = true;
+            while (notReady) {
+                try {
+                    Thread.sleep(200);
+                    cluster.readView().leader().get();
+                    notReady = false;
+                } catch (Exception e) {}
+            }
 			leader = cluster.readView().isLeader();
 			log.debug("Is leader? {}", leader);
 			Address leaderAdress = cluster.readView().leader().get();
@@ -89,6 +97,7 @@ class EventStore extends UntypedActor {
 
 	public void onReceive(Object o) throws Exception {
 		if( o instanceof ClusterEvent.LeaderChanged){
+            log.debug("Recieved LeaderChanged event: {}", o);
 			updateLeaderState();
 		} else if (o instanceof Event) {
 			log.debug("Got event {}",o);
@@ -104,8 +113,10 @@ class EventStore extends UntypedActor {
 			addSubscriber(subscription);
 			if (leader)
 				publishEvents(subscription.getAggregateId());
-			else
-				leaderEventStore.tell(subscription, sender());
+			else{
+                log.debug("Sending subscription to leader {}", leaderEventStore.path());
+                leaderEventStore.tell(subscription, sender());
+            }
 		} else if (o instanceof SubscriptionRefresh) {
 			SubscriptionRefresh subscriptionRefresh = (SubscriptionRefresh) o;
 			log.debug("Refreshing subscription for {}", subscriptionRefresh);

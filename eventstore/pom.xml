@@ -64,6 +64,11 @@
             <artifactId>akka-actor_2.10.0-RC2</artifactId>
             <version>${akka.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-slf4j_2.10.0-RC2</artifactId>
+            <version>${akka.version}</version>
+        </dependency>
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
 			<artifactId>akka-cluster-experimental_2.10.0-RC2</artifactId>

@@ -129,7 +129,7 @@ class EventStore extends UntypedActor {
 			log.debug("Pong received from {}", sender());
 		} else if("startping".equals(o)){
 			log.debug("starting ping sending to {} from {}",leaderEventStore, self() );
-			leaderEventStore.tell("ping",self());
+			if(leaderEventStore != null) leaderEventStore.tell("ping",self());
 		}
 	}
 

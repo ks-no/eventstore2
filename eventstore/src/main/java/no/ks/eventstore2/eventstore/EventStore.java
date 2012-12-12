@@ -82,9 +82,10 @@ class EventStore extends UntypedActor {
 			log.debug("Is leader? {}", leader);
 			Address leaderAdress = cluster.readView().leader().get();
 			log.debug("leader adress {}",leaderAdress);
+
 			leaderEventStore = getContext().actorFor(leaderAdress.toString() + "/user/eventStore");
-			log.debug("Leader eventstore is {}",leaderEventStore.path());
 			log.debug("Member status is {}", cluster.readView().self().status());
+
 			if(!leader && cluster.readView().self().status().equals(MemberStatus.up()))
 				for (String s : aggregateSubscribers.keySet()) {
 					leaderEventStore.tell(new SubscriptionRefresh(s,aggregateSubscribers.get(s)));
@@ -114,7 +115,7 @@ class EventStore extends UntypedActor {
 			if (leader)
 				publishEvents(subscription.getAggregateId());
 			else{
-                log.debug("Sending subscription to leader {}", leaderEventStore.path());
+                log.debug("Sending subscription to leader {} from {}", leaderEventStore.path(), sender().path());
                 leaderEventStore.tell(subscription, sender());
             }
 		} else if (o instanceof SubscriptionRefresh) {
@@ -122,7 +123,13 @@ class EventStore extends UntypedActor {
 			log.debug("Refreshing subscription for {}", subscriptionRefresh);
 			addSubscriber(subscriptionRefresh);
 		} else if ("ping".equals(o)) {
-			sender().tell("pong", self());
+			log.debug("Ping reveiced from {}", sender());
+			leaderEventStore.tell("pong", self());
+		} else if("pong".equals(o)){
+			log.debug("Pong received from {}", sender());
+		} else if("startping".equals(o)){
+			log.debug("starting ping sending to {} from {}",leaderEventStore, self() );
+			leaderEventStore.tell("ping",self());
 		}
 	}
 

@@ -2,9 +2,10 @@ package no.ks.eventstore2.eventstore;
 
 import akka.actor.ActorRef;
 
+import java.io.Serializable;
 import java.util.List;
 
-public class SubscriptionRefresh {
+public class SubscriptionRefresh implements Serializable {
 	private final String aggregateId;
 	private final List<ActorRef> subscribers;
 

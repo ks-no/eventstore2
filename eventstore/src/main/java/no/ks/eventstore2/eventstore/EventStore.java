@@ -124,7 +124,7 @@ class EventStore extends UntypedActor {
 			addSubscriber(subscriptionRefresh);
 		} else if ("ping".equals(o)) {
 			log.debug("Ping reveiced from {}", sender());
-			leaderEventStore.tell("pong", self());
+			sender().tell("pong", self());
 		} else if("pong".equals(o)){
 			log.debug("Pong received from {}", sender());
 		} else if("startping".equals(o)){

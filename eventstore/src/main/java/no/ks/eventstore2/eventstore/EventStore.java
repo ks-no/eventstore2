@@ -159,7 +159,9 @@ class EventStore extends UntypedActor {
 
 	private void publishEvents(String aggregateid) {
 		for (Event event : loadEvents(aggregateid)) {
+			log.debug("Publishing event {} from db to {}",event,sender());
 			sender().tell(event, self());
+
 		}
 	}
 

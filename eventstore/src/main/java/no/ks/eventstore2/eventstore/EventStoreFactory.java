@@ -16,6 +16,8 @@ public class EventStoreFactory implements UntypedActorFactory {
 
 	private DataSource ds;
 
+	private List<Adapter> adapters = new ArrayList<Adapter>();
+
 	public Actor create() {
        return new EventStore(ds, getAdapters());
     }
@@ -23,6 +25,10 @@ public class EventStoreFactory implements UntypedActorFactory {
     public void setDs(DataSource ds) {
         this.ds = ds;
     }
+
+	public void addAdapter(Adapter adapter){
+		adapters.add(adapter);
+	}
 
     private List<Adapter> getAdapters() {
         List<Adapter> gsonAdapters = new ArrayList<Adapter>();

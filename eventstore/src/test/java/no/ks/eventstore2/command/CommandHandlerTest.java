@@ -24,7 +24,6 @@ public class CommandHandlerTest extends TestKit {
     @Test
     public void testCommandHandlerReceivesCommandAndDispatchesCorrespondingEvent() throws Exception {
         final TestActorRef<FormParser> ref = TestActorRef.create(_system, new Props(new CommandHandlerFactory() {
-            @Override
             public Actor create() throws Exception {
                 return new FormParser(eventStore);
             }

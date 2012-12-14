@@ -5,8 +5,9 @@ import akka.actor.ActorRef;
 import akka.actor.UntypedActorFactory;
 
 public class SagaManagerFactory implements UntypedActorFactory {
+	private static final long serialVersionUID = 1L;
 
-    private SagaRepository repository;
+	private SagaRepository repository;
     private ActorRef commandDispatcher;
     private ActorRef eventstore;
 
@@ -16,7 +17,6 @@ public class SagaManagerFactory implements UntypedActorFactory {
         this.eventstore = eventstore;
     }
 
-    @Override
     public Actor create() throws Exception {
         return new SagaManager(commandDispatcher, repository, eventstore);
     }

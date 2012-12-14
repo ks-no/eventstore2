@@ -4,6 +4,8 @@ import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.eventstore.Subscription;
+import no.ks.eventstore2.response.NoResult;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +52,12 @@ public abstract class Projection extends UntypedActor {
         log.debug("handling call: {}", call);
         Method method = getCallMethod(call);
         try {
-            sender().tell(method.invoke(this, call.getArgs()), self());
+        	Object result = method.invoke(this, call.getArgs());
+        	if(result != null){
+        		sender().tell(result, self());
+        	} else {
+        		sender().tell(new NoResult(), self());
+        	}
         } catch (Exception e) {
             throw new RuntimeException("Error calling method!", e);
         }
@@ -70,8 +77,6 @@ public abstract class Projection extends UntypedActor {
         }
 
     }
-
-
 
     private void init() {
         handleEventMap = new HashMap<Class<? extends Event>, Method>();
@@ -97,13 +102,3 @@ public abstract class Projection extends UntypedActor {
                 eventStore.tell(new Subscription(aggregate), self());
     }
 }
-
-
-
-
-
-
-
-
-
-

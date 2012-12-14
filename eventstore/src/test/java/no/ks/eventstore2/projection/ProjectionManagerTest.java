@@ -41,7 +41,6 @@ public class ProjectionManagerTest extends TestKit {
                 return FormStatuses.class;
             }
 
-            @Override
             public Actor create() throws Exception {
                 return new FormStatuses(eventstore);
             }

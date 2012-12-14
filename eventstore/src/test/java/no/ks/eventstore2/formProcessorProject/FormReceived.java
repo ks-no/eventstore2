@@ -3,7 +3,9 @@ package no.ks.eventstore2.formProcessorProject;
 import no.ks.eventstore2.Event;
 
 public class FormReceived extends Event {
-    private String formId;
+	private static final long serialVersionUID = 1L;
+
+	private String formId;
 
     public FormReceived(String formId) {
         this.formId = formId;

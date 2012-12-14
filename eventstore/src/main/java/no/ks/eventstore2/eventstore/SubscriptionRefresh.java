@@ -3,13 +3,13 @@ package no.ks.eventstore2.eventstore;
 import akka.actor.ActorRef;
 
 import java.io.Serializable;
-import java.util.List;
+import java.util.Set;
 
 public class SubscriptionRefresh implements Serializable {
 	private final String aggregateId;
-	private final List<ActorRef> subscribers;
+	private final Set<ActorRef> subscribers;
 
-	public SubscriptionRefresh(String aggregateId, List<ActorRef> subscribers) {
+	public SubscriptionRefresh(String aggregateId, Set<ActorRef> subscribers) {
 		this.aggregateId = aggregateId;
 		this.subscribers = subscribers;
 	}
@@ -18,7 +18,7 @@ public class SubscriptionRefresh implements Serializable {
 		return aggregateId;
 	}
 
-	public List<ActorRef> getSubscribers() {
+	public Set<ActorRef> getSubscribers() {
 		return subscribers;
 	}
 

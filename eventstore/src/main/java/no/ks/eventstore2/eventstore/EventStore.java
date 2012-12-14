@@ -26,10 +26,7 @@ import java.sql.Clob;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 class EventStore extends UntypedActor {
 
@@ -38,7 +35,7 @@ class EventStore extends UntypedActor {
 	private Gson gson = new Gson();
 	private JdbcTemplate template;
 
-	Map<String, List<ActorRef>> aggregateSubscribers = new HashMap<String, List<ActorRef>>();
+	Map<String, HashSet<ActorRef>> aggregateSubscribers = new HashMap<String, HashSet<ActorRef>>();
 	private boolean leader;
 	private ActorRef leaderEventStore;
 
@@ -71,20 +68,22 @@ class EventStore extends UntypedActor {
 		try {
 			Cluster cluster = Cluster.get(getContext().system());
             boolean notReady = true;
-            while (notReady) {
-                try {
-                    Thread.sleep(200);
-                    cluster.readView().leader().get();
-                    notReady = false;
-                } catch (Exception e) {}
-            }
+            while(!cluster.readView().self().status().equals(MemberStatus.up())){
+				try {
+					Thread.sleep(10);
+				} catch (InterruptedException e) {
+
+				}
+			}
 			leader = cluster.readView().isLeader();
 			log.debug("Is leader? {}", leader);
 			Address leaderAdress = cluster.readView().leader().get();
 			log.debug("leader adress {}",leaderAdress);
 
-			leaderEventStore = getContext().actorFor(leaderAdress.toString() + "/user/eventStore");
+			leaderEventStore = getContext().actorFor(leaderAdress.toString() + "/user/eventstore");
 			log.debug("Member status is {}", cluster.readView().self().status());
+			log.debug("Cluster members {}", cluster.readView().members());
+			log.debug("LeaderEventStore is {}", leaderEventStore);
 
 			if(!leader && cluster.readView().self().status().equals(MemberStatus.up()))
 				for (String s : aggregateSubscribers.keySet()) {
@@ -106,6 +105,7 @@ class EventStore extends UntypedActor {
 				storeEvent((Event) o);
 				publishEvent((Event) o);
 			} else {
+				log.debug("Sending event {} to Leader {}", o, sender());
 				leaderEventStore.tell(o, sender());
 			}
 		} else if (o instanceof Subscription) {
@@ -116,7 +116,7 @@ class EventStore extends UntypedActor {
 				publishEvents(subscription.getAggregateId());
 			else{
                 log.debug("Sending subscription to leader {} from {}", leaderEventStore.path(), sender().path());
-                leaderEventStore.tell(subscription, sender());
+				leaderEventStore.tell(subscription, sender());
             }
 		} else if (o instanceof SubscriptionRefresh) {
 			SubscriptionRefresh subscriptionRefresh = (SubscriptionRefresh) o;
@@ -135,13 +135,13 @@ class EventStore extends UntypedActor {
 
 	private void addSubscriber(SubscriptionRefresh refresh) {
 		if(!aggregateSubscribers.containsKey(refresh.getAggregateId())){
-			aggregateSubscribers.put(refresh.getAggregateId(),new ArrayList<ActorRef>());
+			aggregateSubscribers.put(refresh.getAggregateId(),new HashSet<ActorRef>());
 		}
 		aggregateSubscribers.get(refresh.getAggregateId()).addAll(refresh.getSubscribers());
 	}
 
 	private void publishEvent(Event event) {
-		List<ActorRef> actorRefs = aggregateSubscribers.get(event.getAggregateId());
+		Set<ActorRef> actorRefs = aggregateSubscribers.get(event.getAggregateId());
 		if (actorRefs == null)
 			return;
 		for (ActorRef ref : actorRefs) {
@@ -152,7 +152,7 @@ class EventStore extends UntypedActor {
 
 	private void addSubscriber(Subscription subscription) {
 		if (!aggregateSubscribers.containsKey(subscription.getAggregateId()))
-			aggregateSubscribers.put(subscription.getAggregateId(), new ArrayList<ActorRef>());
+			aggregateSubscribers.put(subscription.getAggregateId(), new HashSet<ActorRef>());
 
 		aggregateSubscribers.get(subscription.getAggregateId()).add(sender());
 	}

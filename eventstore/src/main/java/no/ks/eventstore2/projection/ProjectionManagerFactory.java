@@ -6,13 +6,14 @@ import akka.actor.UntypedActorFactory;
 import java.util.List;
 
 public class ProjectionManagerFactory implements UntypedActorFactory {
-    private final List<ProjectionFactory> projectionFactories;
+	private static final long serialVersionUID = 1L;
+
+	private final List<ProjectionFactory> projectionFactories;
 
     public ProjectionManagerFactory(List<ProjectionFactory> projectionFactories) {
         this.projectionFactories = projectionFactories;
     }
 
-    @Override
     public Actor create() throws Exception {
         return new ProjectionManager(projectionFactories);
     }

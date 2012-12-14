@@ -5,7 +5,9 @@ import akka.actor.ActorRef;
 import akka.actor.UntypedActorFactory;
 
 public class SagaFactory implements UntypedActorFactory {
-    private final Class<? extends Saga> clz;
+	private static final long serialVersionUID = 1L;
+
+	private final Class<? extends Saga> clz;
     private final ActorRef commandDispatcher;
     private final SagaRepository repository;
     private String sagaId;

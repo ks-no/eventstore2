@@ -30,8 +30,6 @@ public class CommandDispatcherTest extends TestKit {
         CommandDispatcherFactory factory = new CommandDispatcherFactory();
         List<CommandHandlerFactory> factories = new ArrayList<CommandHandlerFactory>();
         factories.add(new CommandHandlerFactory() {
-
-            @Override
             public Actor create() throws Exception {
                 return new FormParser(eventStore);
             }

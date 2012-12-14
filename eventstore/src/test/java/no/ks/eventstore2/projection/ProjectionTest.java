@@ -32,7 +32,6 @@ public class ProjectionTest extends TestKit{
     @Test
     public void testProjectionReturnsStatusOnCallWithNoArgs() throws Exception {
         final TestActorRef<FormStatuses> ref = TestActorRef.create(_system, new Props(new ProjectionFactory(super.testActor()){
-            @Override
             public Actor create() throws Exception {
                 return new FormStatuses(eventstore);
             }
@@ -53,7 +52,6 @@ public class ProjectionTest extends TestKit{
     public void testProjectionReturnsStatusForSpecifiedFormOnCallWithArgs() throws Exception {
 
         final TestActorRef<FormStatuses> ref = TestActorRef.create(_system, new Props(new ProjectionFactory(super.testActor()){
-            @Override
             public Actor create() throws Exception {
                 return new FormStatuses(eventstore);
             }

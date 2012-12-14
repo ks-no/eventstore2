@@ -44,14 +44,12 @@ public class FormProcessorIntegrationTest extends EmbeddedDatabaseTest {
             ArrayList<CommandHandlerFactory> commandHandlerFactories = new ArrayList<CommandHandlerFactory>();
 
             commandHandlerFactories.add(new CommandHandlerFactory() {
-                @Override
                 public Actor create() throws Exception {
                     return new FormParser(eventStore);
                 }
             });
 
             commandHandlerFactories.add(new CommandHandlerFactory() {
-                @Override
                 public Actor create() throws Exception {
                     return new FormDeliverer(eventStore);
                 }

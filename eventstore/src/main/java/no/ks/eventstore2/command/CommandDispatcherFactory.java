@@ -7,8 +7,9 @@ import akka.actor.UntypedActorFactory;
 import java.util.List;
 
 public class CommandDispatcherFactory implements UntypedActorFactory {
+	private static final long serialVersionUID = 1L;
 
-    private List<CommandHandlerFactory> commandHandlerFactories;
+	private List<CommandHandlerFactory> commandHandlerFactories;
     private ActorRef eventStore;
 
     public CommandDispatcherFactory(List<CommandHandlerFactory> commandHandlerFactories, ActorRef eventStore) {
@@ -19,7 +20,6 @@ public class CommandDispatcherFactory implements UntypedActorFactory {
     public CommandDispatcherFactory() {
     }
 
-    @Override
     public Actor create() throws Exception {
         return new CommandDispatcher(eventStore, commandHandlerFactories);
     }

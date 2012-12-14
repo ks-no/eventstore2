@@ -8,7 +8,7 @@ object ExampleBuild extends Build {
   lazy val buildSettings = Defaults.defaultSettings ++ multiJvmSettings ++ Seq(
     organization := "example",
     version := "1.0",
-    scalaVersion := "2.10.0-RC2"
+    scalaVersion := "2.10.0-RC5"
   )
 
   lazy val example = Project(
@@ -35,15 +35,15 @@ object ExampleBuild extends Build {
   object Dependencies {
     val example = Seq(
       // ---- application dependencies ----
-      "com.typesafe.akka" %% "akka-actor" % "2.1.0-RC2" cross CrossVersion.full,
-      "com.typesafe.akka" %% "akka-remote" % "2.1.0-RC2" cross CrossVersion.full,
-      "com.typesafe.akka" %% "akka-cluster-experimental" % "2.1.0-RC2" cross CrossVersion.full,
+      "com.typesafe.akka" %% "akka-actor" % "2.1.0-RC5" cross CrossVersion.full,
+      "com.typesafe.akka" %% "akka-remote" % "2.1.0-RC5" cross CrossVersion.full,
+      "com.typesafe.akka" %% "akka-cluster-experimental" % "2.1.0-RC5" cross CrossVersion.full,
       // ---- test dependencies ----
-      "com.typesafe.akka" %% "akka-testkit" % "2.1.0-RC2" %
+      "com.typesafe.akka" %% "akka-testkit" % "2.1.0-RC5" %
         "test" cross CrossVersion.full,
-      "com.typesafe.akka" %% "akka-remote-tests-experimental" % "2.1.0-RC2" %
+      "com.typesafe.akka" %% "akka-remote-tests-experimental" % "2.1.0-RC5" %
         "test" cross CrossVersion.full,
-      "org.scalatest" %% "scalatest" % "1.8-B2" % "test" cross CrossVersion.full
+      "org.scalatest" %% "scalatest" % "1.8-B1" % "test" cross CrossVersion.full
     )
   }
 }

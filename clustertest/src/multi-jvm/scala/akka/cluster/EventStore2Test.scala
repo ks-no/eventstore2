@@ -55,7 +55,7 @@ abstract class EventStore2Test
   def startEventStore = {
     val eventStoreFactory: EventStoreFactory = new EventStoreFactory()
     eventStoreFactory.setDs(Database.datasource);
-    system.actorOf(Props(eventStoreFactory), name = "eventStore").path.toString;
+    system.actorOf(Props(eventStoreFactory), name = "eventstore").path.toString;
   }
 
   def checkProjection(checknode:RoleName) {

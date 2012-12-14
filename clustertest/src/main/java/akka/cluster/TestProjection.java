@@ -14,6 +14,7 @@ public class TestProjection extends Projection {
     int count = 0;
 
     public void handleEvent(Increase event){
+        System.out.println("IncreasingCount");
         count++;
     }
 

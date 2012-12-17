@@ -15,3 +15,5 @@ libraryDependencies += "no.ks" % "eventstore2" % "1.0-SNAPSHOT"
 libraryDependencies+= "ch.qos.logback" % "logback-classic" % "1.0.7"
 
 libraryDependencies+= "org.springframework" % "spring-context" % "3.1.3.RELEASE"
+
+libraryDependencies+= "org.springframework" % "spring-jdbc" % "3.1.3.RELEASE"

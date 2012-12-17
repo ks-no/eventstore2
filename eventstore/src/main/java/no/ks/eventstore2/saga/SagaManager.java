@@ -7,6 +7,7 @@ import akka.actor.Props;
 import akka.actor.UntypedActor;
 import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
+import akka.cluster.MemberStatus;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.eventstore.Subscription;
 import org.slf4j.Logger;
@@ -133,6 +134,14 @@ public class SagaManager extends UntypedActor {
 	private void updateLeaderState() {
 		try {
 			Cluster cluster = Cluster.get(getContext().system());
+			boolean notReady = true;
+			while(!cluster.readView().self().status().equals(MemberStatus.up())){
+				try {
+					Thread.sleep(10);
+				} catch (InterruptedException e) {
+
+				}
+			}
 			log.debug("SagaManager was leader? {}", leader);
 			boolean oldleader = leader;
 			leader = cluster.readView().isLeader();

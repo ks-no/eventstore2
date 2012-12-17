@@ -5,13 +5,11 @@ import akka.actor.UntypedActorFactory;
 import no.ks.eventstore2.json.Adapter;
 import no.ks.eventstore2.json.DateTimeTypeConverter;
 import org.joda.time.DateTime;
-import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
 import java.util.ArrayList;
 import java.util.List;
 
-@Component
 public class EventStoreFactory implements UntypedActorFactory {
 
 	private DataSource ds;

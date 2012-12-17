@@ -154,6 +154,9 @@ abstract class SagaManagerClusterTest
       runOn(third){
         eventStore = startEventStore
         startSagaManager(eventStore)
+      }
+      enterBarrier("eventstore started")
+      runOn(third) {
         val increase: Increase = new Increase
         eventStore ! new Increase
         eventStore ! new Increase

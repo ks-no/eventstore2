@@ -80,7 +80,7 @@ class EventStore extends UntypedActor {
 			Address leaderAdress = cluster.readView().leader().get();
 			log.debug("leader adress {}",leaderAdress);
 
-			leaderEventStore = getContext().actorFor(leaderAdress.toString() + "/user/eventstore");
+			leaderEventStore = getContext().actorFor(leaderAdress + "/user/eventstore");
 			log.debug("Member status is {}", cluster.readView().self().status());
 			log.debug("Cluster members {}", cluster.readView().members());
 			log.debug("LeaderEventStore is {}", leaderEventStore);

@@ -2,6 +2,8 @@ package no.ks.eventstore2.command;
 
 import akka.actor.ActorRef;
 import akka.actor.UntypedActorFactory;
+import akka.routing.RoundRobinRouter;
+import akka.routing.RouterConfig;
 
 public abstract class CommandHandlerFactory implements UntypedActorFactory {
 	private static final long serialVersionUID = 1L;
@@ -18,4 +20,10 @@ public abstract class CommandHandlerFactory implements UntypedActorFactory {
     }
 
     protected ActorRef eventStore;
+
+	public boolean useRouter() {return false;}
+
+	public RouterConfig getRouter() {
+		return new RoundRobinRouter(1);
+	}
 }

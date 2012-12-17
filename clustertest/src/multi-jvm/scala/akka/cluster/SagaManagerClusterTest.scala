@@ -48,7 +48,7 @@ abstract class SagaManagerClusterTest
   def startEventStore = {
     val eventStoreFactory: EventStoreFactory = new EventStoreFactory()
     eventStoreFactory.setDs(Database.datasource);
-    system.actorOf(Props(eventStoreFactory), name = "eventStore");
+    system.actorOf(Props(eventStoreFactory), name = "eventstore");
   }
 
   var eventStore:ActorRef = null;

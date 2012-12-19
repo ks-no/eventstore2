@@ -32,6 +32,7 @@ public class EventStoreFactory implements UntypedActorFactory {
         List<Adapter> gsonAdapters = new ArrayList<Adapter>();
         Adapter jodaTimeAdapter = new Adapter(DateTime.class, new DateTimeTypeConverter());
         gsonAdapters.add(jodaTimeAdapter);
+		gsonAdapters.addAll(adapters);
         return gsonAdapters;
     }
 }

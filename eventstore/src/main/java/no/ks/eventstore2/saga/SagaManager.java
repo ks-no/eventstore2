@@ -50,7 +50,8 @@ public class SagaManager extends UntypedActor {
 
     @Override
     public void onReceive(Object o) throws Exception {
-		log.debug("Sagamanager Received Event {} is leader {}", o, leader);
+		if(log.isDebugEnabled() && o instanceof  Event)
+			log.debug("Sagamanager Received Event {} is leader {}", o, leader);
         if (o instanceof Event && leader){
 			log.debug("Sagamanager processing Event {}", o);
             Event event = (Event) o;

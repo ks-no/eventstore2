@@ -3,12 +3,15 @@ package no.ks.eventstore2.saga;
 import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
 import no.ks.eventstore2.Event;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;
 
 public abstract class Saga extends UntypedActor {
 
+	private Logger log = LoggerFactory.getLogger(this.getClass());
 
 	public static final byte STATE_INITIAL = 0;
 	public static final byte STATE_FINISHED = Byte.MAX_VALUE;
@@ -54,7 +57,12 @@ public abstract class Saga extends UntypedActor {
 
 	protected void transitionState(byte state){
 		this.state = state;
-		repository.saveState(this.getClass(), id, state);
+		try {
+			repository.saveState(this.getClass(), id, state);
+		} catch(Exception e){
+			log.error("Failed to save state for class " + this.getClass() + " id "  + id + " state " + state);
+			throw new RuntimeException(e);
+		}
 	}
 
 	@Override

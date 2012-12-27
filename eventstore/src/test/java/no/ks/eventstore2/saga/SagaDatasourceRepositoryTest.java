@@ -14,4 +14,17 @@ public class SagaDatasourceRepositoryTest extends EmbeddedDatabaseTest{
 		repo.saveState(FormProcess.class, "id", (byte) 45);
 		assertEquals(45,repo.getState(FormProcess.class, "id"));
 	}
+
+	@Test
+	public void testTwoSaves() throws Exception {
+		SagaDatasourceRepository repo = new SagaDatasourceRepository(db);
+		repo.saveState(FormProcess.class, "30d91ec9-f7de-4c56-850a-1b9e4ed92e85", (byte) 45);
+		repo = new SagaDatasourceRepository(db);
+		repo.saveState(FormProcess.class, "30d91ec9-f7de-4c56-850a-1b9e4ed92e85", (byte) 45);
+		repo.saveState(FormProcess.class, "30d91ec9-f7de-4c56-850a-1b9e4ed92e85", (byte) 45);
+		assertEquals(45,repo.getState(FormProcess.class, "30d91ec9-f7de-4c56-850a-1b9e4ed92e85"));
+
+
+
+	}
 }

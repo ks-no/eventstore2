@@ -10,5 +10,6 @@ create table Event(
 create table Saga(
 	id varchar(255),
 	clazz varchar(255),
-	state tinyint
+	state tinyint,
+	PRIMARY KEY(id, clazz)
 );

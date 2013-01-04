@@ -6,11 +6,22 @@ import akka.actor.UntypedActorFactory;
 public abstract class ProjectionFactory implements UntypedActorFactory {
 	private static final long serialVersionUID = 1L;
 
-	protected final ActorRef eventstore;
+	protected ActorRef eventstore;
 
     protected ProjectionFactory(ActorRef eventstore) {
         this.eventstore = eventstore;
     }
 
-    public abstract Class<? extends Projection> getProjectionClass();
+	protected ProjectionFactory() {
+	}
+
+	public ActorRef getEventstore() {
+		return eventstore;
+	}
+
+	public void setEventstore(ActorRef eventstore) {
+		this.eventstore = eventstore;
+	}
+
+	public abstract Class<? extends Projection> getProjectionClass();
 }

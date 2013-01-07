@@ -14,36 +14,44 @@ import java.util.Map;
 import static akka.pattern.Patterns.ask;
 import static akka.testkit.JavaTestKit.duration;
 
-public class CommandDispatcher extends UntypedActor{
+public class CommandDispatcher extends UntypedActor {
 
-    private Map<Class<? extends Command>,ActorRef> commandHandlers = new HashMap<Class<? extends Command>,ActorRef>();
+	private ActorRef eventStore;
+	private final List<CommandHandlerFactory> commandHandlerFactories;
+	private Map<Class<? extends Command>, ActorRef> commandHandlers = new HashMap<Class<? extends Command>, ActorRef>();
 
-    public CommandDispatcher(ActorRef eventStore, List<CommandHandlerFactory> commandHandlerFactories) {
-        for (CommandHandlerFactory factory : commandHandlerFactories) {
-            factory.setEventStore(eventStore);
+	public CommandDispatcher(ActorRef eventStore, List<CommandHandlerFactory> commandHandlerFactories) {
+		this.eventStore = eventStore;
+		this.commandHandlerFactories = commandHandlerFactories;
+	}
+
+	@Override
+	public void preStart() {
+		for (CommandHandlerFactory factory : commandHandlerFactories) {
+			factory.setEventStore(eventStore);
 			Props props = new Props(factory);
-			if(factory.useRouter()){
+			if (factory.useRouter()) {
 				props = props.withRouter(factory.getRouter());
 			}
 			ActorRef ref = getContext().actorOf(props);
 
-            Future<Object> future = ask(ref, "HandlesClasses", 1000);
-            try{
-            ImmutableSet<Class<? extends Command>> handles = (ImmutableSet<Class<? extends Command>>) Await.result(future, duration("1 second"));
-                for (Class<? extends Command> clz:handles){
-                    commandHandlers.put(clz,ref);
-                }
-            } catch(Exception e){
-                throw new RuntimeException(e);
-            }
-        }
-    }
+			Future<Object> future = ask(ref, "HandlesClasses", 1000);
+			try {
+				ImmutableSet<Class<? extends Command>> handles = (ImmutableSet<Class<? extends Command>>) Await.result(future, duration("1 second"));
+				for (Class<? extends Command> clz : handles) {
+					commandHandlers.put(clz, ref);
+				}
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+		}
+	}
 
-    @Override
-    public void onReceive(Object o) throws Exception {
-        if(o instanceof Command) {
-            ActorRef actorRef = commandHandlers.get(o.getClass());
-            actorRef.tell(o, sender());
-        }
-    }
+	@Override
+	public void onReceive(Object o) throws Exception {
+		if (o instanceof Command) {
+			ActorRef actorRef = commandHandlers.get(o.getClass());
+			actorRef.tell(o, sender());
+		}
+	}
 }

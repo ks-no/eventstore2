@@ -52,7 +52,7 @@ public abstract class OnlyExecuteOnLeaderCommandHandler extends CommandHandler {
 			updateLeaderState();
 		}
 
-		if(leader)
+		if(leader || "HandlesClasses".equals(o))
 			super.onReceive(o);
 	}
 }

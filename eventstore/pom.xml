@@ -10,7 +10,7 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <akka.version>2.1.0-RC5</akka.version>
+        <akka.version>2.1.0</akka.version>
 	</properties>
 	<build>
 		<plugins>
@@ -61,22 +61,22 @@
         </dependency>
         <dependency>
             <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-actor_2.10.0-RC5</artifactId>
+            <artifactId>akka-actor_2.10</artifactId>
             <version>${akka.version}</version>
         </dependency>
         <dependency>
             <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-slf4j_2.10.0-RC5</artifactId>
+            <artifactId>akka-slf4j_2.10</artifactId>
             <version>${akka.version}</version>
         </dependency>
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-cluster-experimental_2.10.0-RC5</artifactId>
+			<artifactId>akka-cluster-experimental_2.10</artifactId>
 			<version>${akka.version}</version>
 		</dependency>
         <dependency>
             <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-testkit_2.10.0-RC5</artifactId>
+            <artifactId>akka-testkit_2.10</artifactId>
             <version>${akka.version}</version>
         </dependency>
         <dependency>

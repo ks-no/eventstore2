@@ -2,7 +2,7 @@ name := "clustertests"
 
 version := "1.0-SNAPSHOT"
 
-scalaVersion := "2.10.0-RC5"
+scalaVersion := "2.10.0"
 
 resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
 

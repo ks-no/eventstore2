@@ -1,5 +1,5 @@
 /**
- *  Copyright (C) 2009-2012 Typesafe Inc. <http://www.typesafe.com>
+ * Copyright (C) 2009-2012 Typesafe Inc. <http://www.typesafe.com>
  */
 package akka.cluster
 
@@ -19,7 +19,6 @@ import akka.actor.ActorPath
 import akka.actor.RootActorPath
 import akka.event.Logging.ErrorLevel
 import akka.actor.ActorSystem
-import akka.multinode.STMultiNodeSpec
 
 object MultiNodeClusterSpec {
 
@@ -31,24 +30,24 @@ object MultiNodeClusterSpec {
     if (failureDetectorPuppet) clusterConfigWithFailureDetectorPuppet else clusterConfig
 
   def clusterConfig: Config = ConfigFactory.parseString("""
-    akka.actor.provider = akka.cluster.ClusterActorRefProvider
-    akka.cluster {
-      auto-join                           = off
-      auto-down                           = off
-      jmx.enabled                         = off
-      gossip-interval                     = 200 ms
-      leader-actions-interval             = 200 ms
-      unreachable-nodes-reaper-interval   = 200 ms
-      periodic-tasks-initial-delay        = 300 ms
-      publish-stats-interval              = 0 s # always, when it happens
-      failure-detector.heartbeat-interval = 400 ms
-    }
-    akka.loglevel = INFO
-    akka.remote.log-remote-lifecycle-events = off
-    akka.event-handlers = ["akka.testkit.TestEventListener"]
-    akka.test {
-      single-expect-default = 5 s
-    }
+akka.actor.provider = akka.cluster.ClusterActorRefProvider
+akka.cluster {
+auto-join = off
+auto-down = off
+jmx.enabled = off
+gossip-interval = 200 ms
+leader-actions-interval = 200 ms
+unreachable-nodes-reaper-interval = 200 ms
+periodic-tasks-initial-delay = 300 ms
+publish-stats-interval = 0 s # always, when it happens
+failure-detector.heartbeat-interval = 400 ms
+}
+akka.loglevel = INFO
+akka.remote.log-remote-lifecycle-events = off
+akka.event-handlers = ["akka.testkit.TestEventListener"]
+akka.test {
+single-expect-default = 5 s
+}
                                                         """)
 }
 
@@ -164,7 +163,7 @@ trait MultiNodeClusterSpec extends Suite with STMultiNodeSpec { self: MultiNodeS
   /**
    * Initialize the cluster of the specified member
    * nodes (roles) and wait until all joined and `Up`.
-   * First node will be started first  and others will join
+   * First node will be started first and others will join
    * the first.
    */
   def awaitClusterUp(roles: RoleName*): Unit = {
@@ -224,7 +223,9 @@ trait MultiNodeClusterSpec extends Suite with STMultiNodeSpec { self: MultiNodeS
     within(timeout) {
       awaitCond(clusterView.members.size == numberOfMembers)
       awaitCond(clusterView.members.forall(_.status == MemberStatus.Up))
-      awaitCond(clusterView.convergence)
+      // clusterView.leader is updated by LeaderChanged, await that to be updated also
+      val expectedLeader = clusterView.members.headOption.map(_.address)
+      awaitCond(clusterView.leader == expectedLeader)
       if (!canNotBePartOfMemberRing.isEmpty) // don't run this on an empty set
         awaitCond(
           canNotBePartOfMemberRing forall (address ⇒ !(clusterView.members exists (_.address == address))))
@@ -259,7 +260,7 @@ trait MultiNodeClusterSpec extends Suite with STMultiNodeSpec { self: MultiNodeS
    */
   def markNodeAsAvailable(address: Address): Unit = cluster.failureDetector match {
     case puppet: FailureDetectorPuppet ⇒ puppet.markNodeAsAvailable(address)
-    case _                             ⇒
+    case _ ⇒
   }
 
   /**
@@ -269,8 +270,7 @@ trait MultiNodeClusterSpec extends Suite with STMultiNodeSpec { self: MultiNodeS
    */
   def markNodeAsUnavailable(address: Address): Unit = cluster.failureDetector match {
     case puppet: FailureDetectorPuppet ⇒ puppet.markNodeAsUnavailable(address)
-    case _                             ⇒
+    case _ ⇒
   }
 
 }
-

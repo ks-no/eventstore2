@@ -109,6 +109,8 @@ abstract class EventStore2Test
 
     }
 
+
+
     def seedNodes: IndexedSeq[Address] = IndexedSeq(first)
 
 

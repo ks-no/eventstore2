@@ -11,6 +11,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.json.Adapter;
+import no.ks.eventstore2.response.Success;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -130,7 +131,12 @@ class EventStore extends UntypedActor {
 		} else if("startping".equals(o)){
 			log.debug("starting ping sending to {} from {}",leaderEventStore, self() );
 			if(leaderEventStore != null) leaderEventStore.tell("ping",self());
-		}
+		} else if(o instanceof AcknowledgePreviousEventsProcessed){
+            if(leader)
+                sender().tell(new Success());
+            else
+                leaderEventStore.tell(o,sender());
+        }
 	}
 
 	private void addSubscriber(SubscriptionRefresh refresh) {

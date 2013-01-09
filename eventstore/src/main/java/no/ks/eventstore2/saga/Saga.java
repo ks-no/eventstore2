@@ -3,7 +3,6 @@ package no.ks.eventstore2.saga;
 import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
 import no.ks.eventstore2.Event;
-import no.ks.svarut.jetty.Run;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

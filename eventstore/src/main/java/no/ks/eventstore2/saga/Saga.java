@@ -3,6 +3,7 @@ package no.ks.eventstore2.saga;
 import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
 import no.ks.eventstore2.Event;
+import no.ks.svarut.jetty.Run;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,10 +38,14 @@ public abstract class Saga extends UntypedActor {
     }
 
 	@Override
-	public void onReceive(Object o) throws Exception {
-		if(o instanceof Event){
-			handleEventMap.get(o.getClass()).invoke(this,o);
-		}
+	public void onReceive(Object o) {
+		try{
+            if(o instanceof Event){
+                handleEventMap.get(o.getClass()).invoke(this,o);
+            }
+        } catch(Exception e){
+            throw new RuntimeException(e);
+        }
 	}
 
 	private void loadPersistedState() {

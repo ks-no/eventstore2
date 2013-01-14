@@ -15,6 +15,10 @@ import org.junit.Test;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 import static akka.pattern.Patterns.ask;
 import static akka.testkit.JavaTestKit.duration;
 import static no.ks.eventstore2.projection.CallProjection.call;
@@ -60,7 +64,7 @@ public class ProjectionTest extends TestKit{
             public Class<? extends Projection> getProjectionClass() {
                 return FormStatuses.class;
             }
-        }), "lastFormStatus2");
+        }), "lastFormStatus3");
 
         ref.tell(new FormReceived("2"), super.testActor());
         ref.tell(new FormReceived("3"), super.testActor());
@@ -68,5 +72,31 @@ public class ProjectionTest extends TestKit{
         Future<Object> formStatus = ask(ref, call("getStatus", "2"), 3000);
 
         assertEquals(FormStatus.PARSED, ((Await.result(formStatus, duration("3 seconds")))));
+    }
+
+    @Test
+    public void testProjectionMethodsAreCalledIfParametersAreAssignableToSuperclassOrInterface() throws Exception {
+
+        final TestActorRef<FormStatuses> ref = TestActorRef.create(_system, new Props(new ProjectionFactory(super.testActor()){
+            public Actor create() throws Exception {
+                return new FormStatuses(eventstore);
+            }
+
+            @Override
+            public Class<? extends Projection> getProjectionClass() {
+                return FormStatuses.class;
+            }
+        }), "lastFormStatus2");
+
+        ref.tell(new FormReceived("2"), super.testActor());
+        ref.tell(new FormReceived("3"), super.testActor());
+        ref.tell(new FormParsed("2"), super.testActor());
+
+        List<String> ids = new ArrayList<String>();
+        ids.add("2");
+        ids.add("3");
+        Future<Object> formStatus = ask(ref, call("getStatuses", ids), 3000);
+        Map <String, FormStatus> result = (Map<String, FormStatus>) Await.result(formStatus, duration("3 seconds"));
+        assertEquals(2, result.size());
     }
 }

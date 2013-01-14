@@ -5,11 +5,11 @@ import akka.actor.UntypedActor;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.eventstore.Subscription;
 import no.ks.eventstore2.response.NoResult;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -64,18 +64,37 @@ public abstract class Projection extends UntypedActor {
     }
 
     private Method getCallMethod(Call call) {
-        java.lang.reflect.Method method;
+
         try {
             Class<?>[] classes = new Class<?>[call.getArgs().length];
             for (int i = 0; i < call.getArgs().length; i++) {
                 classes[i] = call.getArgs()[i].getClass();
             }
-            method = this.getClass().getMethod(call.getMethodName(), classes);
-            return method;
+            Method[] allMethods = this.getClass().getDeclaredMethods();
+            for (Method m : allMethods) {
+                if (methodAssignable(call.getMethodName(), classes, m))
+                    return m;
+            }
+            throw new NoSuchMethodException("method " + call.getMethodName() + "(" + Arrays.toString(classes) +") not found in " + this.getClass().getSimpleName());
         } catch (NoSuchMethodException e) {
             throw new RuntimeException("No valid method to call!", e);
         }
 
+    }
+
+    private boolean methodAssignable(String callName, Class<?>[] callParams, Method candidateMethod) {
+        Class[] methodParams = candidateMethod.getParameterTypes();
+
+        if (callName.equals(candidateMethod.getName()) && (methodParams.length == callParams.length)){
+            boolean assignable = true;
+            for (int i = 0; i < callParams.length; i++) {
+                if (!methodParams[i].isAssignableFrom(callParams[i]))
+                    assignable = false;
+            }
+            return assignable;
+        } else {
+            return false;
+        }
     }
 
     private void init() {

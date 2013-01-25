@@ -4,21 +4,18 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
 import com.google.common.collect.ImmutableSet;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static akka.pattern.Patterns.ask;
-import static akka.testkit.JavaTestKit.duration;
 
 public class CommandDispatcher extends UntypedActor {
 
 	private ActorRef eventStore;
 	private final List<CommandHandlerFactory> commandHandlerFactories;
 	private Map<Class<? extends Command>, ActorRef> commandHandlers = new HashMap<Class<? extends Command>, ActorRef>();
+
+    int remainingCommandHandlers = 0;
 
 	public CommandDispatcher(ActorRef eventStore, List<CommandHandlerFactory> commandHandlerFactories) {
 		this.eventStore = eventStore;
@@ -34,16 +31,8 @@ public class CommandDispatcher extends UntypedActor {
 				props = props.withRouter(factory.getRouter());
 			}
 			ActorRef ref = getContext().actorOf(props);
-
-			Future<Object> future = ask(ref, "HandlesClasses", 1000);
-			try {
-				ImmutableSet<Class<? extends Command>> handles = (ImmutableSet<Class<? extends Command>>) Await.result(future, duration("1 second"));
-				for (Class<? extends Command> clz : handles) {
-					commandHandlers.put(clz, ref);
-				}
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
+            ref.tell("HandlesClasses", self());
+            remainingCommandHandlers++;
 		}
 	}
 
@@ -51,7 +40,16 @@ public class CommandDispatcher extends UntypedActor {
 	public void onReceive(Object o) throws Exception {
 		if (o instanceof Command) {
 			ActorRef actorRef = commandHandlers.get(o.getClass());
-			actorRef.tell(o, sender());
-		}
+            if(actorRef == null && remainingCommandHandlers > 0) {
+                self().tell(o, sender());
+            } else
+			    actorRef.tell(o, sender());
+		} else if(o instanceof ImmutableSet){
+            ImmutableSet<Class<? extends Command>> handles = (ImmutableSet<Class<? extends Command>>) o;
+            for (Class<? extends Command> clz : handles) {
+                commandHandlers.put(clz, sender());
+                remainingCommandHandlers--;
+            }
+        }
 	}
 }

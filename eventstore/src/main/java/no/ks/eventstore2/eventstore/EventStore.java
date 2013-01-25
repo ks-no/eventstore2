@@ -101,22 +101,22 @@ class EventStore extends UntypedActor {
             log.debug("Recieved LeaderChanged event: {}", o);
 			updateLeaderState();
 		} else if (o instanceof Event) {
-			log.debug("Got event {}",o);
 			if (leader) {
 				storeEvent((Event) o);
 				publishEvent((Event) o);
+                log.info("Published event {}", o);
 			} else {
-				log.debug("Sending event {} to Leader {}", o, sender());
+				log.info("Sending to leader {} event {}", sender(), o);
 				leaderEventStore.tell(o, sender());
 			}
 		} else if (o instanceof Subscription) {
 			Subscription subscription = (Subscription) o;
-			log.debug("Got subscription on {} from {}",  subscription.getAggregateId()  , sender().path());
 			addSubscriber(subscription);
-			if (leader)
+			if (leader) {
+                log.info("Got subscription on {} from {}",  subscription.getAggregateId()  , sender().path());
 				publishEvents(subscription.getAggregateId());
-			else{
-                log.debug("Sending subscription to leader {} from {}", leaderEventStore.path(), sender().path());
+            } else {
+                log.info("Sending subscription to leader {} from {}", leaderEventStore.path(), sender().path());
 				leaderEventStore.tell(subscription, sender());
             }
 		} else if (o instanceof SubscriptionRefresh) {
@@ -133,7 +133,7 @@ class EventStore extends UntypedActor {
 			if(leaderEventStore != null) leaderEventStore.tell("ping",self());
 		} else if(o instanceof AcknowledgePreviousEventsProcessed){
             if(leader)
-                sender().tell(new Success());
+                sender().tell(new Success(),self());
             else
                 leaderEventStore.tell(o,sender());
         }

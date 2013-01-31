@@ -2,13 +2,12 @@ package no.ks.eventstore2.eventstore;
 
 import akka.ConfigurationException;
 import akka.actor.ActorRef;
-import akka.actor.Address;
 import akka.actor.UntypedActor;
 import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
-import akka.cluster.MemberStatus;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import no.ks.eventstore2.AkkaClusterInfo;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.json.Adapter;
 import no.ks.eventstore2.response.Success;
@@ -37,8 +36,9 @@ class EventStore extends UntypedActor {
 	private JdbcTemplate template;
 
 	Map<String, HashSet<ActorRef>> aggregateSubscribers = new HashMap<String, HashSet<ActorRef>>();
-	private boolean leader;
 	private ActorRef leaderEventStore;
+
+    private AkkaClusterInfo leaderInfo;
 
 	public EventStore(DataSource dataSource, List<Adapter> adapters) {
 		template = new JdbcTemplate(dataSource);
@@ -51,8 +51,9 @@ class EventStore extends UntypedActor {
 
 	@Override
 	public void preStart() {
+        leaderInfo = new AkkaClusterInfo(getContext().system());
+        leaderInfo.subscribeToClusterEvents(self());
 		updateLeaderState();
-		subscribeToClusterEvents();
 		log.debug("Eventstore started with adress {}", getSelf().path());
 	}
 
@@ -67,41 +68,25 @@ class EventStore extends UntypedActor {
 
 	private void updateLeaderState() {
 		try {
-			Cluster cluster = Cluster.get(getContext().system());
-            boolean notReady = true;
-            while(!cluster.readView().self().status().equals(MemberStatus.up())){
-				try {
-					Thread.sleep(10);
-				} catch (InterruptedException e) {
-
-				}
-			}
-			leader = cluster.readView().isLeader();
-			log.debug("Is leader? {}", leader);
-			Address leaderAdress = cluster.readView().leader().get();
-			log.debug("leader adress {}",leaderAdress);
-
-			leaderEventStore = getContext().actorFor(leaderAdress + "/user/eventstore");
-			log.debug("Member status is {}", cluster.readView().self().status());
-			log.debug("Cluster members {}", cluster.readView().members());
+            leaderInfo.updateLeaderState();
+			leaderEventStore = getContext().actorFor(leaderInfo.getLeaderAdress() + "/user/eventstore");
 			log.debug("LeaderEventStore is {}", leaderEventStore);
 
-			if(!leader && cluster.readView().self().status().equals(MemberStatus.up()))
+			if(!leaderInfo.isLeader() && leaderInfo.amIUp())
 				for (String s : aggregateSubscribers.keySet()) {
-					leaderEventStore.tell(new SubscriptionRefresh(s,aggregateSubscribers.get(s)));
+					leaderEventStore.tell(new SubscriptionRefresh(s,aggregateSubscribers.get(s)),self());
 				}
 		} catch (ConfigurationException e) {
 			log.debug("Not cluster system");
-			leader = true;
 		}
 	}
 
 	public void onReceive(Object o) throws Exception {
 		if( o instanceof ClusterEvent.LeaderChanged){
-            log.debug("Recieved LeaderChanged event: {}", o);
+            log.info("Recieved LeaderChanged event: {}", o);
 			updateLeaderState();
 		} else if (o instanceof Event) {
-			if (leader) {
+			if (leaderInfo.isLeader()) {
 				storeEvent((Event) o);
 				publishEvent((Event) o);
                 log.info("Published event {}", o);
@@ -112,7 +97,7 @@ class EventStore extends UntypedActor {
 		} else if (o instanceof Subscription) {
 			Subscription subscription = (Subscription) o;
 			addSubscriber(subscription);
-			if (leader) {
+			if (leaderInfo.isLeader()) {
                 log.info("Got subscription on {} from {}",  subscription.getAggregateId()  , sender().path());
 				publishEvents(subscription.getAggregateId());
             } else {
@@ -121,7 +106,7 @@ class EventStore extends UntypedActor {
             }
 		} else if (o instanceof SubscriptionRefresh) {
 			SubscriptionRefresh subscriptionRefresh = (SubscriptionRefresh) o;
-			log.debug("Refreshing subscription for {}", subscriptionRefresh);
+			log.info("Refreshing subscription for {}", subscriptionRefresh);
 			addSubscriber(subscriptionRefresh);
 		} else if ("ping".equals(o)) {
 			log.debug("Ping reveiced from {}", sender());
@@ -132,7 +117,7 @@ class EventStore extends UntypedActor {
 			log.debug("starting ping sending to {} from {}",leaderEventStore, self() );
 			if(leaderEventStore != null) leaderEventStore.tell("ping",self());
 		} else if(o instanceof AcknowledgePreviousEventsProcessed){
-            if(leader)
+            if(leaderInfo.isLeader())
                 sender().tell(new Success(),self());
             else
                 leaderEventStore.tell(o,sender());

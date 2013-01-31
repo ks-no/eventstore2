@@ -5,9 +5,8 @@ import akka.actor.ActorRef;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
-import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
-import akka.cluster.MemberStatus;
+import no.ks.eventstore2.AkkaClusterInfo;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.eventstore.Subscription;
 import org.slf4j.Logger;
@@ -30,9 +29,9 @@ public class SagaManager extends UntypedActor {
     private ActorRef eventstore;
 
     private Map<SagaCompositeId, ActorRef> sagas = new HashMap<SagaCompositeId, ActorRef>();
-	private boolean leader;
+    private AkkaClusterInfo akkaClusterInfo;
 
-	public SagaManager(ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore) {
+    public SagaManager(ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore) {
         this.commandDispatcher = commandDispatcher;
         this.repository = repository;
         this.eventstore = eventstore;
@@ -41,8 +40,9 @@ public class SagaManager extends UntypedActor {
 
     @Override
     public void preStart() {
-		updateLeaderState();
-		subscribeToClusterEvents();
+        akkaClusterInfo = new AkkaClusterInfo(getContext().system());
+        akkaClusterInfo.subscribeToClusterEvents(self());
+        updateLeaderState();
         for (String aggregate : aggregates) {
             eventstore.tell(new Subscription(aggregate), self());
         }
@@ -51,8 +51,8 @@ public class SagaManager extends UntypedActor {
     @Override
     public void onReceive(Object o) throws Exception {
 		if(log.isDebugEnabled() && o instanceof  Event)
-			log.debug("Sagamanager Received Event {} is leader {}", o, leader);
-        if (o instanceof Event && leader){
+			log.debug("Sagamanager Received Event {} is leader {}", o, akkaClusterInfo.isLeader());
+        if (o instanceof Event && akkaClusterInfo.isLeader()){
 			log.debug("Sagamanager processing Event {}", o);
             Event event = (Event) o;
             for (Class<? extends Saga> clz : getSagaClassesForEvent(event.getClass())) {
@@ -123,36 +123,15 @@ public class SagaManager extends UntypedActor {
         getSagaClassesForEvent(eventClass).add(saga);
     }
 
-	private void subscribeToClusterEvents() {
-		try {
-			Cluster cluster = Cluster.get(getContext().system());
-			cluster.subscribe(self(), ClusterEvent.ClusterDomainEvent.class);
-		} catch (ConfigurationException e) {
-
-		}
-	}
-
 	private void updateLeaderState() {
 		try {
-			Cluster cluster = Cluster.get(getContext().system());
-			boolean notReady = true;
-			while(!cluster.readView().self().status().equals(MemberStatus.up())){
-				try {
-					Thread.sleep(10);
-				} catch (InterruptedException e) {
-
-				}
-			}
-			log.debug("SagaManager was leader? {}", leader);
-			boolean oldleader = leader;
-			leader = cluster.readView().isLeader();
-			log.debug("SagaManager is leader? {}", leader);
-			if(oldleader && !leader){
+            boolean oldLeader = akkaClusterInfo.isLeader();
+            akkaClusterInfo.updateLeaderState();
+			if(oldLeader && !akkaClusterInfo.isLeader()){
 				removeOldActorsWithWrongState();
 			}
 		} catch (ConfigurationException e) {
 			log.debug("Not cluster system");
-			leader = true;
 		}
 	}
 

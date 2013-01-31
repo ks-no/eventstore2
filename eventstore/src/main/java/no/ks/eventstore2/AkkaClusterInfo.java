@@ -10,25 +10,20 @@ import akka.cluster.MemberStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Created with IntelliJ IDEA.
- * User: idar
- * Date: 1/31/13
- * Time: 7:49 AM
- * To change this template use File | Settings | File Templates.
- */
 public class AkkaClusterInfo {
 
     ActorSystem system;
     private static final Logger log = LoggerFactory.getLogger(AkkaClusterInfo.class);
     private Address leaderAdress;
     private boolean leader;
+    private ActorRef subscriber;
 
     public AkkaClusterInfo(ActorSystem system) {
         this.system = system;
     }
 
     public void subscribeToClusterEvents(ActorRef subscriber) {
+        this.subscriber = subscriber;
         try {
             Cluster cluster = Cluster.get(system);
             cluster.subscribe(subscriber, ClusterEvent.ClusterDomainEvent.class);
@@ -37,20 +32,23 @@ public class AkkaClusterInfo {
         }
     }
 
-    public void updateLeaderState() {
+    public void updateLeaderState(ClusterEvent.LeaderChanged leaderChanged) {
         try {
             Cluster cluster = Cluster.get(system);
-            boolean notReady = true;
-            while (!cluster.readView().self().status().equals(MemberStatus.up())) {
-                try {
-                    Thread.sleep(10);
-                } catch (InterruptedException e) {
-
-                }
-            }
             boolean oldLeader = leader;
-            leader = cluster.readView().isLeader();
-            log.info("leader changed from {} to {}", oldLeader,leader);
+            if (leaderChanged == null) {
+                boolean notReady = true;
+                while (!cluster.readView().self().status().equals(MemberStatus.up())) {
+                    try {
+                        Thread.sleep(10);
+                    } catch (InterruptedException e) {}
+                }
+                leader = cluster.readView().isLeader();
+            } else {
+                leaderAdress = leaderChanged.getLeader();
+                leader = cluster.readView().selfAddress().equals(leaderAdress);
+            }
+            log.info("{} leader changed from {} to {}",subscriber, oldLeader, leader);
             leaderAdress = cluster.readView().leader().get();
             log.debug("leader adress {}", leaderAdress);
 

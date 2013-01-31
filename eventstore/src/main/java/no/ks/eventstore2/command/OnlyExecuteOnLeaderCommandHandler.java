@@ -16,16 +16,14 @@ public abstract class OnlyExecuteOnLeaderCommandHandler extends CommandHandler {
 	public void preStart() {
         akkaClusterInfo = new AkkaClusterInfo(getContext().system());
         akkaClusterInfo.subscribeToClusterEvents(self());
-		akkaClusterInfo.updateLeaderState();
+		akkaClusterInfo.updateLeaderState(null);
 		super.preStart();
 	}
-
-
 
 	@Override
 	public void onReceive(Object o) throws Exception {
 		if( o instanceof ClusterEvent.LeaderChanged){
-			akkaClusterInfo.updateLeaderState();
+			akkaClusterInfo.updateLeaderState((ClusterEvent.LeaderChanged) o);
 		}
 
 		if(akkaClusterInfo.isLeader() || "HandlesClasses".equals(o))

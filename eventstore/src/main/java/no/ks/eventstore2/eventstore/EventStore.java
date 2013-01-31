@@ -53,7 +53,7 @@ class EventStore extends UntypedActor {
 	public void preStart() {
         leaderInfo = new AkkaClusterInfo(getContext().system());
         leaderInfo.subscribeToClusterEvents(self());
-		updateLeaderState();
+		updateLeaderState(null);
 		log.debug("Eventstore started with adress {}", getSelf().path());
 	}
 
@@ -66,9 +66,9 @@ class EventStore extends UntypedActor {
 		}
 	}
 
-	private void updateLeaderState() {
+	private void updateLeaderState(ClusterEvent.LeaderChanged leaderChanged) {
 		try {
-            leaderInfo.updateLeaderState();
+            leaderInfo.updateLeaderState(leaderChanged);
 			leaderEventStore = getContext().actorFor(leaderInfo.getLeaderAdress() + "/user/eventstore");
 			log.debug("LeaderEventStore is {}", leaderEventStore);
 
@@ -84,7 +84,7 @@ class EventStore extends UntypedActor {
 	public void onReceive(Object o) throws Exception {
 		if( o instanceof ClusterEvent.LeaderChanged){
             log.info("Recieved LeaderChanged event: {}", o);
-			updateLeaderState();
+			updateLeaderState((ClusterEvent.LeaderChanged)o);
 		} else if (o instanceof Event) {
 			if (leaderInfo.isLeader()) {
 				storeEvent((Event) o);

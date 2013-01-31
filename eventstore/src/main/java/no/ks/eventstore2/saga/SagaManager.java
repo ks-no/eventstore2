@@ -42,7 +42,7 @@ public class SagaManager extends UntypedActor {
     public void preStart() {
         akkaClusterInfo = new AkkaClusterInfo(getContext().system());
         akkaClusterInfo.subscribeToClusterEvents(self());
-        updateLeaderState();
+        updateLeaderState(null);
         for (String aggregate : aggregates) {
             eventstore.tell(new Subscription(aggregate), self());
         }
@@ -61,7 +61,7 @@ public class SagaManager extends UntypedActor {
                 sagaRef.tell(event, self());
             }
         } else if( o instanceof ClusterEvent.LeaderChanged){
-			updateLeaderState();
+			updateLeaderState((ClusterEvent.LeaderChanged)o);
 		}
     }
 
@@ -123,10 +123,10 @@ public class SagaManager extends UntypedActor {
         getSagaClassesForEvent(eventClass).add(saga);
     }
 
-	private void updateLeaderState() {
+	private void updateLeaderState(ClusterEvent.LeaderChanged leaderChanged) {
 		try {
             boolean oldLeader = akkaClusterInfo.isLeader();
-            akkaClusterInfo.updateLeaderState();
+            akkaClusterInfo.updateLeaderState(leaderChanged);
 			if(oldLeader && !akkaClusterInfo.isLeader()){
 				removeOldActorsWithWrongState();
 			}

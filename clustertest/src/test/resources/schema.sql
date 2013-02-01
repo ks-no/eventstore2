@@ -5,6 +5,8 @@ create table Event(
 	aggregateid varchar(255),
 	class varchar(255),
 	event CLOB,
+	kryo BOOLEAN,
+  kryoeventdata BLOB,
 );
 
 create table Saga(

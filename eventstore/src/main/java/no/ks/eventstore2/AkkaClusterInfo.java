@@ -36,7 +36,7 @@ public class AkkaClusterInfo {
         try {
             Cluster cluster = Cluster.get(system);
             boolean oldLeader = leader;
-            if (leaderChanged == null) {
+            if (leaderChanged == null ) {
                 boolean notReady = true;
                 while (!cluster.readView().self().status().equals(MemberStatus.up())) {
                     try {
@@ -49,7 +49,8 @@ public class AkkaClusterInfo {
                 leader = cluster.readView().selfAddress().equals(leaderAdress);
             }
             log.info("{} leader changed from {} to {}",subscriber, oldLeader, leader);
-            leaderAdress = cluster.readView().leader().get();
+            if(cluster.readView().leader().isDefined())
+                leaderAdress = cluster.readView().leader().get();
             log.debug("leader adress {}", leaderAdress);
 
         } catch (ConfigurationException e) {

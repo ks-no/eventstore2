@@ -5,6 +5,8 @@ create table Event(
 	aggregateid varchar(255),
 	class varchar(255),
 	event CLOB,
+	kryo BOOLEAN,
+	kryoeventdata BLOB,
 );
 
 create table Saga(
@@ -13,3 +15,6 @@ create table Saga(
 	state tinyint,
 	PRIMARY KEY(id, clazz)
 );
+
+ALTER TABLE Event ADD kryo BOOLEAN DEFAULT false;
+ALTER TABLE Event ADD kryoeventdata BLOB;

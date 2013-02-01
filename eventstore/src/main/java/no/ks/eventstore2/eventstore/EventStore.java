@@ -5,8 +5,13 @@ import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
 import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+import com.esotericsoftware.shaded.org.objenesis.strategy.SerializingInstantiatorStrategy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer;
 import no.ks.eventstore2.AkkaClusterInfo;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.json.Adapter;
@@ -22,10 +27,8 @@ import org.springframework.jdbc.support.lob.LobCreator;
 import org.springframework.jdbc.support.lob.LobHandler;
 
 import javax.sql.DataSource;
-import java.sql.Clob;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.io.ByteArrayOutputStream;
+import java.sql.*;
 import java.util.*;
 
 class EventStore extends UntypedActor {
@@ -34,6 +37,7 @@ class EventStore extends UntypedActor {
 	static final Logger log = LoggerFactory.getLogger(EventStore.class);
 	private Gson gson = new Gson();
 	private JdbcTemplate template;
+    private Kryo kryo = new Kryo();
 
 	Map<String, HashSet<ActorRef>> aggregateSubscribers = new HashMap<String, HashSet<ActorRef>>();
 	private ActorRef leaderEventStore;
@@ -47,6 +51,8 @@ class EventStore extends UntypedActor {
 			builder.registerTypeAdapter(adapter.getType(), adapter.getTypeAdapter());
 		}
 		gson = builder.create();
+        kryo.setInstantiatorStrategy(new SerializingInstantiatorStrategy());
+        kryo.register( DateTime.class, new JodaDateTimeSerializer() );
 	}
 
 	@Override
@@ -158,34 +164,70 @@ class EventStore extends UntypedActor {
 
 	public void storeEvent(final Event event) {
 		event.setCreated(new DateTime());
-		final String json = gson.toJson(event);
+
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Output kryodata = new Output(output);
+		kryo.writeClassAndObject(kryodata, event);
+        kryodata.close();
+
 		LobHandler lobHandler = new DefaultLobHandler();
-		template.execute("insert into event (id,aggregateid,event, class) values(seq.nextval,?,?,?)",
+		template.execute("INSERT INTO event (id,aggregateid, class, kryo, kryoeventdata) VALUES(seq.nextval,?,?,?,?)",
 				new AbstractLobCreatingPreparedStatementCallback(lobHandler) {
 					protected void setValues(PreparedStatement ps, LobCreator lobCreator) throws SQLException {
-						lobCreator.setClobAsString(ps, 2, json);
-						ps.setString(3, event.getClass().getName());
+						lobCreator.setBlobAsBytes(ps, 4, output.toByteArray());
+						ps.setString(2, event.getClass().getName());
+                        ps.setBoolean(3,true);
 						ps.setString(1, event.getAggregateId());
 					}
 				}
 		);
+
 	}
 
 	private List<Event> loadEvents(String aggregate) {
-		return template.query("select * from event where aggregateid = ? order by ID", new Object[]{aggregate}, new RowMapper<Event>() {
+		return template.query("SELECT * FROM event WHERE aggregateid = ? ORDER BY ID", new Object[]{aggregate}, new RowMapper<Event>() {
 			public Event mapRow(ResultSet resultSet, int i) throws SQLException {
-				String clazz = resultSet.getString("class");
-				Class<?> classOfT;
-				try {
-					classOfT = Class.forName(clazz);
-				} catch (ClassNotFoundException e) {
-					throw new RuntimeException(e);
-				}
-				Clob json = resultSet.getClob("event");
+                if(resultSet.getBoolean("kryo")){
+                    Blob blob = resultSet.getBlob("kryoeventdata");
 
-				return (Event) gson.fromJson(json.getCharacterStream(), classOfT);
+                    Input input = new Input(blob.getBinaryStream());
+                    Event event = (Event) kryo.readClassAndObject(input);
+                    input.close();
+                    return event;
+                } else {
+                    String clazz = resultSet.getString("class");
+                    Class<?> classOfT;
+                    try {
+                        classOfT = Class.forName(clazz);
+                    } catch (ClassNotFoundException e) {
+                        throw new RuntimeException(e);
+                    }
+                    Clob json = resultSet.getClob("event");
+
+                    Event event = (Event) gson.fromJson(json.getCharacterStream(), classOfT);
+                    log.info("Read event {} as json", event);
+                    updateEventToKryo(resultSet.getInt("id"),event);
+                    return event;
+                }
 			}
 		});
 	}
+
+    private void updateEventToKryo(final int id, final Event event) {
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Output kryodata = new Output(output);
+        kryo.writeClassAndObject(kryodata, event);
+        kryodata.close();
+        log.info("Updating {} to kryo data {}", id, event);
+        LobHandler lobHandler = new DefaultLobHandler();
+        template.execute("update event set kryo=true, kryoeventdata=? where id=?",
+                new AbstractLobCreatingPreparedStatementCallback(lobHandler) {
+                    protected void setValues(PreparedStatement ps, LobCreator lobCreator) throws SQLException {
+                        lobCreator.setBlobAsBytes(ps, 1, output.toByteArray());
+                        ps.setInt(2, id);
+                    }
+                }
+        );
+    }
 
 }

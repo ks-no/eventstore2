@@ -49,7 +49,7 @@ public class ProjectionManagerTest extends TestKit {
         List<ProjectionFactory> factories = new ArrayList<ProjectionFactory>();
         factories.add(projectionFactory);
 
-        final TestActorRef<ProjectionManager> ref = TestActorRef.create(_system, new Props(new ProjectionManagerFactory(factories)), "projectionManager");
+        final TestActorRef<ProjectionManager> ref = TestActorRef.create(_system, new Props(new ProjectionManagerFactory(factories,super.testActor())), "projectionManager");
 
         Future<Object> getProjectionref = ask(ref, call("getProjectionRef", FormStatuses.class), 3000);
 

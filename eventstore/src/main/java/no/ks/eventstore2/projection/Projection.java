@@ -32,10 +32,15 @@ public abstract class Projection extends UntypedActor {
 
     @Override
     public void onReceive(Object o) throws Exception{
-        if (o instanceof Event)
-            handleEvent((Event) o);
-        else if (o instanceof Call)
-            handleCall((Call) o);
+        try{
+            if (o instanceof Event)
+                handleEvent((Event) o);
+            else if (o instanceof Call)
+                handleCall((Call) o);
+        } catch (Exception e){
+            getContext().parent().tell(new ProjectionFailedError(self(), e, o), self());
+            throw e;
+        }
     }
 
     public void handleEvent(Event event) {

@@ -144,6 +144,7 @@ class EventStore extends UntypedActor {
             publishEvents(aggregateid, pendingSubscriptions.get(aggregateid));
         }
         pendingSubscriptions.clear();
+        log.info("Filled pending subscriptions");
     }
 
     private void addPendingSubscription(ActorRef subscriber, String aggregateId) {

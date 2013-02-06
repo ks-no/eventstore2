@@ -24,4 +24,21 @@ public class FormParsed extends Event {
     public String getLogMessage() {
         return "Form has been parsed";
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        FormParsed that = (FormParsed) o;
+
+        if (formId != null ? !formId.equals(that.formId) : that.formId != null) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        return formId != null ? formId.hashCode() : 0;
+    }
 }

@@ -25,11 +25,13 @@ import org.springframework.jdbc.core.support.AbstractLobCreatingPreparedStatemen
 import org.springframework.jdbc.support.lob.DefaultLobHandler;
 import org.springframework.jdbc.support.lob.LobCreator;
 import org.springframework.jdbc.support.lob.LobHandler;
+import scala.concurrent.duration.Duration;
 
 import javax.sql.DataSource;
 import java.io.ByteArrayOutputStream;
 import java.sql.*;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 class EventStore extends UntypedActor {
 
@@ -88,6 +90,9 @@ class EventStore extends UntypedActor {
 	}
 
 	public void onReceive(Object o) throws Exception {
+        if(!(o instanceof Subscription)){
+            fillPendingSubscriptions();
+        }
 		if( o instanceof ClusterEvent.LeaderChanged){
             log.info("Recieved LeaderChanged event: {}", o);
 			updateLeaderState((ClusterEvent.LeaderChanged)o);
@@ -104,8 +109,8 @@ class EventStore extends UntypedActor {
 			Subscription subscription = (Subscription) o;
 			addSubscriber(subscription);
 			if (leaderInfo.isLeader()) {
-                log.info("Got subscription on {} from {}",  subscription.getAggregateId()  , sender().path());
-				publishEvents(subscription.getAggregateId());
+                log.info("Got subscription on {} from {}, adding to pending subscriptions",  subscription.getAggregateId()  , sender().path());
+                addPendingSubscription(sender(), subscription.getAggregateId());
             } else {
                 log.info("Sending subscription to leader {} from {}", leaderEventStore.path(), sender().path());
 				leaderEventStore.tell(subscription, sender());
@@ -130,7 +135,27 @@ class EventStore extends UntypedActor {
         }
 	}
 
-	private void addSubscriber(SubscriptionRefresh refresh) {
+    private HashMap<String,HashSet<ActorRef>> pendingSubscriptions = new HashMap<String, HashSet<ActorRef>>();
+
+    private void fillPendingSubscriptions() {
+        if(pendingSubscriptions.isEmpty())return;
+        log.info("Filling pending subscriptions {}", pendingSubscriptions);
+        for (String aggregateid : pendingSubscriptions.keySet()) {
+            publishEvents(aggregateid, pendingSubscriptions.get(aggregateid));
+        }
+        pendingSubscriptions.clear();
+    }
+
+    private void addPendingSubscription(ActorRef subscriber, String aggregateId) {
+        if(pendingSubscriptions.get(aggregateId) == null) pendingSubscriptions.put(aggregateId,new HashSet<ActorRef>());
+
+        pendingSubscriptions.get(aggregateId).add(subscriber);
+
+        getContext().system().scheduler().scheduleOnce(Duration.create(250, TimeUnit.MILLISECONDS),
+                self(), "FillPendingSubscriptions", getContext().system().dispatcher());
+    }
+
+    private void addSubscriber(SubscriptionRefresh refresh) {
 		if(!aggregateSubscribers.containsKey(refresh.getAggregateId())){
 			aggregateSubscribers.put(refresh.getAggregateId(),new HashSet<ActorRef>());
 		}
@@ -154,11 +179,12 @@ class EventStore extends UntypedActor {
 		aggregateSubscribers.get(subscription.getAggregateId()).add(sender());
 	}
 
-	private void publishEvents(String aggregateid) {
+	private void publishEvents(String aggregateid, HashSet<ActorRef> actorRefs) {
 		for (Event event : loadEvents(aggregateid)) {
-			log.debug("Publishing event {} from db to {}",event,sender());
-			sender().tell(event, self());
-
+            for (ActorRef subscriber : actorRefs) {
+                log.debug("Publishing event {} from db to {}",event,subscriber);
+                subscriber.tell(event, self());
+            }
 		}
 	}
 

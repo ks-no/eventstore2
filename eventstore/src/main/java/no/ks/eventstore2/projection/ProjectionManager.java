@@ -28,7 +28,6 @@ public class ProjectionManager extends UntypedActor {
     private static SupervisorStrategy strategy =
             new OneForOneStrategy(10, Duration.create("1 minute"),
                     new Function<Throwable, SupervisorStrategy.Directive>() {
-                        @Override
                         public SupervisorStrategy.Directive apply(Throwable t) {
                             if (t instanceof RuntimeException || t instanceof Exception) {
                                 return resume();

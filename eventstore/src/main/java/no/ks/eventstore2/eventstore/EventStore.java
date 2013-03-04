@@ -226,7 +226,7 @@ class EventStore extends UntypedActor {
                     Event event = (Event) kryov2.readClassAndObject(input);
                     input.close();
                     return event;
-                } else {
+                } else if(resultSet.getInt("dataversion") == 1) {
                     Blob blob = resultSet.getBlob("kryoeventdata");
                     Input input = new Input(blob.getBinaryStream());
                     Event event = (Event) kryov1.readClassAndObject(input);
@@ -234,8 +234,21 @@ class EventStore extends UntypedActor {
                     log.info("Read event {} as v1", event);
                     updateEventToKryo(resultSet.getInt("id"),event);
                     return event;
+                } else if(resultSet.getInt("dataversion") == 0){
+                    String clazz = resultSet.getString("class");
+                    Class<?> classOfT;
+                    try {
+                        classOfT = Class.forName(clazz);
+                    } catch (ClassNotFoundException e) {
+                        throw new RuntimeException(e);
+                    }
+                    Clob json = resultSet.getClob("event");
+                    Event event = (Event) gson.fromJson(json.getCharacterStream(), classOfT);
+                    updateEventToKryo(resultSet.getInt("id"),event);
+                    return event;
                 }
-			}
+                return null;
+            }
 		});
 	}
 

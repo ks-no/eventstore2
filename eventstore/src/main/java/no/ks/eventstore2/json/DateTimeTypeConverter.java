@@ -4,6 +4,7 @@ import com.google.gson.*;
 import org.joda.time.DateTime;
 
 import java.lang.reflect.Type;
+import java.util.Date;
 
 public class DateTimeTypeConverter implements JsonSerializer<DateTime>, JsonDeserializer<DateTime> {
 
@@ -12,6 +13,14 @@ public class DateTimeTypeConverter implements JsonSerializer<DateTime>, JsonDese
     }
 
     public DateTime deserialize(JsonElement json, Type type, JsonDeserializationContext context) {
-        return new DateTime(json.getAsString());
+        DateTime dateTime =null;
+        try{
+            dateTime = new DateTime(json.getAsString());
+        } catch(Exception e){
+            String str = json.getAsString();
+            Date date = new Date(str);
+            dateTime = new DateTime(date);
+        }
+        return dateTime;
     }
 }

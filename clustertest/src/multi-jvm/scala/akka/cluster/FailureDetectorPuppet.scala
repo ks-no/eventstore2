@@ -33,6 +33,8 @@ class FailureDetectorPuppet(system: ActorSystem, settings: ClusterSettings) exte
     this
   }
 
+  override def isMonitoring(connection: Address): Boolean = connections.containsKey(connection)
+
   def markNodeAsAvailable(connection: Address): this.type = {
     connections.put(connection, Up)
     this

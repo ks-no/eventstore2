@@ -19,8 +19,6 @@ import concurrent.Await
 import akka.routing.RoundRobinRouter
 import akka.remote.testconductor.RoleName
 import no.ks.eventstore2.projection.ProjectionFactory
-import akka.cluster.ClusterEvent.{MemberEvent, MemberRemoved, MemberExited, CurrentClusterState}
-import akka.cluster.MemberStatus.Exiting
 
 object NodeLeavingAndExitingAndBeingRemovedMultiJvmSpec extends MultiNodeConfig {
   val first = role("first")
@@ -119,35 +117,9 @@ abstract class EventStore2Test
     "a node leave and reconnect" in {
       enterBarrier("start")
       runOn(first) {
-        enterBarrier("registered-listener")
         cluster.leave(second)
       }
-      runOn(third){
-        enterBarrier("registered-listener")
-      }
-
-      runOn(second) {
-        // verify that the second node is shut down and has status REMOVED
-        val exitingLatch = TestLatch()
-        val removedLatch = TestLatch()
-        val secondAddress = address(second)
-        cluster.subscribe(system.actorOf(Props(new Actor {
-          def receive = {
-            case state: CurrentClusterState ⇒
-              if (state.members.exists(m ⇒ m.address == secondAddress && m.status == Exiting))
-                exitingLatch.countDown()
-            case MemberExited(m) if m.address == secondAddress ⇒
-              exitingLatch.countDown()
-            case MemberRemoved(m) if m.address == secondAddress ⇒
-              removedLatch.countDown()
-            case _ ⇒ // ignore
-          }
-        })), classOf[MemberEvent])
-        enterBarrier("registered-listener")
-        exitingLatch.await
-        removedLatch.await
-      }
-      enterBarrier("Node shut down")
+      enterBarrier("second-left")
 
       runOn(first) {
         // verify that the 'second' node is no longer part of the 'members' set
@@ -156,7 +128,12 @@ abstract class EventStore2Test
         awaitCond(clusterView.unreachableMembers.forall(_.address != address(second)), reaperWaitingTime)
       }
 
-
+      runOn(second) {
+        // verify that the second node is shut down and has status REMOVED
+        awaitCond(!cluster.isRunning, reaperWaitingTime)
+        awaitCond(clusterView.status == MemberStatus.Removed, reaperWaitingTime)
+      }
+      enterBarrier("Node shut down")
       runOn(third) {
         cluster.joinSeedNodes(seedNodes);
       }

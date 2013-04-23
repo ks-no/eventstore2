@@ -11,8 +11,6 @@ import no.ks.eventstore2.saga.{Saga, SagaDatasourceRepository, SagaInMemoryRepos
 import no.ks.eventstore2.command.Command
 import concurrent.Await
 import no.test.IncreaseSaga
-import akka.cluster.ClusterEvent.{MemberEvent, MemberRemoved, MemberExited, CurrentClusterState}
-import akka.cluster.MemberStatus.Exiting
 
 object SagaManagerClusterSpec extends MultiNodeConfig {
   val first = role("first")
@@ -125,35 +123,9 @@ abstract class SagaManagerClusterTest
     "Node 2 die, and node 3 awaken" in {
       enterBarrier("start")
       runOn(first) {
-        enterBarrier("registered-listener")
         cluster.leave(second)
       }
-      runOn(third){
-        enterBarrier("registered-listener")
-      }
-
-      runOn(second) {
-        // verify that the second node is shut down and has status REMOVED
-        val exitingLatch = TestLatch()
-        val removedLatch = TestLatch()
-        val secondAddress = address(second)
-        cluster.subscribe(system.actorOf(Props(new Actor {
-          def receive = {
-            case state: CurrentClusterState ⇒
-              if (state.members.exists(m ⇒ m.address == secondAddress && m.status == Exiting))
-                exitingLatch.countDown()
-            case MemberExited(m) if m.address == secondAddress ⇒
-              exitingLatch.countDown()
-            case MemberRemoved(m) if m.address == secondAddress ⇒
-              removedLatch.countDown()
-            case _ ⇒ // ignore
-          }
-        })), classOf[MemberEvent])
-        enterBarrier("registered-listener")
-        exitingLatch.await
-        removedLatch.await
-      }
-      enterBarrier("Node shut down")
+      enterBarrier("second-left")
 
       runOn(first) {
         // verify that the 'second' node is no longer part of the 'members' set
@@ -162,6 +134,12 @@ abstract class SagaManagerClusterTest
         awaitCond(clusterView.unreachableMembers.forall(_.address != address(second)), reaperWaitingTime)
       }
 
+      runOn(second) {
+        // verify that the second node is shut down and has status REMOVED
+        awaitCond(!cluster.isRunning, reaperWaitingTime)
+        awaitCond(clusterView.status == MemberStatus.Removed, reaperWaitingTime)
+      }
+      enterBarrier("Node shut down")
       runOn(third) {
         cluster.joinSeedNodes(seedNodes);
       }
@@ -206,36 +184,9 @@ abstract class SagaManagerClusterTest
     "Node 3 should fail" in {
       enterBarrier("start")
       runOn(first) {
-        enterBarrier("registered-listener")
         cluster.leave(third)
       }
-
-      runOn(second){
-        enterBarrier("registered-listener")
-      }
-
-      runOn(third) {
-        // verify that the second node is shut down and has status REMOVED
-        val exitingLatch = TestLatch()
-        val removedLatch = TestLatch()
-        val secondAddress = address(third)
-        cluster.subscribe(system.actorOf(Props(new Actor {
-          def receive = {
-            case state: CurrentClusterState ⇒
-              if (state.members.exists(m ⇒ m.address == secondAddress && m.status == Exiting))
-                exitingLatch.countDown()
-            case MemberExited(m) if m.address == secondAddress ⇒
-              exitingLatch.countDown()
-            case MemberRemoved(m) if m.address == secondAddress ⇒
-              removedLatch.countDown()
-            case _ ⇒ // ignore
-          }
-        })), classOf[MemberEvent])
-        enterBarrier("registered-listener")
-        exitingLatch.await
-        removedLatch.await
-      }
-      enterBarrier("Node shut down")
+      enterBarrier("second-left")
 
       runOn(first) {
         // verify that the 'second' node is no longer part of the 'members' set
@@ -244,6 +195,12 @@ abstract class SagaManagerClusterTest
         awaitCond(clusterView.unreachableMembers.forall(_.address != address(second)), reaperWaitingTime)
       }
 
+      runOn(third) {
+        // verify that the second node is shut down and has status REMOVED
+        awaitCond(!cluster.isRunning, reaperWaitingTime)
+        awaitCond(clusterView.status == MemberStatus.Removed, reaperWaitingTime)
+      }
+      enterBarrier("Node shut down")
       runOn(third) {
         cluster.joinSeedNodes(seedNodes);
       }

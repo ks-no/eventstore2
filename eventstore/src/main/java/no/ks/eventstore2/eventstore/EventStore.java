@@ -21,7 +21,7 @@ import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.support.AbstractLobCreatingPreparedStatementCallback;
 import org.springframework.jdbc.support.lob.DefaultLobHandler;
 import org.springframework.jdbc.support.lob.LobCreator;
@@ -146,7 +146,7 @@ class EventStore extends UntypedActor {
         if(pendingSubscriptions.isEmpty())return;
         log.info("Filling pending subscriptions {}", pendingSubscriptions);
         for (String aggregateid : pendingSubscriptions.keySet()) {
-            publishEvents(aggregateid, pendingSubscriptions.get(aggregateid));
+            loadEventsAndSend(aggregateid, pendingSubscriptions.get(aggregateid));
         }
         pendingSubscriptions.clear();
         log.info("Filled pending subscriptions");
@@ -185,16 +185,7 @@ class EventStore extends UntypedActor {
 		aggregateSubscribers.get(subscription.getAggregateId()).add(sender());
 	}
 
-	private void publishEvents(String aggregateid, HashSet<ActorRef> actorRefs) {
-		for (Event event : loadEvents(aggregateid)) {
-            for (ActorRef subscriber : actorRefs) {
-                log.debug("Publishing event {} from db to {}",event,subscriber);
-                subscriber.tell(event, self());
-            }
-		}
-	}
-
-	public void storeEvent(final Event event) {
+    public void storeEvent(final Event event) {
 		event.setCreated(new DateTime());
 
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -216,16 +207,24 @@ class EventStore extends UntypedActor {
 
 	}
 
-	private List<Event> loadEvents(String aggregate) {
-		return template.query("SELECT * FROM event WHERE aggregateid = ? ORDER BY ID", new Object[]{aggregate}, new RowMapper<Event>() {
-			public Event mapRow(ResultSet resultSet, int i) throws SQLException {
+    private void sendEvent(Event event, HashSet<ActorRef> subscribers){
+        for (ActorRef subscriber : subscribers) {
+            log.debug("Publishing event {} from db to {}",event,subscriber);
+            subscriber.tell(event, self());
+        }
+    }
+
+	private void loadEventsAndSend(String aggregate, final HashSet<ActorRef> subscribers) {
+		template.query("SELECT * FROM event WHERE aggregateid = ? ORDER BY ID", new Object[]{aggregate},new RowCallbackHandler() {
+            @Override
+            public void processRow(ResultSet resultSet) throws SQLException {
                 if(resultSet.getInt("dataversion") == 2){
                     Blob blob = resultSet.getBlob("kryoeventdata");
 
                     Input input = new Input(blob.getBinaryStream());
                     Event event = (Event) kryov2.readClassAndObject(input);
                     input.close();
-                    return event;
+                    sendEvent(event,subscribers);
                 } else if(resultSet.getInt("dataversion") == 1) {
                     Blob blob = resultSet.getBlob("kryoeventdata");
                     Input input = new Input(blob.getBinaryStream());
@@ -233,7 +232,7 @@ class EventStore extends UntypedActor {
                     input.close();
                     log.info("Read event {} as v1", event);
                     updateEventToKryo(resultSet.getInt("id"),event);
-                    return event;
+                    sendEvent(event,subscribers);
                 } else if(resultSet.getInt("dataversion") == 0){
                     String clazz = resultSet.getString("class");
                     Class<?> classOfT;
@@ -245,11 +244,10 @@ class EventStore extends UntypedActor {
                     Clob json = resultSet.getClob("event");
                     Event event = (Event) gson.fromJson(json.getCharacterStream(), classOfT);
                     updateEventToKryo(resultSet.getInt("id"),event);
-                    return event;
+                    sendEvent(event,subscribers);
                 }
-                return null;
             }
-		});
+        });
 	}
 
     private void updateEventToKryo(final int id, final Event event) {

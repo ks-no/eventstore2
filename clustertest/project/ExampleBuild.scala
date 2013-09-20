@@ -8,7 +8,9 @@ object ExampleBuild extends Build {
   lazy val buildSettings = Defaults.defaultSettings ++ multiJvmSettings ++ Seq(
     organization := "example",
     version := "1.0",
-    scalaVersion := "2.10.0"
+    scalaVersion := "2.10.2",
+    // make sure that the artifacts don't have the scala version in the name
+    crossPaths := false
   )
 
   lazy val example = Project(
@@ -35,16 +37,17 @@ object ExampleBuild extends Build {
   object Dependencies {
     val example = Seq(
       // ---- application dependencies ----
-      "com.typesafe.akka" %% "akka-actor" % "2.1.0" ,
-      "com.typesafe.akka" %% "akka-remote" % "2.1.0" ,
+      "com.typesafe.akka" %% "akka-actor" % "2.2.1" ,
+      "com.typesafe.akka" %% "akka-remote" % "2.2.1" ,
 
       // ---- test dependencies ----
-      "com.typesafe.akka" %% "akka-testkit" % "2.1.0" %
+      "com.typesafe.akka" %% "akka-testkit" % "2.2.1" %
         "test" ,
-      "com.typesafe.akka" %% "akka-remote-tests-experimental" % "2.1.0" %
+      "com.typesafe.akka" %% "akka-multi-node-testkit" % "2.2.1" %
         "test" ,
-      "org.scalatest" %% "scalatest" % "1.9" % "test",
+      "org.scalatest" %% "scalatest" % "1.9.1" % "test",
       "junit" % "junit" % "4.5" % "test"
     )
   }
 }
+

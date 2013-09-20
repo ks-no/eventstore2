@@ -158,7 +158,7 @@ class EventStore extends UntypedActor {
         pendingSubscriptions.get(aggregateId).add(subscriber);
 
         getContext().system().scheduler().scheduleOnce(Duration.create(250, TimeUnit.MILLISECONDS),
-                self(), "FillPendingSubscriptions", getContext().system().dispatcher());
+                self(), "FillPendingSubscriptions", getContext().system().dispatcher(), self());
     }
 
     private void addSubscriber(SubscriptionRefresh refresh) {

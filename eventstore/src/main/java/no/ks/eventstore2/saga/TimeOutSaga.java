@@ -46,6 +46,6 @@ public abstract class TimeOutSaga extends Saga {
     protected void scheduleAwake(int time, TimeUnit timeUnit) {
         clearAwake();
         log.debug("{} {} scheduling awake in {} {}",getSelf(), id, time, timeUnit);
-        cancellable = getContext().system().scheduler().scheduleOnce(Duration.create(time, timeUnit), self(), "awake", getContext().system().dispatcher());
+        cancellable = getContext().system().scheduler().scheduleOnce(Duration.create(time, timeUnit), self(), "awake", getContext().system().dispatcher(),self());
     }
 }

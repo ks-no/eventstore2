@@ -30,7 +30,7 @@ public abstract class Saga extends UntypedActor {
 	}
 
     @Override
-    public void preStart() {
+    public void preStart() throws Exception {
         super.preStart();
         loadPersistedState();
 		init();

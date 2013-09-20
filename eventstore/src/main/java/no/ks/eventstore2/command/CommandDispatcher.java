@@ -23,10 +23,12 @@ public class CommandDispatcher extends UntypedActor {
     public CommandDispatcher(ActorRef eventStore, List<CommandHandlerFactory> commandHandlerFactories) {
 		this.eventStore = eventStore;
 		this.commandHandlerFactories = commandHandlerFactories;
+        log.debug("CommandDispatcher created");
 	}
 
 	@Override
-	public void preStart() {
+	public void preStart() throws InterruptedException {
+        log.debug("PreStartCalled");
 		for (CommandHandlerFactory factory : commandHandlerFactories) {
 			factory.setEventStore(eventStore);
 			Props props = new Props(factory);
@@ -34,16 +36,23 @@ public class CommandDispatcher extends UntypedActor {
 				props = props.withRouter(factory.getRouter());
 			}
 			ActorRef ref = getContext().actorOf(props);
+            log.debug("Created subactor " + ref);
             ref.tell("HandlesClasses", self());
+            log.debug("sent Handles classes to " + ref);
             remainingCommandHandlers++;
 		}
+        //a small wait so that all children can start, before we start procesing messages.
+        Thread.sleep(100);
 	}
 
 	@Override
 	public void onReceive(Object o) throws Exception {
+
 		if (o instanceof Command) {
+            log.debug("Got command " + o);
 			ActorRef actorRef = commandHandlers.get(o.getClass());
             if(actorRef == null && remainingCommandHandlers > 0) {
+                log.debug("RemainingCommandHandlers is " + remainingCommandHandlers + " sending message to self");
                 self().tell(o, sender());
             } else {
                 if(actorRef == null){
@@ -53,10 +62,13 @@ public class CommandDispatcher extends UntypedActor {
                 }
             }
 		} else if(o instanceof ImmutableSet){
+            log.debug("Got ImmutableSet " + o);
             ImmutableSet<Class<? extends Command>> handles = (ImmutableSet<Class<? extends Command>>) o;
             for (Class<? extends Command> clz : handles) {
+                log.debug("Putting class " + clz  + " into map with actor " + sender());
                 commandHandlers.put(clz, sender());
                 remainingCommandHandlers--;
+                log.debug("remainingCommandHandlers is " + remainingCommandHandlers);
             }
         }
 	}

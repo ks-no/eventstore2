@@ -13,7 +13,7 @@ public abstract class OnlyExecuteOnLeaderCommandHandler extends CommandHandler {
 	}
 
 	@Override
-	public void preStart() {
+	public void preStart() throws Exception {
         akkaClusterInfo = new AkkaClusterInfo(getContext().system());
         akkaClusterInfo.subscribeToClusterEvents(self());
 		akkaClusterInfo.updateLeaderState(null);

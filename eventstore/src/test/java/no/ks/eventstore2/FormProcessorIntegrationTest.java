@@ -55,7 +55,8 @@ public class FormProcessorIntegrationTest extends EmbeddedDatabaseTest {
                 }
             });
 
-            final ActorRef commandDispatcher = system.actorOf(new Props(new CommandDispatcherFactory(commandHandlerFactories, eventStore)), "commandDispatcher");
+            CommandDispatcherFactory commandDispatcherFactory = new CommandDispatcherFactory(commandHandlerFactories, eventStore);
+            final ActorRef commandDispatcher = system.actorOf(new Props(commandDispatcherFactory), "commandDispatcher");
             final ActorRef sagaManager = system.actorOf(new Props(new SagaManagerFactory(new SagaInMemoryRepository(), commandDispatcher, eventStore)), "sagaManager");
 
             eventStore.tell(new FormReceived("form_id_1"), getRef());

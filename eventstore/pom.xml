@@ -16,6 +16,23 @@
         <repository>
             <id>kryo shaded</id>
             <url>https://oss.sonatype.org/content/repositories/releases/</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+        </repository>
+        <repository>
+            <id>oss-sonatype-snapshots</id>
+            <name>Sonatype-snapshots</name>
+            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
         </repository>
     </repositories>
 	<build>
@@ -70,7 +87,7 @@
         <dependency>
             <groupId>com.esotericsoftware.kryo</groupId>
             <artifactId>kryo</artifactId>
-            <version>2.21</version>
+            <version>2.22-SNAPSHOT</version>
             <classifier>shaded</classifier>
             <exclusions>
                 <exclusion>

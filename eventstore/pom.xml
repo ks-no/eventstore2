@@ -88,21 +88,6 @@
             <groupId>com.esotericsoftware.kryo</groupId>
             <artifactId>kryo</artifactId>
             <version>2.22-SNAPSHOT</version>
-            <classifier>shaded</classifier>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.esotericsoftware.reflectasm</groupId>
-                    <artifactId>reflectasm</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.esotericsoftware.minlog</groupId>
-                    <artifactId>minlog</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.objenesis</groupId>
-                    <artifactId>objenesis</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>de.javakaffee</groupId>

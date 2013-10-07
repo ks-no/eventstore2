@@ -87,7 +87,7 @@
         <dependency>
             <groupId>com.esotericsoftware.kryo</groupId>
             <artifactId>kryo</artifactId>
-            <version>2.22-SNAPSHOT</version>
+            <version>2.23-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>de.javakaffee</groupId>

@@ -64,6 +64,7 @@ public abstract class Projection extends UntypedActor {
         		sender().tell(new NoResult(), self());
         	}
         } catch (Exception e) {
+            log.error("Projection threw exception:", e);
             throw new RuntimeException("Error calling method!", e);
         }
     }

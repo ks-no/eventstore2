@@ -31,11 +31,16 @@ public abstract class CommandHandler extends UntypedActor{
 
     @Override
     public void onReceive(Object o) throws Exception{
-        if (o instanceof Command)
-            handleCommand((Command) o);
-        if("HandlesClasses".equals(o)){
-            log.debug("Handles classes received sending map to " + sender());
-            sender().tell(ImmutableSet.copyOf(handleCommandMap.keySet()), self());
+        try {
+            if (o instanceof Command)
+                handleCommand((Command) o);
+            if("HandlesClasses".equals(o)){
+                log.debug("Handles classes received sending map to " + sender());
+                sender().tell(ImmutableSet.copyOf(handleCommandMap.keySet()), self());
+            }
+        } catch (Exception e) {
+            log.error("Command handler threw exception when handling message: ", e);
+            throw new RuntimeException("Command handler threw exception when handling message: ", e);
         }
     }
 

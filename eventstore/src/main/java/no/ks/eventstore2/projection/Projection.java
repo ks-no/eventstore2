@@ -39,7 +39,8 @@ public abstract class Projection extends UntypedActor {
                 handleCall((Call) o);
         } catch (Exception e){
             getContext().parent().tell(new ProjectionFailedError(self(), e, o), self());
-            throw e;
+            log.error("Projection threw exception while handling message: ", e);
+            throw new RuntimeException("Projection threw exception while handling message: ", e);
         }
     }
 
@@ -64,7 +65,6 @@ public abstract class Projection extends UntypedActor {
         		sender().tell(new NoResult(), self());
         	}
         } catch (Exception e) {
-            log.error("Projection threw exception:", e);
             throw new RuntimeException("Error calling method!", e);
         }
     }

@@ -43,7 +43,8 @@ public abstract class Saga extends UntypedActor {
                 handleEventMap.get(o.getClass()).invoke(this,o);
             }
         } catch(Exception e){
-            throw new RuntimeException(e);
+            log.error("Saga threw exception when handling message: ", e);
+            throw new RuntimeException("Saga threw exception when handling message: ", e);
         }
 	}
 

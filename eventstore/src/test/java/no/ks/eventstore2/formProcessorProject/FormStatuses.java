@@ -18,6 +18,18 @@ public class FormStatuses extends Projection {
         super(eventStore);
     }
 
+    public void handleEvent(FormReceived event){
+        statuses.put(event.getFormId(), FormStatus.RECEIVED);
+    }
+
+    public void handleEvent(FormParsed event){
+        statuses.put(event.getFormId(), FormStatus.PARSED);
+    }
+
+    public void handleEvent(FormDelivered event){
+        statuses.put(event.getFormId(), FormStatus.DELIVERED);
+    }
+
     public int getNumberOfForms() {
         return statuses.size();
     }
@@ -32,18 +44,6 @@ public class FormStatuses extends Projection {
             result.put(formId, statuses.get(formId));
         }
         return result;
-    }
-
-    public void handleEvent(FormReceived event){
-        statuses.put(event.getFormId(), FormStatus.RECEIVED);
-    }
-
-    public void handleEvent(FormParsed event){
-        statuses.put(event.getFormId(), FormStatus.PARSED);
-    }
-
-    public void handleEvent(FormDelivered event){
-        statuses.put(event.getFormId(), FormStatus.DELIVERED);
     }
 
 }

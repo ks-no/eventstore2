@@ -25,16 +25,16 @@ public abstract class Projection extends UntypedActor {
     }
 
     @Override
-    public void preStart(){
+    public final void preStart(){
         System.out.println(getSelf().path().toString());
         subscribe(eventStore);
     }
 
     @Override
-    public void onReceive(Object o) throws Exception{
+    public final void onReceive(Object o) throws Exception{
         try{
             if (o instanceof Event)
-                handleEvent((Event) o);
+                dispatchToCorrectEventHandler((Event) o);
             else if (o instanceof Call)
                 handleCall((Call) o);
         } catch (Exception e){
@@ -44,8 +44,9 @@ public abstract class Projection extends UntypedActor {
         }
     }
 
-    public void handleEvent(Event event) {
-        Method method = handleEventMap.get(event.getClass());
+    public final void dispatchToCorrectEventHandler(Event event) {
+        Method method = getMethod(event);
+
         if (method != null)
             try {
                 method.invoke(this, event);
@@ -54,7 +55,18 @@ public abstract class Projection extends UntypedActor {
             }
     }
 
-    public void handleCall(Call call) {
+    private Method getMethod(Event event) {
+        Method method = null;
+
+        Class<?> theclass = event.getClass();
+        while (method == null && theclass != Object.class){
+            method = handleEventMap.get(theclass);
+            theclass = theclass.getSuperclass();
+        }
+        return method;
+    }
+
+    public final void handleCall(Call call) {
         log.debug("handling call: {}", call);
         Method method = getCallMethod(call);
         try {
@@ -104,15 +116,36 @@ public abstract class Projection extends UntypedActor {
     }
 
     private void init() {
+        //TODO: check for duplicate handlers
+        //TODO: give more informative exceptions on invalid signatures
         handleEventMap = new HashMap<Class<? extends Event>, Method>();
         try {
             Class<? extends Projection> projectionClass = this.getClass();
-            ListensTo annotation = projectionClass.getAnnotation(ListensTo.class);
-            if (annotation != null) {
-                Class[] handledEventClasses = annotation.value();
+            ListensTo listensTo = projectionClass.getAnnotation(ListensTo.class);
+            if (listensTo != null) {
+                Class[] handledEventClasses = listensTo.value();
+
                 for (Class<? extends Event> handledEventClass : handledEventClasses) {
                     Method handleEventMethod = projectionClass.getMethod("handleEvent", handledEventClass);
                     handleEventMap.put(handledEventClass, handleEventMethod);
+                }
+            } else {
+                for (Method method : projectionClass.getMethods()) {
+                    EventHandler eventHandlerAnnotation = method.getAnnotation(EventHandler.class);
+
+                    if (eventHandlerAnnotation != null){
+                        Class<?>[] types = method.getParameterTypes();
+                        if (types.length != 1)
+                            throw new RuntimeException("Invalid handler signature " + method.getName());
+                        else {
+                            if (!Event.class.isAssignableFrom(types[0])) {
+                                throw new RuntimeException("Invalid handler signature " + method.getName());
+                            } else   {
+                                handleEventMap.put((Class<? extends Event>) types[0], method);
+                            }
+
+                        }
+                    }
                 }
             }
         } catch (Exception e) {
@@ -120,10 +153,15 @@ public abstract class Projection extends UntypedActor {
         }
     }
 
-    protected void subscribe(ActorRef eventStore){
+    protected final void subscribe(ActorRef eventStore){
         ListensTo annotation = getClass().getAnnotation(ListensTo.class);
         if (annotation != null)
             for (String aggregate : annotation.aggregates())
                 eventStore.tell(new Subscription(aggregate), self());
+
+        Aggregate aggregateAnnotation = getClass().getAnnotation(Aggregate.class);
+
+        if (aggregateAnnotation != null)
+            eventStore.tell(new Subscription(aggregateAnnotation.value()), self());
     }
 }

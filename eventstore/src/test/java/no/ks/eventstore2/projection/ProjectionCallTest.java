@@ -26,12 +26,12 @@ import static akka.testkit.JavaTestKit.duration;
 import static no.ks.eventstore2.projection.CallProjection.call;
 import static org.junit.Assert.assertEquals;
 
-public class ProjectionTest extends TestKit{
+public class ProjectionCallTest extends TestKit{
 
     static ActorSystem _system = ActorSystem.create("TestSys", ConfigFactory
             .load().getConfig("TestSys"));
 
-    public ProjectionTest() {
+    public ProjectionCallTest() {
         super(_system);
     }
 
@@ -109,7 +109,7 @@ public class ProjectionTest extends TestKit{
                 return new Projection(eventstore) {
                     boolean failed = false;
 
-                    @Override
+                    @EventHandler
                     public void handleEvent(Event event) {
                         if (failed)
                             sender().tell(event, self());
@@ -141,4 +141,6 @@ public class ProjectionTest extends TestKit{
         expectMsgClass(ProjectionFailedError.class);
         expectMsg(formParsed);
     }
+
+
 }

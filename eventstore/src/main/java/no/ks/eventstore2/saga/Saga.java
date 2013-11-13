@@ -3,6 +3,7 @@ package no.ks.eventstore2.saga;
 import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
 import no.ks.eventstore2.Event;
+import no.ks.eventstore2.reflection.HandlerFinder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -107,6 +108,9 @@ public abstract class Saga extends UntypedActor {
 
 
 			}
+
+            handleEventMap.putAll(HandlerFinder.getEventHandlers(this.getClass()));
+
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}

@@ -4,6 +4,7 @@ import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.eventstore.Subscription;
+import no.ks.eventstore2.reflection.HandlerFinder;
 import no.ks.eventstore2.response.NoResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -130,23 +131,7 @@ public abstract class Projection extends UntypedActor {
                     handleEventMap.put(handledEventClass, handleEventMethod);
                 }
             } else {
-                for (Method method : projectionClass.getMethods()) {
-                    EventHandler eventHandlerAnnotation = method.getAnnotation(EventHandler.class);
-
-                    if (eventHandlerAnnotation != null){
-                        Class<?>[] types = method.getParameterTypes();
-                        if (types.length != 1)
-                            throw new RuntimeException("Invalid handler signature " + method.getName());
-                        else {
-                            if (!Event.class.isAssignableFrom(types[0])) {
-                                throw new RuntimeException("Invalid handler signature " + method.getName());
-                            } else   {
-                                handleEventMap.put((Class<? extends Event>) types[0], method);
-                            }
-
-                        }
-                    }
-                }
+                handleEventMap.putAll(HandlerFinder.getEventHandlers(projectionClass));
             }
         } catch (Exception e) {
             throw new RuntimeException(e);

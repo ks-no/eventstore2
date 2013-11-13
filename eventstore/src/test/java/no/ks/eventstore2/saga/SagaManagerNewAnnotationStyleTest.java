@@ -5,6 +5,7 @@ import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.Eventstore2TestKit;
+import no.ks.eventstore2.eventstore.Subscription;
 import no.ks.eventstore2.projection.Aggregate;
 import no.ks.eventstore2.projection.EventHandler;
 import org.junit.Test;
@@ -13,16 +14,21 @@ import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 
-public class SagaWithNewAnnotationTest extends Eventstore2TestKit{
+public class SagaManagerNewAnnotationStyleTest extends Eventstore2TestKit{
 
 
     @Test
-    public void test_that_saga_with_new_annotaions_handle_correct_event() throws Exception {
-        Props props = Props.create(SagaWithNewAnotation.class, "a test id", super.testActor(), new SagaInMemoryRepository());
-        TestActorRef<SagaWithNewAnotation> testActor = TestActorRef.create(_system, props, UUID.randomUUID().toString());
+    public void test_that_methods_with_eventHandler_annotations_are_called_when_saga_receives_events() throws Exception {
+        SagaInMemoryRepository sagaInMemoryRepository = new SagaInMemoryRepository();
+        Props sagaManagerProps = Props.create(SagaManager.class, super.testActor(), sagaInMemoryRepository, super.testActor());
+        TestActorRef<SagaManager> sagaManager = TestActorRef.create(_system, sagaManagerProps, UUID.randomUUID().toString());
 
-        testActor.tell(new TestEvent("a test id"), super.testActor());
-        assertEquals(Saga.STATE_FINISHED, testActor.underlyingActor().getState());
+        sagaManager.tell(new TestEvent("a test id"), super.testActor());
+        //TODO: make sagaManagerFactory accept package path for scanning as a parmeter, and then fix this test so that the manager only scans this path
+        expectMsgClass(Subscription.class);
+        expectMsgClass(Subscription.class);
+        expectMsgClass(TestEvent.class);
+        assertEquals(Saga.STATE_FINISHED, sagaInMemoryRepository.getState(SagaWithNewAnotation.class, "a test id"));
     }
 
     @SagaEventIdProperty("testId")
@@ -36,6 +42,7 @@ public class SagaWithNewAnnotationTest extends Eventstore2TestKit{
         @EventHandler
         public void handleEvent(TestEvent event){
             transitionState(STATE_FINISHED);
+            commandDispatcher.tell(new TestEvent("We have been here"),self());
         }
     }
 

@@ -2,7 +2,6 @@ package no.ks.eventstore2.reflection;
 
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.projection.EventHandler;
-import no.ks.eventstore2.projection.Projection;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;

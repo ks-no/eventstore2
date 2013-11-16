@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 
-//TODO: implement polymorphism in event subscription
 public abstract class Saga extends UntypedActor {
 
 	private Logger log = LoggerFactory.getLogger(this.getClass());

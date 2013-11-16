@@ -11,7 +11,6 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
-//TODO: Implement new per-method handlesEvent annotation
 public abstract class CommandHandler extends UntypedActor{
 
     private static Logger log= LoggerFactory.getLogger(CommandHandler.class);

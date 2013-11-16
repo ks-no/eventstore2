@@ -117,8 +117,6 @@ public abstract class Projection extends UntypedActor {
     }
 
     private void init() {
-        //TODO: check for duplicate handlers
-        //TODO: give more informative exceptions on invalid signatures
         handleEventMap = new HashMap<Class<? extends Event>, Method>();
         try {
             Class<? extends Projection> projectionClass = this.getClass();

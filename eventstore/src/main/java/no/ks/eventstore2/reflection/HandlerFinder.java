@@ -2,6 +2,7 @@ package no.ks.eventstore2.reflection;
 
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.Handler;
+import no.ks.eventstore2.SubscriberConfigurationException;
 import no.ks.eventstore2.command.Command;
 import no.ks.eventstore2.command.CommandHandler;
 
@@ -31,7 +32,11 @@ public class HandlerFinder {
                     if (!handlesClass.isAssignableFrom(types[0])) {
                         throw new RuntimeException("Invalid handler signature " + method.getName());
                     } else {
-                        handlers.put((Class<? extends T>) types[0], method);
+                        Class<? extends T> handledType = (Class<? extends T>) types[0];
+                        if (handlers.get(handledType) != null)
+                            throw new SubscriberConfigurationException("More than one handler of " + handledType.getName() + " in subscriber " + clazz.getName());
+                        else
+                            handlers.put(handledType, method);
                     }
 
                 }

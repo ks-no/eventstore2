@@ -6,7 +6,7 @@ import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.Eventstore2TestKit;
-import no.ks.eventstore2.eventstore.Subscription;
+import no.ks.eventstore2.Handler;
 import org.junit.Test;
 
 import java.util.UUID;
@@ -44,7 +44,7 @@ public class ProjectionPolymorphismEventTest extends Eventstore2TestKit {
         assertTrue(((TestProjection) testActor.underlyingActor()).subEventRecieved);
     }
 
-    @Aggregate("TestAggregate")
+    @Subscriber("TestAggregate")
     private static class TestProjection extends Projection {
 
 
@@ -56,17 +56,17 @@ public class ProjectionPolymorphismEventTest extends Eventstore2TestKit {
             super(eventStore);
         }
 
-        @EventHandler
+        @Handler
         public void handleEvent(TestEvent event){
             testEventRecieved = true;
         }
 
-        @EventHandler
+        @Handler
         public void handleEvent(Event event){
             eventRecieved = true;
         }
 
-        @EventHandler
+        @Handler
         public void handleEvent(TestSubEvent event){
             subEventRecieved = true;
         }

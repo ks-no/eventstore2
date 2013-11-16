@@ -6,8 +6,8 @@ import akka.testkit.TestActorRef;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.Eventstore2TestKit;
 import no.ks.eventstore2.eventstore.Subscription;
-import no.ks.eventstore2.projection.Aggregate;
-import no.ks.eventstore2.projection.EventHandler;
+import no.ks.eventstore2.Handler;
+import no.ks.eventstore2.projection.Subscriber;
 import org.junit.Test;
 
 import java.util.UUID;
@@ -32,14 +32,14 @@ public class SagaManagerNewAnnotationStyleTest extends Eventstore2TestKit{
     }
 
     @SagaEventIdProperty("testId")
-    @Aggregate("TestAggregate")
+    @Subscriber("TestAggregate")
     private static class SagaWithNewAnotation extends Saga {
 
         public SagaWithNewAnotation(String id, ActorRef commandDispatcher, SagaRepository repository) {
             super(id, commandDispatcher, repository);
         }
 
-        @EventHandler
+        @Handler
         public void handleEvent(TestEvent event){
             transitionState(STATE_FINISHED);
             commandDispatcher.tell(new TestEvent("We have been here"),self());

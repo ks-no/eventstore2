@@ -144,9 +144,9 @@ public abstract class Projection extends UntypedActor {
             for (String aggregate : annotation.aggregates())
                 eventStore.tell(new Subscription(aggregate), self());
 
-        Aggregate aggregateAnnotation = getClass().getAnnotation(Aggregate.class);
+        Subscriber subscriberAnnotation = getClass().getAnnotation(Subscriber.class);
 
-        if (aggregateAnnotation != null)
-            eventStore.tell(new Subscription(aggregateAnnotation.value()), self());
+        if (subscriberAnnotation != null)
+            eventStore.tell(new Subscription(subscriberAnnotation.value()), self());
     }
 }

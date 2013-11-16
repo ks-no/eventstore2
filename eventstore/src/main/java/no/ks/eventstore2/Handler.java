@@ -1,4 +1,4 @@
-package no.ks.eventstore2.projection;
+package no.ks.eventstore2;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -7,5 +7,5 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
-public @interface EventHandler {
+public @interface Handler {
 }

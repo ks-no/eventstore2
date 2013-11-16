@@ -9,7 +9,7 @@ import akka.cluster.ClusterEvent;
 import no.ks.eventstore2.AkkaClusterInfo;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.eventstore.Subscription;
-import no.ks.eventstore2.projection.Aggregate;
+import no.ks.eventstore2.projection.Subscriber;
 import no.ks.eventstore2.reflection.HandlerFinder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,11 +104,11 @@ public class SagaManager extends UntypedActor {
     }
 
     private static void handleNewStyleAnnotations(Class<? extends Saga> sagaClass) {
-        Aggregate aggregateAnnotation = sagaClass.getAnnotation(Aggregate.class);
-        if (aggregateAnnotation == null)
+        Subscriber subscriberAnnotation = sagaClass.getAnnotation(Subscriber.class);
+        if (subscriberAnnotation == null)
             throw new InvalidSagaConfigurationException("Missing aggregate annotation, please annotate " + sagaClass + " with @Aggregate to specify subscribed aggregate");
 
-        registerAggregate(aggregateAnnotation.value());
+        registerAggregate(subscriberAnnotation.value());
 
         SagaEventIdProperty sagaEventIdProperty = sagaClass.getAnnotation(SagaEventIdProperty.class);
 

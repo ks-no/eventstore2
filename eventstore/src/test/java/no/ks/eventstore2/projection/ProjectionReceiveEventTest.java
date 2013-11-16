@@ -6,6 +6,7 @@ import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.Eventstore2TestKit;
+import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.eventstore.Subscription;
 import org.junit.Test;
 
@@ -30,7 +31,7 @@ public class ProjectionReceiveEventTest extends Eventstore2TestKit {
     }
 
 
-    @Aggregate("TestAggregate")
+    @Subscriber("TestAggregate")
     private static class TestProjection extends Projection {
 
 
@@ -40,7 +41,7 @@ public class ProjectionReceiveEventTest extends Eventstore2TestKit {
             super(eventStore);
         }
 
-        @EventHandler
+        @Handler
         public void handleEvent(TestEvent event){
             testEventRecieved = true;
         }

@@ -8,6 +8,7 @@ import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
 import no.ks.eventstore2.Event;
+import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.formProcessorProject.FormParsed;
 import no.ks.eventstore2.formProcessorProject.FormReceived;
 import no.ks.eventstore2.formProcessorProject.FormStatus;
@@ -109,7 +110,7 @@ public class ProjectionCallTest extends TestKit{
                 return new Projection(eventstore) {
                     boolean failed = false;
 
-                    @EventHandler
+                    @Handler
                     public void handleEvent(Event event) {
                         if (failed)
                             sender().tell(event, self());

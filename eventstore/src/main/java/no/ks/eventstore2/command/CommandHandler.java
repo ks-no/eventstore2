@@ -3,6 +3,7 @@ package no.ks.eventstore2.command;
 import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
 import com.google.common.collect.ImmutableSet;
+import no.ks.eventstore2.reflection.HandlerFinder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,17 +58,30 @@ public abstract class CommandHandler extends UntypedActor{
     private void init() {
         handleCommandMap = new HashMap<Class<? extends Command>, Method>();
         try {
-            Class<? extends CommandHandler> handlerClass = this.getClass();
-            HandlesCommand annotation = handlerClass.getAnnotation(HandlesCommand.class);
-            if (annotation != null) {
-                Class[] handledCommandClasses = annotation.value();
-                for (Class<? extends Command> handledEventClass : handledCommandClasses) {
-                    Method handleCommandMethod = handlerClass.getMethod("handleCommand", handledEventClass);
-                    handleCommandMap.put(handledEventClass, handleCommandMethod);
-                }
-            }
+
+            handleCommandMap.putAll(getOldStyleHandlers());
+            handleCommandMap.putAll(getNewStyleHandlers());
+
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private HashMap<Class<? extends Command>, Method> getNewStyleHandlers() {
+        return  HandlerFinder.getCommandHandlers(this.getClass());
+    }
+
+    private HashMap<Class<? extends Command>, Method> getOldStyleHandlers() throws NoSuchMethodException {
+        HashMap<Class<? extends Command>, Method> oldStyleMap = new HashMap<Class<? extends Command>, Method>();
+        Class<? extends CommandHandler> handlerClass = this.getClass();
+        HandlesCommand annotation = handlerClass.getAnnotation(HandlesCommand.class);
+        if (annotation != null) {
+            Class[] handledCommandClasses = annotation.value();
+            for (Class<? extends Command> handledEventClass : handledCommandClasses) {
+                Method handleCommandMethod = handlerClass.getMethod("handleCommand", handledEventClass);
+                oldStyleMap.put(handledEventClass, handleCommandMethod);
+            }
+        }
+        return oldStyleMap;
     }
 }

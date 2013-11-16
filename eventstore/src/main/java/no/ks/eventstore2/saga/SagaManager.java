@@ -29,19 +29,22 @@ public class SagaManager extends UntypedActor {
     private final ActorRef commandDispatcher;
     private final SagaRepository repository;
     private ActorRef eventstore;
+    private String packageScanPath;
 
     private Map<SagaCompositeId, ActorRef> sagas = new HashMap<SagaCompositeId, ActorRef>();
     private AkkaClusterInfo akkaClusterInfo;
 
-    public SagaManager(ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore) {
+    public SagaManager(ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore, String packageScanPath) {
         this.commandDispatcher = commandDispatcher;
         this.repository = repository;
         this.eventstore = eventstore;
+        this.packageScanPath = packageScanPath;
     }
 
 
     @Override
     public void preStart() {
+        registerSagas();
         akkaClusterInfo = new AkkaClusterInfo(getContext().system());
         akkaClusterInfo.subscribeToClusterEvents(self());
         updateLeaderState(null);
@@ -80,16 +83,16 @@ public class SagaManager extends UntypedActor {
     private static Map<SagaEventId, Method> propertyMap = new HashMap<SagaEventId, Method>();
     private static Map<Class<? extends Event>, ArrayList<Class<? extends Saga>>> eventToSagaMap = new HashMap<Class<? extends Event>, ArrayList<Class<? extends Saga>>>();
 
-    static {
+    private void registerSagas(){
         ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(true);
         scanner.addIncludeFilter(new AssignableTypeFilter(Saga.class));
-        for (BeanDefinition bd : scanner.findCandidateComponents("no")) //TODO: make configurable
+        for (BeanDefinition bd : scanner.findCandidateComponents(packageScanPath))
             if (!bd.isAbstract())
                 register(bd.getBeanClassName());
     }
 
     @SuppressWarnings("unchecked")
-    private static void register(String className) {
+    private void register(String className) {
         try {
             Class<? extends Saga> sagaClass = (Class<? extends Saga>) Class.forName(className);
 
@@ -103,7 +106,7 @@ public class SagaManager extends UntypedActor {
         }
     }
 
-    private static void handleNewStyleAnnotations(Class<? extends Saga> sagaClass) {
+    private void handleNewStyleAnnotations(Class<? extends Saga> sagaClass) {
         Subscriber subscriberAnnotation = sagaClass.getAnnotation(Subscriber.class);
         if (subscriberAnnotation == null)
             throw new InvalidSagaConfigurationException("Missing aggregate annotation, please annotate " + sagaClass + " with @Aggregate to specify subscribed aggregate");
@@ -132,16 +135,16 @@ public class SagaManager extends UntypedActor {
 
     }
 
-    private static String propertyfy(String propName) {
+    private String propertyfy(String propName) {
         return propName == null || propName.length() < 1 ? null : "get" + propName.substring(0,1).toUpperCase() + propName.substring(1);
 
     }
 
-    private static void registerAggregate(String aggregate) {
+    private void registerAggregate(String aggregate) {
         registerAggregates(new String[]{aggregate});
     }
 
-    private static boolean handleOldStyleAnnotations(Class<? extends Saga> sagaClass) throws IntrospectionException {
+    private boolean handleOldStyleAnnotations(Class<? extends Saga> sagaClass) throws IntrospectionException {
         ListensTo annotation = sagaClass.getAnnotation(ListensTo.class);
         if (null != annotation) {
             registerAggregates(annotation.aggregates());
@@ -157,22 +160,22 @@ public class SagaManager extends UntypedActor {
         }
     }
 
-    private static void registerAggregates(String[] aggregates) {
+    private void registerAggregates(String[] aggregates) {
         Collections.addAll(SagaManager.aggregates, aggregates);
     }
 
-    private static void registerSagaIdPropertyMethod(Class<? extends Saga> sagaClass, Class<?extends Event> eventclass, Method getter) {
+    private void registerSagaIdPropertyMethod(Class<? extends Saga> sagaClass, Class<?extends Event> eventclass, Method getter) {
         propertyMap.put(new SagaEventId(sagaClass, eventclass), getter);
     }
 
-    private static List<Class<? extends Saga>> getSagaClassesForEvent(Class<? extends Event> eventClass) {
+    private List<Class<? extends Saga>> getSagaClassesForEvent(Class<? extends Event> eventClass) {
         if (!eventToSagaMap.containsKey(eventClass))
             eventToSagaMap.put(eventClass, new ArrayList<Class<? extends Saga>>());
 
         return eventToSagaMap.get(eventClass);
     }
 
-    private static void registerEventToSaga(Class<? extends Event> eventClass, Class<? extends Saga> saga) {
+    private void registerEventToSaga(Class<? extends Event> eventClass, Class<? extends Saga> saga) {
         getSagaClassesForEvent(eventClass).add(saga);
     }
 

@@ -20,7 +20,7 @@ public class SagaManagerNewAnnotationStyleTest extends Eventstore2TestKit{
     @Test
     public void test_that_methods_with_eventHandler_annotations_are_called_when_saga_receives_events() throws Exception {
         SagaInMemoryRepository sagaInMemoryRepository = new SagaInMemoryRepository();
-        Props sagaManagerProps = Props.create(SagaManager.class, super.testActor(), sagaInMemoryRepository, super.testActor());
+        Props sagaManagerProps = Props.create(SagaManager.class, super.testActor(), sagaInMemoryRepository, super.testActor(), "no");
         TestActorRef<SagaManager> sagaManager = TestActorRef.create(_system, sagaManagerProps, UUID.randomUUID().toString());
 
         sagaManager.tell(new TestEvent("a test id"), super.testActor());

@@ -67,7 +67,7 @@ public class SagaManagerTest extends TestKit {
         final ActorRef testActor = super.testActor();
         return new Props(new UntypedActorFactory(){
 			public Actor create() throws Exception {
-                return new SagaManager(testActor, sagaInMemoryRepository, _system.actorOf(new Props(DummyActor.class)));
+                return new SagaManager(testActor, sagaInMemoryRepository, _system.actorOf(new Props(DummyActor.class)), "no");
             }
         });
     }

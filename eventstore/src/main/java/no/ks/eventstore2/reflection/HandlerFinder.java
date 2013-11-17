@@ -27,14 +27,14 @@ public class HandlerFinder {
             if (handlerAnnotation != null) {
                 Class<?>[] types = method.getParameterTypes();
                 if (types.length != 1)
-                    throw new RuntimeException("Invalid handler signature " + method.getName());
+                    throw new SubscriberConfigurationException("Invalid handler signature on " + clazz.getName() + "." + method.getName() + ". Handler should have one, and only one, parameter");
                 else {
                     if (!handlesClass.isAssignableFrom(types[0])) {
-                        throw new RuntimeException("Invalid handler signature " + method.getName());
+                        throw new SubscriberConfigurationException("Invalid handler signature on " + clazz.getName() + "." + method.getName() + ". Handler parameter should be instance of " + handlesClass.getName());
                     } else {
                         Class<? extends T> handledType = (Class<? extends T>) types[0];
                         if (handlers.get(handledType) != null)
-                            throw new SubscriberConfigurationException("More than one handler of " + handledType.getName() + " in subscriber " + clazz.getName());
+                            throw new SubscriberConfigurationException("More than one handler with parameter " + handledType.getName() + " in subscriber " + clazz.getName() + ". Handlers should be non-ambiguous");
                         else
                             handlers.put(handledType, method);
                     }

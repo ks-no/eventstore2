@@ -8,6 +8,7 @@ import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
 import no.ks.eventstore2.Event;
+import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.formProcessorProject.FormParsed;
 import no.ks.eventstore2.formProcessorProject.FormReceived;
 import no.ks.eventstore2.formProcessorProject.FormStatus;
@@ -26,12 +27,12 @@ import static akka.testkit.JavaTestKit.duration;
 import static no.ks.eventstore2.projection.CallProjection.call;
 import static org.junit.Assert.assertEquals;
 
-public class ProjectionTest extends TestKit{
+public class ProjectionCallTest extends TestKit{
 
     static ActorSystem _system = ActorSystem.create("TestSys", ConfigFactory
             .load().getConfig("TestSys"));
 
-    public ProjectionTest() {
+    public ProjectionCallTest() {
         super(_system);
     }
 
@@ -109,7 +110,7 @@ public class ProjectionTest extends TestKit{
                 return new Projection(eventstore) {
                     boolean failed = false;
 
-                    @Override
+                    @Handler
                     public void handleEvent(Event event) {
                         if (failed)
                             sender().tell(event, self());
@@ -141,4 +142,6 @@ public class ProjectionTest extends TestKit{
         expectMsgClass(ProjectionFailedError.class);
         expectMsg(formParsed);
     }
+
+
 }

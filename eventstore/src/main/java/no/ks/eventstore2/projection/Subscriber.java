@@ -1,12 +1,12 @@
 package no.ks.eventstore2.projection;
 
+import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-@Deprecated
 @Retention(RetentionPolicy.RUNTIME)
-public @interface ListensTo {
-	Class[] value();
-
-	String[] aggregates();
+@Target(ElementType.TYPE)
+public @interface Subscriber {
+    String value();
 }

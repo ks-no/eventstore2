@@ -84,7 +84,7 @@ public class SagaManager extends UntypedActor {
     private static Map<Class<? extends Event>, ArrayList<Class<? extends Saga>>> eventToSagaMap = new HashMap<Class<? extends Event>, ArrayList<Class<? extends Saga>>>();
 
     private void registerSagas(){
-        ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(true);
+        ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
         scanner.addIncludeFilter(new AssignableTypeFilter(Saga.class));
         for (BeanDefinition bd : scanner.findCandidateComponents(packageScanPath))
             if (!bd.isAbstract())

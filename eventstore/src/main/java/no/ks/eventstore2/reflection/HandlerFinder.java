@@ -8,8 +8,20 @@ import no.ks.eventstore2.command.CommandHandler;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;
+import java.util.Map;
 
 public class HandlerFinder {
+
+    public static Method findHandlingMethod(Map<Class<? extends Event>, Method> handlers, Event event) {
+        Method method = null;
+
+        Class<?> theclass = event.getClass();
+        while (method == null && theclass != Object.class){
+            method = handlers.get(theclass);
+            theclass = theclass.getSuperclass();
+        }
+        return method;
+    }
 
     public static HashMap<Class<? extends Event>, Method> getEventHandlers(Class clazz) {
         return getHandlers(clazz, Event.class);

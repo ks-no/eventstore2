@@ -41,7 +41,8 @@ public abstract class Saga extends UntypedActor {
 	public void onReceive(Object o) {
 		try{
             if(o instanceof Event){
-                handleEventMap.get(o.getClass()).invoke(this,o);
+                Method method = HandlerFinder.findHandlingMethod(handleEventMap, (Event) o);
+                method.invoke(this,o);
             }
         } catch(Exception e){
             log.error("Saga threw exception when handling message: ", e);

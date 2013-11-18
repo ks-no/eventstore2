@@ -48,7 +48,7 @@ public abstract class Projection extends UntypedActor {
     }
 
     public final void dispatchToCorrectEventHandler(Event event) {
-        Method method = getMethod(event);
+        Method method = HandlerFinder.findHandlingMethod(handleEventMap, event);
 
         if (method != null)
             try {
@@ -56,17 +56,6 @@ public abstract class Projection extends UntypedActor {
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
-    }
-
-    private Method getMethod(Event event) {
-        Method method = null;
-
-        Class<?> theclass = event.getClass();
-        while (method == null && theclass != Object.class){
-            method = handleEventMap.get(theclass);
-            theclass = theclass.getSuperclass();
-        }
-        return method;
     }
 
     public final void handleCall(Call call) {

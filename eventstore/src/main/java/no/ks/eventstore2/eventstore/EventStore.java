@@ -105,7 +105,7 @@ class EventStore extends UntypedActor {
 			if (leaderInfo.isLeader()) {
 				storeEvent((Event) o);
 				publishEvent((Event) o);
-                log.info("Published event {}", o);
+                log.info("Published event {}: {}", o, ((Event) o).getLogMessage());
 			} else {
 				log.info("Sending to leader {} event {}", sender(), o);
 				leaderEventStore.tell(o, sender());

@@ -60,9 +60,10 @@ public class SagaManager extends UntypedActor {
         if (o instanceof Event && akkaClusterInfo.isLeader()){
 			log.debug("Sagamanager processing Event {}", o);
             Event event = (Event) o;
-            for (Class<? extends Saga> clz : getSagaClassesForEvent(event.getClass())) {
-                String sagaId = (String) propertyMap.get(new SagaEventId(clz, event.getClass())).invoke(event);
-                ActorRef sagaRef = getOrCreateSaga(clz, sagaId);
+            Set<SagaEventMapping> sagaClassesForEvent = getSagaClassesForEvent(event.getClass());
+            for (SagaEventMapping mapping : sagaClassesForEvent) {
+                String sagaId = (String) mapping.getPropertyMethod().invoke(event);
+                ActorRef sagaRef = getOrCreateSaga(mapping.getSagaClass(), sagaId);
                 sagaRef.tell(event, self());
             }
         } else if( o instanceof ClusterEvent.LeaderChanged){
@@ -80,8 +81,7 @@ public class SagaManager extends UntypedActor {
     }
 
     private static Set<String> aggregates = new HashSet<String>();
-    private static Map<SagaEventId, Method> propertyMap = new HashMap<SagaEventId, Method>();
-    private static Map<Class<? extends Event>, ArrayList<Class<? extends Saga>>> eventToSagaMap = new HashMap<Class<? extends Event>, ArrayList<Class<? extends Saga>>>();
+    private static Map<Class<? extends Event>, ArrayList<SagaEventMapping>> eventToSagaMap = new HashMap<Class<? extends Event>, ArrayList<SagaEventMapping>>();
 
     private void registerSagas(){
         ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
@@ -126,8 +126,8 @@ public class SagaManager extends UntypedActor {
                 Method eventPropertyMethod = eventClass.getMethod(propertyfy(eventPropertyMethodName));
                 if (!String.class.equals(eventPropertyMethod.getReturnType()))
                     throw new InvalidSagaConfigurationException("Event " + eventClass.getName() + "s " + eventPropertyMethodName + " eventPropertyMethod does not return String, which is required for saga " + sagaClass);
-                registerEventToSaga(eventClass, sagaClass);
-                registerSagaIdPropertyMethod(sagaClass, eventClass, eventPropertyMethod);
+
+                registerEventToSaga(eventClass, sagaClass, eventPropertyMethod);
 
             } catch (NoSuchMethodException e) {
                 throw new InvalidSagaConfigurationException("Event " + eventClass.getName() + " does not implement the java property " + eventPropertyMethodName + " which is required for saga " + sagaClass, e);
@@ -150,10 +150,8 @@ public class SagaManager extends UntypedActor {
         if (null != annotation) {
             registerAggregates(annotation.aggregates());
             for (EventIdBind eventIdBind : annotation.value()) {
-                registerEventToSaga(eventIdBind.eventClass(), sagaClass);
                 Method getter = new PropertyDescriptor(eventIdBind.idProperty(), eventIdBind.eventClass()).getReadMethod();
-                registerSagaIdPropertyMethod(sagaClass, eventIdBind.eventClass(), getter);
-
+                registerEventToSaga(eventIdBind.eventClass(), sagaClass, getter);
             }
             return true;
         } else {
@@ -165,19 +163,24 @@ public class SagaManager extends UntypedActor {
         Collections.addAll(SagaManager.aggregates, aggregates);
     }
 
-    private void registerSagaIdPropertyMethod(Class<? extends Saga> sagaClass, Class<?extends Event> eventclass, Method getter) {
-        propertyMap.put(new SagaEventId(sagaClass, eventclass), getter);
+    private Set<SagaEventMapping> getSagaClassesForEvent(Class<? extends Event> eventClass) {
+        Set<SagaEventMapping> handlingSagas = new HashSet<SagaEventMapping>();
+
+        Class clazz = eventClass;
+
+        while(clazz != Object.class){
+            if (eventToSagaMap.containsKey(clazz))
+                handlingSagas.addAll(eventToSagaMap.get(clazz));
+            clazz = clazz.getSuperclass();
+        }
+
+        return handlingSagas;
     }
 
-    private List<Class<? extends Saga>> getSagaClassesForEvent(Class<? extends Event> eventClass) {
-        if (!eventToSagaMap.containsKey(eventClass))
-            eventToSagaMap.put(eventClass, new ArrayList<Class<? extends Saga>>());
-
-        return eventToSagaMap.get(eventClass);
-    }
-
-    private void registerEventToSaga(Class<? extends Event> eventClass, Class<? extends Saga> saga) {
-        getSagaClassesForEvent(eventClass).add(saga);
+    private void registerEventToSaga(Class<? extends Event> eventClass, Class<? extends Saga> sagaClass, Method propertyMethod) {
+        if (eventToSagaMap.get(eventClass) == null)
+            eventToSagaMap.put(eventClass, new ArrayList<SagaEventMapping>());
+        eventToSagaMap.get(eventClass).add(new SagaEventMapping(sagaClass, propertyMethod));
     }
 
 	private void updateLeaderState(ClusterEvent.LeaderChanged leaderChanged) {

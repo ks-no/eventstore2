@@ -15,7 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
-import org.springframework.core.type.filter.AssignableTypeFilter;
+import org.springframework.core.type.filter.AnnotationTypeFilter;
 
 import java.beans.IntrospectionException;
 import java.beans.PropertyDescriptor;
@@ -85,7 +85,8 @@ public class SagaManager extends UntypedActor {
 
     private void registerSagas(){
         ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
-        scanner.addIncludeFilter(new AssignableTypeFilter(Saga.class));
+        scanner.addIncludeFilter(new AnnotationTypeFilter(ListensTo.class));
+        scanner.addIncludeFilter(new AnnotationTypeFilter(SagaEventIdProperty.class));
         for (BeanDefinition bd : scanner.findCandidateComponents(packageScanPath))
             if (!bd.isAbstract())
                 register(bd.getBeanClassName());

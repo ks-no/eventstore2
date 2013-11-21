@@ -33,9 +33,10 @@ public abstract class CommandHandler extends UntypedActor{
     @Override
     public void onReceive(Object o) throws Exception{
         try {
-            if (o instanceof Command)
+            if (o instanceof Command){
+                log.debug("Received command {}", o);
                 handleCommand((Command) o);
-            if("HandlesClasses".equals(o)){
+            } else if("HandlesClasses".equals(o)){
                 log.debug("Handles classes received sending map to " + sender());
                 sender().tell(ImmutableSet.copyOf(handleCommandMap.keySet()), self());
             }

@@ -28,4 +28,6 @@ public abstract class Event implements Serializable{
     }
 
     public abstract String getLogMessage();
+
+    public Event upgrade(){return this;}
 }

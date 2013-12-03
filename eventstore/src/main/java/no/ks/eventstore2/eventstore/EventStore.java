@@ -172,10 +172,7 @@ class EventStore extends UntypedActor {
 		Set<ActorRef> actorRefs = aggregateSubscribers.get(event.getAggregateId());
 		if (actorRefs == null)
 			return;
-		for (ActorRef ref : actorRefs) {
-			log.debug("Publishing event to {}", ref.path());
-			ref.tell(event, self());
-		}
+		sendEvent(event,actorRefs);
 	}
 
 	private void addSubscriber(Subscription subscription) {
@@ -207,14 +204,24 @@ class EventStore extends UntypedActor {
 
 	}
 
-    private void sendEvent(Event event, HashSet<ActorRef> subscribers){
+    private void sendEvent(Event event, Set<ActorRef> subscribers){
+        event = upgradeEvent(event);
         for (ActorRef subscriber : subscribers) {
-            log.debug("Publishing event {} from db to {}",event,subscriber);
+            log.debug("Publishing event {} to {}",event,subscriber);
             subscriber.tell(event, self());
         }
     }
 
-	private void loadEventsAndSend(String aggregate, final HashSet<ActorRef> subscribers) {
+    private Event upgradeEvent(Event event) {
+        Event upgraded = event.upgrade();
+        while(upgraded != event){
+            event = upgraded;
+            upgraded = event.upgrade();
+        }
+        return upgraded;
+    }
+
+    private void loadEventsAndSend(String aggregate, final HashSet<ActorRef> subscribers) {
 		template.query("SELECT * FROM event WHERE aggregateid = ? ORDER BY ID", new Object[]{aggregate},new RowCallbackHandler() {
             @Override
             public void processRow(ResultSet resultSet) throws SQLException {

@@ -6,6 +6,10 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
+import no.ks.eventstore2.events.Event1;
+import no.ks.eventstore2.events.Event4;
+import no.ks.eventstore2.events.NewEvent;
+import no.ks.eventstore2.events.OldEvent;
 import no.ks.eventstore2.eventstore.AcknowledgePreviousEventsProcessed;
 import no.ks.eventstore2.eventstore.EventStoreFactory;
 import no.ks.eventstore2.eventstore.Subscription;
@@ -47,6 +51,26 @@ public class EventStoreTest extends TestKit {
         eventstore.tell(event,super.testActor());
         eventstore.tell(new Subscription(event.getAggregateId()),super.testActor());
         expectMsg(event);
+    }
+
+    @Test
+    public void testEventsAreUpgraded() throws Exception {
+        EventStoreFactory factory = new EventStoreFactory();
+        factory.setDs(db);
+        ActorRef eventstore = _system.actorOf(new Props(factory), "eventstore_upgradEvent");
+        eventstore.tell(new OldEvent(),super.testActor());
+        eventstore.tell(new Subscription(new NewEvent().getAggregateId()),super.testActor());
+        expectMsgClass(NewEvent.class);
+    }
+
+    @Test
+    public void testEventsAreUpgradedMultipleTimes() throws Exception {
+        EventStoreFactory factory = new EventStoreFactory();
+        factory.setDs(db);
+        ActorRef eventstore = _system.actorOf(new Props(factory), "eventstore_upgradEventMultipleTimes");
+        eventstore.tell(new Event1(),super.testActor());
+        eventstore.tell(new Subscription(new Event4().getAggregateId()),super.testActor());
+        expectMsgClass(Event4.class);
     }
 
     @After

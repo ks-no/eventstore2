@@ -3,6 +3,7 @@ package no.ks.eventstore2.projection;
 import akka.actor.ActorRef;
 import akka.actor.UntypedActorFactory;
 
+@Deprecated
 public abstract class ProjectionFactory implements UntypedActorFactory {
 	private static final long serialVersionUID = 1L;
 

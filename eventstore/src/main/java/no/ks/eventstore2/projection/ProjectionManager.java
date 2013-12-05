@@ -15,12 +15,26 @@ public class ProjectionManager extends UntypedActor {
     private Map<Class<? extends Projection>, ActorRef> projections = new HashMap<Class<? extends Projection>, ActorRef>();
     private ActorRef errorListener;
 
+    @Deprecated
     public ProjectionManager(List<ProjectionFactory> projectionFactories, ActorRef errorListener) {
         this.errorListener = errorListener;
 
         for (ProjectionFactory projectionFactory : projectionFactories) {
             ActorRef projectionRef = getContext().actorOf(new Props(projectionFactory), projectionFactory.getProjectionClass().getSimpleName());
             projections.put(projectionFactory.getProjectionClass(), projectionRef);
+        }
+    }
+
+    public static Props mkProps(ActorRef errorListener, List<Props> props){
+        return Props.create(ProjectionManager.class,errorListener,props);
+    }
+
+    public ProjectionManager(ActorRef errorListener, List<Props> props){
+        this.errorListener = errorListener;
+
+        for (Props prop : props) {
+            ActorRef projectionRef = getContext().actorOf(prop, prop.actorClass().getSimpleName());
+            projections.put((Class<? extends Projection>) prop.actorClass(), projectionRef);
         }
     }
 

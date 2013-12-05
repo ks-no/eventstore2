@@ -5,6 +5,7 @@ import akka.actor.UntypedActorFactory;
 import akka.routing.RoundRobinRouter;
 import akka.routing.RouterConfig;
 
+@Deprecated
 public abstract class CommandHandlerFactory implements UntypedActorFactory {
 	private static final long serialVersionUID = 1L;
 

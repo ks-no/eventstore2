@@ -6,6 +6,7 @@ import akka.actor.UntypedActorFactory;
 
 import java.util.List;
 
+@Deprecated
 public class CommandDispatcherFactory implements UntypedActorFactory {
 	private static final long serialVersionUID = 1L;
 

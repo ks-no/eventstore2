@@ -33,9 +33,9 @@ public abstract class Event implements Serializable{
 
     @Override
     public String toString() {
-        return "Event{" +
-                "aggregateId='" + aggregateId + '\'' +
-                ", created=" + created +
-                '}';
+        return "Event{"
+                + "aggregateId='" + aggregateId + '\''
+                + ", created=" + created
+                + '}';
     }
 }

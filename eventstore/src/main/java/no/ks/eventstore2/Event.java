@@ -30,4 +30,12 @@ public abstract class Event implements Serializable{
     public abstract String getLogMessage();
 
     public Event upgrade(){return this;}
+
+    @Override
+    public String toString() {
+        return "Event{" +
+                "aggregateId='" + aggregateId + '\'' +
+                ", created=" + created +
+                '}';
+    }
 }

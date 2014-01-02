@@ -60,8 +60,8 @@ public abstract class Projection extends UntypedActor {
 
     public final void handleCall(Call call) {
         log.debug("handling call: {}", call);
-        Method method = getCallMethod(call);
         try {
+            Method method = getCallMethod(call);
         	Object result = method.invoke(this, call.getArgs());
         	if(result != null){
         		sender().tell(result, self());
@@ -69,27 +69,21 @@ public abstract class Projection extends UntypedActor {
         		sender().tell(new NoResult(), self());
         	}
         } catch (Exception e) {
-            throw new RuntimeException("Error calling method!", e);
+            throw new RuntimeException("Error handling projection call!", e);
         }
     }
 
-    private Method getCallMethod(Call call) {
-
-        try {
-            Class<?>[] classes = new Class<?>[call.getArgs().length];
-            for (int i = 0; i < call.getArgs().length; i++) {
-                classes[i] = call.getArgs()[i].getClass();
-            }
-            Method[] allMethods = this.getClass().getDeclaredMethods();
-            for (Method m : allMethods) {
-                if (methodAssignable(call.getMethodName(), classes, m))
-                    return m;
-            }
-            throw new NoSuchMethodException("method " + call.getMethodName() + "(" + Arrays.toString(classes) +") not found in " + this.getClass().getSimpleName());
-        } catch (NoSuchMethodException e) {
-            throw new RuntimeException("No valid method to call!", e);
+    private Method getCallMethod(Call call) throws NoSuchMethodException {
+        Class<?>[] classes = new Class<?>[call.getArgs().length];
+        for (int i = 0; i < call.getArgs().length; i++) {
+            classes[i] = call.getArgs()[i].getClass();
         }
-
+        Method[] allMethods = this.getClass().getDeclaredMethods();
+        for (Method m : allMethods) {
+            if (methodAssignable(call.getMethodName(), classes, m))
+                return m;
+        }
+        throw new NoSuchMethodException("method " + call.getMethodName() + "(" + Arrays.toString(classes) +") not found in " + this.getClass().getSimpleName());
     }
 
     private boolean methodAssignable(String callName, Class<?>[] callParams, Method candidateMethod) {

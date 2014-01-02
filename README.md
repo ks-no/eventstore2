@@ -20,8 +20,8 @@ Event sourcing introduces a few concepts to your system:
 * SagaManager. Checks for existance of a saga with the specified id. If it exists it's retrieved from the repository, if not it's created.
 * Sagas. Persisted objects that subscribe to a stream of events in the system, and alter internal state and dispatch commands based on these
 
-Copyright 2014 KS
------------------
+Copyright 2014 KS (MIT License)
+-------------------------------
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

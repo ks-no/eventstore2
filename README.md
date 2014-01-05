@@ -15,6 +15,7 @@ Event sourcing introduces a few concepts to your system:
 * CommandDispatcher. Chooses the correct handler to execute an incoming command.
 * CommandHandlers. Receives and validates commands, execute the required actions, and dispatch events describing any state changes to the system.
 * Events. Classes describing how the systems state has changed.
+* Aggregates. Events are grouped in aggregates - collections of events that together form a entity where internal consistency is maintained.
 * EventStore. Persistant stack of all events that have happened in the system.
 * Projections. Objects that subscribe to a stream of events in the system, and provide a view of these to the application.
 * SagaManager. Checks for existance of a saga with the specified id. If it exists it's retrieved from the repository, if not it's created.
@@ -55,6 +56,7 @@ On reception of CreateNewPost the handler checks if the user is allowed to compl
 
 ### Projection
 ```java
+@Subscriber("BlogAggregate")
 Class Blog extends Projection {
   
   List<Post> posts = new ArrayList<>();
@@ -74,7 +76,7 @@ Class Blog extends Projection {
 
 }
 ```
-The projections role is to maintain a view of our blog by updating a list of posts. Whenever a new post is created it is added to the list. 
+The projections role is to maintain a view of our blog by updating a list of posts. Whenever a new post is created it is added to the list. The @Subscriber annotation specifies which aggregate the projection subscribes to.
 
 If a call is made on the "getPosts" method a copy of the posts list will be return. It is good practice to return a copy instead of the list itself to maximise the self-contained nature of the akka actor representing the projection.
 

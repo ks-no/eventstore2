@@ -35,12 +35,12 @@ Class BlogPostHandler extends CommandHandler {
     super(eventStore);
   }
   
-  @Handles(CreateNewPost.class)
+  @Handler(CreateNewPost.class)
   public void handleCommand(CreateNewPost command){
     if (isAdmin(command.getUser())
       eventstore.tell(new NewPostCreated(command.getUser(), command.getContent);
     else
-      throw new UnauthorizedActionException("User is not permitted to post to this blog")
+      throw new UnauthorizedActionException("User is not permitted to post to this blog");
   }
   
   ...
@@ -49,9 +49,36 @@ Class BlogPostHandler extends CommandHandler {
 ```
 As all other components of our system, the command handler is an akka actor. The constructor accepts a reference to another actor, the EventStore component. 
 
-The @Handles annotation tells the command dispatcher that this perticular command handler handles CreateNewPost commands, and that these commands should be dispatched to this actor.
+The @Handler annotation tells the command dispatcher that this perticular command handler handles CreateNewPost commands, and that these commands should be dispatched to this actor.
 
 On reception of CreateNewPost the handler checks if the user is allowed to complete the action, and then dispatches the NewPostCreated event to the event store to indicate that the systems state has changed.
+
+### Projection
+```java
+Class Blog extends Projection {
+  
+  List<Post> posts = new ArrayList<>();
+  
+  public Blog(ActorRef eventStore) {
+    super(eventStore);
+  }
+  
+  @Handler(NewPostCreated.class)
+  public void handleEvent(NewPostCreated event){
+    posts.add(new Post(event.getCreated(), event.getUser(), event.getContent());   
+  }
+  
+  public List<Post> getPosts(){
+    return ImmutableList.copyOf(posts);
+  }
+
+}
+```
+The projections role is to maintain a view of our blog by updating a list of posts. Whenever a new post is created it is added to the list. 
+
+If a call is made on the "getPosts" method a copy of the posts list will be return. It is good practice to return a copy instead of the list itself to maximise the self-contained nature of the akka actor representing the projection.
+
+
 
 Copyright 2014 KS (MIT License)
 -------------------------------

@@ -42,6 +42,8 @@ Class BlogPostHandler extends CommandHandler {
     else
       throw new UnauthorizedActionException("User is not permitted to post to this blog")
   }
+  
+  ...
 
 }
 ```

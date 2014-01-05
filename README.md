@@ -18,7 +18,38 @@ Event sourcing introduces a few concepts to your system:
 * EventStore. Persistant stack of all events that have happened in the system.
 * Projections. Objects that subscribe to a stream of events in the system, and provide a view of these to the application.
 * SagaManager. Checks for existance of a saga with the specified id. If it exists it's retrieved from the repository, if not it's created.
-* Sagas. Persisted objects that subscribe to a stream of events in the system, and alter internal state and dispatch commands based on these
+* Sagas. Persisted objects that subscribe to a stream of events in the system, and alter internal state and dispatch commands based on these.
+
+Using EventStore2
+-----------------
+
+EventStore2 starts one Akka actor pool per node (server) in your system. These nodes all share the same event store, and the system can withstand one or more nodes going down without service being interrupted. 
+
+The library uses the following syntax to create the parts of an event sourced application. We'll use a simple blog application as an example:
+
+### CommandHandler
+```java
+Class BlogPostHandler extends CommandHandler {
+  
+  public BlogPostHandler(ActorRef eventStore) {
+    super(eventStore);
+  }
+  
+  @Handles(CreateNewPost.class)
+  public void handleCommand(CreateNewPost command){
+    if (isAdmin(command.getUser())
+      eventstore.tell(new NewPostCreated(command.getUser(), command.getContent);
+    else
+      throw new UnauthorizedActionException("User is not permitted to post to this blog")
+  }
+
+}
+```
+As all other components of our system, the command handler is an akka actor. The constructor accepts a reference to another actor, the EventStore component. 
+
+The @Handles annotation tells the command dispatcher that this perticular command handler handles CreateNewPost commands, and that these commands should be dispatched to this actor.
+
+On reception of CreateNewPost the handler checks if the user is allowed to complete the action, and then dispatches the NewPostCreated event to the event store to indicate that the systems state has changed.
 
 Copyright 2014 KS (MIT License)
 -------------------------------

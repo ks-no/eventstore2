@@ -12,8 +12,8 @@ Event Sourcing concepts
 
 Event sourcing introduces a few concepts to your system:
 
-* CommandDispatcher. Chooses the correct handler to execute an incoming command.
-* CommandHandlers. Receives and validates commands, execute the required actions, and dispatch events describing any state changes to the system.
+* CommandDispatcher. Accepts commands (typically from controllers or sagas), and dispatches them to the apropriate command handler.
+* CommandHandlers. Receives and validates commands, executes the required actions, and dispatchs events describing any state changes to the system.
 * Events. Classes describing how the systems state has changed.
 * Aggregates. Events are grouped in aggregates - collections of events that together form a entity where internal consistency is maintained.
 * EventStore. Persistant stack of all events that have happened in the system.

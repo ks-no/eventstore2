@@ -98,7 +98,24 @@ class EventStore extends UntypedActor {
         if(!(o instanceof Subscription)){
             fillPendingSubscriptions();
         }
-		if( o instanceof ClusterEvent.LeaderChanged){
+        if (o instanceof ClusterEvent.MemberRemoved) {
+            ClusterEvent.MemberRemoved removed = (ClusterEvent.MemberRemoved) o;
+            log.info("Member removed: {} status {}", removed.member(), removed.previousStatus());
+            for (String aggregate : aggregateSubscribers.keySet()) {
+                HashSet<ActorRef> remove = new HashSet<ActorRef>();
+                for (ActorRef actorRef : aggregateSubscribers.get(aggregate)) {
+                    if (actorRef.path().address().equals(removed.member().address())) {
+                        remove.add(actorRef);
+                        log.debug("removeing actorref {}", actorRef);
+                    }
+                }
+                for (ActorRef actorRef : remove) {
+                    aggregateSubscribers.get(aggregate).remove(actorRef);
+                    log.info("Aggregate {} removeed subscriber {}", aggregate, actorRef);
+                }
+            }
+        }
+        if( o instanceof ClusterEvent.LeaderChanged){
             log.info("Recieved LeaderChanged event: {}", o);
 			updateLeaderState((ClusterEvent.LeaderChanged)o);
 		} else if (o instanceof Event) {

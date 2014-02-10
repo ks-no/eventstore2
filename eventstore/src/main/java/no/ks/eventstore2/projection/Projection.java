@@ -74,6 +74,8 @@ public abstract class Projection extends UntypedActor {
     }
 
     private Method getCallMethod(Call call) throws NoSuchMethodException {
+        if(call == null) throw new IllegalArgumentException("Call can't be null");
+
         Class<?>[] classes = new Class<?>[call.getArgs().length];
         for (int i = 0; i < call.getArgs().length; i++) {
             classes[i] = call.getArgs()[i].getClass();

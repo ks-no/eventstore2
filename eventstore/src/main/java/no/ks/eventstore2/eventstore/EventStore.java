@@ -35,7 +35,7 @@ public class EventStore extends UntypedActor {
 
     @Deprecated
     public EventStore(DataSource dataSource, List<Adapter> adapters){
-        storage = new H2JournalStorage(dataSource, adapters);
+        storage = new H2JournalStorage(dataSource);
     }
 
     public EventStore(JournalStorage journalStorage) {
@@ -50,16 +50,31 @@ public class EventStore extends UntypedActor {
 		log.debug("Eventstore started with adress {}", getSelf().path());
 	}
 
-	private void updateLeaderState(ClusterEvent.LeaderChanged leaderChanged) {
+    @Override
+    public void postRestart(Throwable reason) throws Exception {
+        super.postRestart(reason);
+        log.warn("Restarted eventstore, restarting storage");
+        storage.close();
+        storage.open();
+    }
+
+    private void updateLeaderState(ClusterEvent.LeaderChanged leaderChanged) {
 		try {
             leaderInfo.updateLeaderState(leaderChanged);
 			leaderEventStore = getContext().actorFor(leaderInfo.getLeaderAdress() + "/user/eventstore");
 			log.debug("LeaderEventStore is {}", leaderEventStore);
 
-			if(!leaderInfo.isLeader() && leaderInfo.amIUp())
+			if(!leaderInfo.isLeader() && leaderInfo.amIUp()){
 				for (String s : aggregateSubscribers.keySet()) {
 					leaderEventStore.tell(new SubscriptionRefresh(s,aggregateSubscribers.get(s)),self());
 				}
+            }
+
+            if(leaderInfo.isLeader()){
+                storage.open();
+            }else {
+                storage.close();
+            }
 		} catch (ConfigurationException e) {
 			log.debug("Not cluster system");
 		}

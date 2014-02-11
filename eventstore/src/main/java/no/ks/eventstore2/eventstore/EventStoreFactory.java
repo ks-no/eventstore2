@@ -18,7 +18,7 @@ public class EventStoreFactory implements UntypedActorFactory {
 	private List<Adapter> adapters = new ArrayList<Adapter>();
 
 	public Actor create() {
-       return new EventStore(new H2JournalStorage(ds, getAdapters()));
+       return new EventStore(new H2JournalStorage(ds));
     }
 
     public void setDs(DataSource ds) {

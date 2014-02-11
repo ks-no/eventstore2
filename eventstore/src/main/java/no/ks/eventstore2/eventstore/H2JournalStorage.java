@@ -5,10 +5,8 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.CompatibleFieldSerializer;
 import com.esotericsoftware.shaded.org.objenesis.strategy.SerializingInstantiatorStrategy;
-import com.google.gson.GsonBuilder;
 import de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer;
 import no.ks.eventstore2.Event;
-import no.ks.eventstore2.json.Adapter;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +23,6 @@ import java.sql.Blob;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.List;
 
 public class H2JournalStorage implements JournalStorage {
 
@@ -34,12 +31,8 @@ public class H2JournalStorage implements JournalStorage {
 
     private Kryo kryov2 = new Kryo();
 
-    public H2JournalStorage(DataSource dataSource, List<Adapter> adapters) {
+    public H2JournalStorage(DataSource dataSource) {
         template = new JdbcTemplate(dataSource);
-        GsonBuilder builder = new GsonBuilder();
-        for (Adapter adapter : adapters) {
-            builder.registerTypeAdapter(adapter.getType(), adapter.getTypeAdapter());
-        }
         kryov2.setInstantiatorStrategy(new SerializingInstantiatorStrategy());
         kryov2.setDefaultSerializer(CompatibleFieldSerializer.class);
         kryov2.register(DateTime.class, new JodaDateTimeSerializer());
@@ -77,6 +70,16 @@ public class H2JournalStorage implements JournalStorage {
                 }
             }
         });
+    }
+
+    @Override
+    public void open() {
+
+    }
+
+    @Override
+    public void close() {
+
     }
 
     private void updateEventToKryo(final int id, final Event event) {

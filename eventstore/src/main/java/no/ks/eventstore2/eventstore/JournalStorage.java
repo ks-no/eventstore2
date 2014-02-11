@@ -7,4 +7,7 @@ public interface JournalStorage {
     void saveEvent(Event event);
 
     void loadEventsAndHandle(String aggregateid, final HandleEvent handleEvent);
+
+    void open();
+    void close();
 }

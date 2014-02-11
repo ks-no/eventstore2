@@ -2,6 +2,7 @@ package no.ks.eventstore2.eventstore;
 
 import akka.ConfigurationException;
 import akka.actor.ActorRef;
+import akka.actor.Props;
 import akka.actor.UntypedActor;
 import akka.cluster.ClusterEvent;
 import no.ks.eventstore2.AkkaClusterInfo;
@@ -17,7 +18,7 @@ import javax.sql.DataSource;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-class EventStore extends UntypedActor {
+public class EventStore extends UntypedActor {
 
 
 	static final Logger log = LoggerFactory.getLogger(EventStore.class);
@@ -28,6 +29,11 @@ class EventStore extends UntypedActor {
     private AkkaClusterInfo leaderInfo;
     private JournalStorage storage;
 
+    public static Props mkProps(JournalStorage journalStorage){
+        return Props.create(EventStore.class, journalStorage);
+    }
+
+    @Deprecated
     public EventStore(DataSource dataSource, List<Adapter> adapters){
         storage = new H2JournalStorage(dataSource, adapters);
     }

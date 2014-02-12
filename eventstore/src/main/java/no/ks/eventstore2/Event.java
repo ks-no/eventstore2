@@ -7,6 +7,8 @@ import java.io.Serializable;
 public abstract class Event implements Serializable{
 	private static final long serialVersionUID = 1L;
 
+    private String journalid;
+
 	protected String aggregateId;
 
     protected DateTime created;
@@ -30,6 +32,14 @@ public abstract class Event implements Serializable{
     public abstract String getLogMessage();
 
     public Event upgrade(){return this;}
+
+    public String getJournalid() {
+        return journalid;
+    }
+
+    public void setJournalid(String journalid) {
+        this.journalid = journalid;
+    }
 
     @Override
     public String toString() {

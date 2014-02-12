@@ -19,6 +19,7 @@ import org.springframework.jdbc.support.lob.LobHandler;
 
 import javax.sql.DataSource;
 import java.io.ByteArrayOutputStream;
+import java.math.BigDecimal;
 import java.sql.Blob;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -45,13 +46,16 @@ public class H2JournalStorage implements JournalStorage {
         kryodata.close();
 
         LobHandler lobHandler = new DefaultLobHandler();
-        template.execute("INSERT INTO event (id,aggregateid, class, dataversion, kryoeventdata) VALUES(seq.nextval,?,?,?,?)",
+        final long id = template.queryForLong("select seq.nextval from dual");
+        event.setJournalid(String.valueOf(id));
+        template.execute("INSERT INTO event (id,aggregateid, class, dataversion, kryoeventdata) VALUES(?,?,?,?,?)",
                 new AbstractLobCreatingPreparedStatementCallback(lobHandler) {
                     protected void setValues(PreparedStatement ps, LobCreator lobCreator) throws SQLException {
-                        lobCreator.setBlobAsBytes(ps, 4, output.toByteArray());
-                        ps.setString(2, event.getClass().getName());
-                        ps.setInt(3, 2);
-                        ps.setString(1, event.getAggregateId());
+                        ps.setBigDecimal(1, new BigDecimal(id));
+                        ps.setString(2, event.getAggregateId());
+                        ps.setString(3, event.getClass().getName());
+                        ps.setInt(4, 2);
+                        lobCreator.setBlobAsBytes(ps, 5, output.toByteArray());
                     }
                 }
         );
@@ -66,6 +70,7 @@ public class H2JournalStorage implements JournalStorage {
                     Input input = new Input(blob.getBinaryStream());
                     Event event = (Event) kryov2.readClassAndObject(input);
                     input.close();
+                    event.setJournalid(resultSet.getBigDecimal("id").toPlainString());
                     handleEvent.handleEvent(event);
                 }
             }
@@ -80,6 +85,11 @@ public class H2JournalStorage implements JournalStorage {
     @Override
     public void close() {
 
+    }
+
+    @Override
+    public void upgradeFromOldStorage(String aggregateId, JournalStorage oldStorage) {
+        throw new RuntimeException("NotImplemented");
     }
 
     private void updateEventToKryo(final int id, final Event event) {

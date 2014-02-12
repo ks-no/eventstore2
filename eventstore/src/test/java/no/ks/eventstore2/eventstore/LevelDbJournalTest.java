@@ -129,8 +129,27 @@ public class LevelDbJournalTest {
             FileUtils.deleteDirectory(new File("target/journal_old"));
             FileUtils.deleteDirectory(new File("target/journal_new"));
         }
+    }
 
-
+    @Test
+    public void testUpgradeWorksOnEmptyData() throws Exception {
+        FileUtils.deleteDirectory(new File("target/journal_old"));
+        FileUtils.deleteDirectory(new File("target/journal_new"));
+        LevelDbJournalStorage storage_new = new LevelDbJournalStorage("target/journal_new", kryoClassRegistration);
+        LevelDbJournalStorage storage_OLD = new LevelDbJournalStorage("target/journal_old", kryoClassRegistration);
+        try {
+            storage_new.open();
+            storage_OLD.open();
+            storage_new.upgradeFromOldStorage("agg1", storage_OLD);
+            storage_new.upgradeFromOldStorage("agg2", storage_OLD);
+            assertEquals(0, getEvents(storage_new, "agg1").size());
+            assertEquals(0, getEvents(storage_new, "agg2").size());
+        } finally {
+            storage_OLD.close();
+            storage_new.close();
+            FileUtils.deleteDirectory(new File("target/journal_old"));
+            FileUtils.deleteDirectory(new File("target/journal_new"));
+        }
     }
 
     @After

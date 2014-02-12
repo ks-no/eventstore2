@@ -140,6 +140,9 @@ public class EventStore extends UntypedActor {
                 sender().tell(new Success(),self());
             else
                 leaderEventStore.tell(o,sender());
+        } else if(o instanceof UpgradeAggregate && leaderInfo.isLeader()){
+            UpgradeAggregate upgrade = (UpgradeAggregate) o;
+            storage.upgradeFromOldStorage(upgrade.getAggregateId(), upgrade.getOldStorage());
         }
 	}
 

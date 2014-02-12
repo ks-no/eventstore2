@@ -10,4 +10,6 @@ public interface JournalStorage {
 
     void open();
     void close();
+
+    void upgradeFromOldStorage(String aggregateId, JournalStorage oldStorage);
 }

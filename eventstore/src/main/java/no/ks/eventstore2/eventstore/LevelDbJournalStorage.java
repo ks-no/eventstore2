@@ -39,8 +39,11 @@ public class LevelDbJournalStorage implements JournalStorage {
     }
 
     public void upgradeFromOldStorage(String aggregateId, JournalStorage storage){
+        if(db == null) throw new RuntimeException("Database not open, please open first");
         String upgradedToVersionKey = "!sys!upgradedaggregate!" + currentDataVersion + "!" + aggregateId;
-        if(!"true".equals(asString(db.get(bytes(upgradedToVersionKey + aggregateId))))){
+        byte[] key = bytes(upgradedToVersionKey + aggregateId);
+        String string = asString(db.get(key));
+        if(!"true".equals(string)){
             log.info("Reading events for aggregate " + aggregateId + " from old storage");
             storage.loadEventsAndHandle(aggregateId, new HandleEvent() {
                 @Override
@@ -48,7 +51,7 @@ public class LevelDbJournalStorage implements JournalStorage {
                     saveEvent(event);
                 }
             });
-            db.put(bytes(upgradedToVersionKey + aggregateId),bytes(String.valueOf(true)));
+            db.put(key,bytes(String.valueOf(true)));
             log.info("Events for aggregate " + aggregateId + " upgraded");
         }
     }

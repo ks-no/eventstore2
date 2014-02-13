@@ -15,4 +15,14 @@ public class SagaInMemoryRepository extends SagaRepository{
     public byte getState(Class<? extends Saga> clz, String sagaid) {
         return  (map.containsKey(new SagaCompositeId(clz, sagaid)) ? map.get(new SagaCompositeId(clz, sagaid)) : Saga.STATE_INITIAL);
     }
+
+    @Override
+    public void close() {
+
+    }
+
+    @Override
+    public void open() {
+
+    }
 }

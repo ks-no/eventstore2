@@ -39,4 +39,14 @@ public class SagaDatasourceRepository extends SagaRepository{
 		return (byte) result;
 	}
 
+    @Override
+    public void close() {
+
+    }
+
+    @Override
+    public void open() {
+
+    }
+
 }

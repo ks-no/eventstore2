@@ -190,6 +190,11 @@ public class SagaManager extends UntypedActor {
 			if(oldLeader && !akkaClusterInfo.isLeader()){
 				removeOldActorsWithWrongState();
 			}
+            if(akkaClusterInfo.isLeader()){
+                repository.open();
+            } else {
+                repository.close();
+            }
 		} catch (ConfigurationException e) {
 			log.debug("Not cluster system");
 		}

@@ -7,31 +7,31 @@ import com.esotericsoftware.kryo.serializers.CompatibleFieldSerializer;
 import com.esotericsoftware.shaded.org.objenesis.strategy.SerializingInstantiatorStrategy;
 import de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer;
 import no.ks.eventstore2.Event;
-import org.iq80.leveldb.DB;
+import no.ks.eventstore2.store.LevelDbStore;
 import org.iq80.leveldb.DBIterator;
-import org.iq80.leveldb.Options;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
-import static org.fusesource.leveldbjni.JniDBFactory.*;
+import static org.fusesource.leveldbjni.JniDBFactory.asString;
+import static org.fusesource.leveldbjni.JniDBFactory.bytes;
 
 public class LevelDbJournalStorage implements JournalStorage {
 
     private final String directory;
-    private DB db;
     Kryo kryo = new Kryo();
     private Logger log = LoggerFactory.getLogger(LevelDbJournalStorage.class);
     private static String currentDataVersion = "01";
     private long eventReadLimit = 1000L;;
+    private LevelDbStore levelDbStore;
 
     public LevelDbJournalStorage(String directory, KryoClassRegistration registration) {
+        levelDbStore = new LevelDbStore(directory, 100);
         this.directory = directory;
         kryo.setInstantiatorStrategy(new SerializingInstantiatorStrategy());
         kryo.setDefaultSerializer(CompatibleFieldSerializer.class);
@@ -45,10 +45,10 @@ public class LevelDbJournalStorage implements JournalStorage {
     }
 
     public void upgradeFromOldStorage(String aggregateId, JournalStorage storage){
-        if(db == null) throw new RuntimeException("Database not open, please open first");
+        if(levelDbStore.getDb() == null) throw new RuntimeException("Database not open, please open first");
         String upgradedToVersionKey = "!sys!upgradedaggregate!" + currentDataVersion + "!" + aggregateId;
         byte[] key = bytes(upgradedToVersionKey + aggregateId);
-        String string = asString(db.get(key));
+        String string = asString(levelDbStore.getDb().get(key));
         if(!"true".equals(string)){
             log.info("Reading events for aggregate " + aggregateId + " from old storage");
             storage.loadEventsAndHandle(aggregateId, new HandleEvent() {
@@ -57,39 +57,13 @@ public class LevelDbJournalStorage implements JournalStorage {
                     saveEvent(event);
                 }
             });
-            db.put(key,bytes(String.valueOf(true)));
+            levelDbStore.getDb().put(key, bytes(String.valueOf(true)));
             log.info("Events for aggregate " + aggregateId + " upgraded");
         }
     }
 
     public void open() {
-        openDb();
-    }
-
-    private void openDb() {
-        if (db == null) {
-            Options options = new Options();
-            options.cacheSize(100 * 1048576); // 100MB cache
-            options.createIfMissing(true);
-            if(!new File(directory).exists())
-                new File(directory).mkdirs();
-            File lockfile = new File(directory + File.pathSeparator + "LOCK");
-            if(lockfile.exists()){
-                log.warn("LEVELDB: Lockfile exists, waiting 5 sec");
-                try {
-                    Thread.sleep(5000);
-                } catch (InterruptedException e) { }
-                if(lockfile.exists()){
-                    log.warn("LEVELDB: Deleteing lockfile");
-                    lockfile.delete();
-                }
-            }
-            try {
-                db = factory.open(new File(directory), options);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        levelDbStore.openDb();
     }
 
     @Override
@@ -101,7 +75,7 @@ public class LevelDbJournalStorage implements JournalStorage {
         String leveldbhashkey = getKey(event.getAggregateId(), journalid);
         log.trace("got key" + leveldbhashkey);
         event.setJournalid(journalid);
-        db.put(bytes(leveldbhashkey), serielize(event));
+        levelDbStore.getDb().put(bytes(leveldbhashkey), serielize(event));
     }
 
     private String convertToStringKey(long key) {
@@ -122,7 +96,7 @@ public class LevelDbJournalStorage implements JournalStorage {
     }
 
     long getNextAvailableKeyForAggregate(String aggregateId) {
-        DBIterator iterator = db.iterator();
+        DBIterator iterator = levelDbStore.getDb().iterator();
         try {
             iterator.seekToLast();
             if (!iterator.hasPrev() && !iterator.hasNext()) {
@@ -163,17 +137,7 @@ public class LevelDbJournalStorage implements JournalStorage {
     }
 
     public void printDB() throws IOException {
-        DBIterator iterator = db.iterator();
-        try {
-            for (iterator.seekToFirst(); iterator.hasNext(); iterator.next()) {
-                String key = asString(iterator.peekNext().getKey());
-                String value = asString(iterator.peekNext().getValue());
-                java.lang.System.out.println(key + " = " + value);
-            }
-        } finally {
-            // Make sure you close the iterator to avoid resource leaks.
-            iterator.close();
-        }
+        levelDbStore.printDB();
     }
 
     @Override
@@ -182,7 +146,7 @@ public class LevelDbJournalStorage implements JournalStorage {
     }
 
     private boolean loadEventsAndHandle(String aggregateid, HandleEvent handleEvent, String fromkey, long limit){
-        DBIterator iterator = db.iterator();
+        DBIterator iterator = levelDbStore.getDb().iterator();
         iterator.seek(bytes(aggregateid + "!" + fromkey));
         long count=0L;
         while (iterator.hasNext() && count < limit) {
@@ -207,13 +171,6 @@ public class LevelDbJournalStorage implements JournalStorage {
     }
 
     public void close() {
-        try {
-            if(db != null){
-                db.close();
-                db = null;
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+       levelDbStore.close();
     }
 }

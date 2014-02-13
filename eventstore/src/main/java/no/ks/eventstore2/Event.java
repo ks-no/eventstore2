@@ -7,9 +7,9 @@ import java.io.Serializable;
 public abstract class Event implements Serializable{
 	private static final long serialVersionUID = 1L;
 
-    private String journalid;
+    protected String aggregateId;
 
-	protected String aggregateId;
+    private String journalid;
 
     protected DateTime created;
 
@@ -45,6 +45,7 @@ public abstract class Event implements Serializable{
     public String toString() {
         return "Event{"
                 + "aggregateId='" + aggregateId + '\''
+                + ", journalid='" + journalid + '\''
                 + ", created=" + created
                 + '}';
     }

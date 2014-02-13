@@ -29,6 +29,7 @@ public class LevelDbJournalStorage implements JournalStorage {
     Kryo kryo = new Kryo();
     private Logger log = LoggerFactory.getLogger(LevelDbJournalStorage.class);
     private static String currentDataVersion = "01";
+    private long eventReadLimit = 1000L;;
 
     public LevelDbJournalStorage(String directory, KryoClassRegistration registration) {
         this.directory = directory;
@@ -36,6 +37,11 @@ public class LevelDbJournalStorage implements JournalStorage {
         kryo.setDefaultSerializer(CompatibleFieldSerializer.class);
         kryo.register(DateTime.class, new JodaDateTimeSerializer());
         registration.registerClasses(kryo);
+    }
+
+    public LevelDbJournalStorage(String directory, KryoClassRegistration registration, long eventReadLimit) {
+        this(directory,registration);
+        this.eventReadLimit = eventReadLimit;
     }
 
     public void upgradeFromOldStorage(String aggregateId, JournalStorage storage){
@@ -88,12 +94,18 @@ public class LevelDbJournalStorage implements JournalStorage {
 
     @Override
     public void saveEvent(Event event) {
-        log.debug("Saving event " + event);
+        log.trace("Saving event " + event);
         String aggregateId = event.getAggregateId();
-        long key = getNextKey(aggregateId);
-        String key1 = getKey(event.getAggregateId(), key);
-        log.debug("got key" + key1);
-        db.put(bytes(key1), serielize(event));
+        long key = getNextAvailableKeyForAggregate(aggregateId);
+        String journalid = convertToStringKey(key);
+        String leveldbhashkey = getKey(event.getAggregateId(), journalid);
+        log.trace("got key" + leveldbhashkey);
+        event.setJournalid(journalid);
+        db.put(bytes(leveldbhashkey), serielize(event));
+    }
+
+    private String convertToStringKey(long key) {
+        return String.format("%019d", key);
     }
 
     private byte[] serielize(Event event) {
@@ -105,11 +117,11 @@ public class LevelDbJournalStorage implements JournalStorage {
         return bytes;
     }
 
-    String getKey(String aggregateId, long key) {
-        return aggregateId + "!" + String.format("%019d", key);
+    String getKey(String aggregateId, String journalid) {
+        return aggregateId + "!" + journalid;
     }
 
-    long getNextKey(String aggregateId) {
+    long getNextAvailableKeyForAggregate(String aggregateId) {
         DBIterator iterator = db.iterator();
         try {
             iterator.seekToLast();
@@ -165,17 +177,28 @@ public class LevelDbJournalStorage implements JournalStorage {
     }
 
     @Override
-    public void loadEventsAndHandle(String aggregateid, HandleEvent handleEvent) {
+    public boolean loadEventsAndHandle(String aggregateid, HandleEvent handleEvent) {
+        return loadEventsAndHandle(aggregateid, handleEvent, convertToStringKey(0), eventReadLimit);
+    }
+
+    private boolean loadEventsAndHandle(String aggregateid, HandleEvent handleEvent, String fromkey, long limit){
         DBIterator iterator = db.iterator();
-        iterator.seekToFirst();
-        iterator.seek(bytes(aggregateid + "!"));
-        while (iterator.hasNext()) {
+        iterator.seek(bytes(aggregateid + "!" + fromkey));
+        long count=0L;
+        while (iterator.hasNext() && count < limit) {
             Map.Entry<byte[], byte[]> next = iterator.next();
             String key = asString(next.getKey());
             if (key.startsWith(aggregateid)) {
                 handleEvent.handleEvent(deSerialize(next.getValue()));
+                count++;
             }
         }
+        return (count < limit);
+    }
+
+    @Override
+    public boolean loadEventsAndHandle(String aggregateid, HandleEvent handleEvent, String fromKey) {
+        return loadEventsAndHandle(aggregateid, handleEvent, convertToStringKey(getNextKeyFromKey(fromKey)), eventReadLimit);
     }
 
     private Event deSerialize(byte[] value) {

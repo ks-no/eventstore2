@@ -3,6 +3,7 @@ package no.ks.eventstore2.eventstore;
 import akka.actor.ActorRef;
 
 import java.io.Serializable;
+import java.util.HashSet;
 import java.util.Set;
 
 public class SubscriptionRefresh implements Serializable {
@@ -11,7 +12,7 @@ public class SubscriptionRefresh implements Serializable {
 
 	public SubscriptionRefresh(String aggregateId, Set<ActorRef> subscribers) {
 		this.aggregateId = aggregateId;
-		this.subscribers = subscribers;
+		this.subscribers = new HashSet<ActorRef>(subscribers);
 	}
 
 	public String getAggregateId() {

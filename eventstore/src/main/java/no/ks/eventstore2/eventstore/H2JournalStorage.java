@@ -61,7 +61,7 @@ public class H2JournalStorage implements JournalStorage {
         );
     }
 
-    public void loadEventsAndHandle(String aggregate, final HandleEvent handleEvent) {
+    public boolean loadEventsAndHandle(String aggregate, final HandleEvent handleEvent) {
         template.query("SELECT * FROM event WHERE aggregateid = ? ORDER BY ID", new Object[]{aggregate}, new RowCallbackHandler() {
             @Override
             public void processRow(ResultSet resultSet) throws SQLException {
@@ -75,6 +75,12 @@ public class H2JournalStorage implements JournalStorage {
                 }
             }
         });
+        return true;
+    }
+
+    @Override
+    public boolean loadEventsAndHandle(String aggregateid, HandleEvent handleEvent, String fromKey) {
+        return false;
     }
 
     @Override

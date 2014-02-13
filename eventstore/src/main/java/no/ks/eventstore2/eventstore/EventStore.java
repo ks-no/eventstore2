@@ -5,6 +5,7 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
 import akka.cluster.ClusterEvent;
+import com.google.common.collect.HashMultimap;
 import no.ks.eventstore2.AkkaClusterInfo;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.json.Adapter;
@@ -15,7 +16,10 @@ import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.Duration;
 
 import javax.sql.DataSource;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public class EventStore extends UntypedActor {
@@ -23,7 +27,7 @@ public class EventStore extends UntypedActor {
 
 	static final Logger log = LoggerFactory.getLogger(EventStore.class);
 
-	Map<String, HashSet<ActorRef>> aggregateSubscribers = new HashMap<String, HashSet<ActorRef>>();
+	HashMultimap<String,ActorRef> aggregateSubscribers = HashMultimap.create();
 	private ActorRef leaderEventStore;
 
     private AkkaClusterInfo leaderInfo;
@@ -117,8 +121,8 @@ public class EventStore extends UntypedActor {
 			Subscription subscription = (Subscription) o;
 			addSubscriber(subscription);
 			if (leaderInfo.isLeader()) {
-                log.info("Got subscription on {} from {}, adding to pending subscriptions",  subscription.getAggregateId()  , sender().path());
-                addPendingSubscription(sender(), subscription.getAggregateId());
+                log.info("Got subscription on {} from {}, filling subscriptions", subscription , sender().path());
+                tryToFillSubscription(sender(),subscription);
             } else {
                 log.info("Sending subscription to leader {} from {}", leaderEventStore.path(), sender().path());
 				leaderEventStore.tell(subscription, sender());
@@ -145,6 +149,33 @@ public class EventStore extends UntypedActor {
             storage.upgradeFromOldStorage(upgrade.getAggregateId(), upgrade.getOldStorage());
         }
 	}
+
+    private void tryToFillSubscription(final ActorRef sender, Subscription subscription) {
+        boolean finished = false;
+        if(subscription.getFromJournalId() == null || "".equals(subscription.getFromJournalId().trim())){
+            finished = storage.loadEventsAndHandle(subscription.getAggregateId(), new HandleEvent() {
+                @Override
+                public void handleEvent(Event event) {
+                    sendEvent(event,sender);
+                }
+            });
+        } else {
+            finished = storage.loadEventsAndHandle(subscription.getAggregateId(), new HandleEvent() {
+                @Override
+                public void handleEvent(Event event) {
+                    sendEvent(event, sender);
+                }
+            }, subscription.getFromJournalId());
+
+        }
+        if(!finished){
+            log.info("Subscription {} not Complete {} should ask for more",subscription,sender );
+            sender.tell(new IncompleteSubscriptionPleaseSendNew(subscription.getAggregateId()),self());
+            return;
+        } else {
+            addSubscriber(subscription);
+        }
+    }
 
     private HashMap<String,HashSet<ActorRef>> pendingSubscriptions = new HashMap<String, HashSet<ActorRef>>();
 
@@ -173,10 +204,7 @@ public class EventStore extends UntypedActor {
     }
 
     private void addSubscriber(SubscriptionRefresh refresh) {
-		if(!aggregateSubscribers.containsKey(refresh.getAggregateId())){
-			aggregateSubscribers.put(refresh.getAggregateId(),new HashSet<ActorRef>());
-		}
-		aggregateSubscribers.get(refresh.getAggregateId()).addAll(refresh.getSubscribers());
+        aggregateSubscribers.putAll(refresh.getAggregateId(), refresh.getSubscribers());
 	}
 
 	private void publishEvent(Event event) {
@@ -187,16 +215,20 @@ public class EventStore extends UntypedActor {
 	}
 
 	private void addSubscriber(Subscription subscription) {
-		if (!aggregateSubscribers.containsKey(subscription.getAggregateId()))
-			aggregateSubscribers.put(subscription.getAggregateId(), new HashSet<ActorRef>());
-
-		aggregateSubscribers.get(subscription.getAggregateId()).add(sender());
+		aggregateSubscribers.put(subscription.getAggregateId(), sender());
 	}
 
     public void storeEvent(final Event event) {
 		event.setCreated(new DateTime());
         storage.saveEvent(event);
 	}
+
+    private void sendEvent(Event event, ActorRef subscriber) {
+        event = upgradeEvent(event);
+
+        log.debug("Publishing event {} to {}", event, subscriber);
+        subscriber.tell(event, self());
+    }
 
     private void sendEvent(Event event, Set<ActorRef> subscribers){
         event = upgradeEvent(event);

@@ -15,6 +15,8 @@ import java.util.ArrayList;
 
 import static org.fusesource.leveldbjni.JniDBFactory.*;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class LevelDbJournalTest {
 
@@ -30,7 +32,7 @@ public class LevelDbJournalTest {
     public void setUp() throws Exception {
         FileUtils.deleteDirectory(new File("target/journal"));
 
-        levelDbJournalStorage = new LevelDbJournalStorage("target/journal", kryoClassRegistration);
+        levelDbJournalStorage = new LevelDbJournalStorage("target/journal", kryoClassRegistration,10L);
         levelDbJournalStorage.open();
     }
 
@@ -41,7 +43,7 @@ public class LevelDbJournalTest {
         levelDbJournalStorage.saveEvent(new AggEvent("id"));
         levelDbJournalStorage.saveEvent(new AggEvent("id"));
         levelDbJournalStorage.saveEvent(new AggEvent("id"));
-
+        levelDbJournalStorage.printDB();
         final ArrayList<Event> results = getEvents(levelDbJournalStorage, "id");
         assertEquals(5, results.size());
     }
@@ -58,29 +60,54 @@ public class LevelDbJournalTest {
     }
 
     @Test
+    public void testLevelDbReturnFalseIfNotFinishedAndResultsAreInOrder() throws Exception {
+        for(int i = 0; i< 11; i++){
+            levelDbJournalStorage.saveEvent(new AggEvent("id"));
+        }
+        final ArrayList<Event> results = new ArrayList<Event>();
+        assertFalse(levelDbJournalStorage.loadEventsAndHandle("id", new HandleEvent() {
+            @Override
+            public void handleEvent(Event event) {
+                results.add(event);
+            }
+        }));
+        assertEquals(10, results.size());
+
+        assertTrue(levelDbJournalStorage.loadEventsAndHandle("id",new HandleEvent() {
+            @Override
+            public void handleEvent(Event event) {
+                results.add(event);
+            }
+        },"0000000000000000009"));
+        assertEquals(11, results.size());
+        assertEquals("0000000000000000009", results.get(9).getJournalid());
+        assertEquals("0000000000000000010", results.get(10).getJournalid());
+    }
+
+    @Test
     public void testGetLastKey() throws Exception {
-        assertEquals(0L, levelDbJournalStorage.getNextKey("agg1"));
+        assertEquals(0L, levelDbJournalStorage.getNextAvailableKeyForAggregate("agg1"));
         levelDbJournalStorage.saveEvent(new AggEvent("agg1"));
-        assertEquals(1L, levelDbJournalStorage.getNextKey("agg1"));
+        assertEquals(1L, levelDbJournalStorage.getNextAvailableKeyForAggregate("agg1"));
         levelDbJournalStorage.saveEvent(new AggEvent("agg1"));
-        assertEquals(2L, levelDbJournalStorage.getNextKey("agg1"));
-        assertEquals(0L, levelDbJournalStorage.getNextKey("agg2"));
+        assertEquals(2L, levelDbJournalStorage.getNextAvailableKeyForAggregate("agg1"));
+        assertEquals(0L, levelDbJournalStorage.getNextAvailableKeyForAggregate("agg2"));
         levelDbJournalStorage.saveEvent(new AggEvent("agg2"));
-        assertEquals(1L, levelDbJournalStorage.getNextKey("agg2"));
+        assertEquals(1L, levelDbJournalStorage.getNextAvailableKeyForAggregate("agg2"));
         levelDbJournalStorage.saveEvent(new AggEvent("agg2"));
-        assertEquals(2L, levelDbJournalStorage.getNextKey("agg2"));
+        assertEquals(2L, levelDbJournalStorage.getNextAvailableKeyForAggregate("agg2"));
         levelDbJournalStorage.saveEvent(new AggEvent("agg1"));
-        assertEquals(3L, levelDbJournalStorage.getNextKey("agg1"));
-        assertEquals(0L, levelDbJournalStorage.getNextKey("agg3"));
+        assertEquals(3L, levelDbJournalStorage.getNextAvailableKeyForAggregate("agg1"));
+        assertEquals(0L, levelDbJournalStorage.getNextAvailableKeyForAggregate("agg3"));
         levelDbJournalStorage.saveEvent(new AggEvent("agg3"));
-        assertEquals(1L, levelDbJournalStorage.getNextKey("agg3"));
-        assertEquals(2L, levelDbJournalStorage.getNextKey("agg2"));
+        assertEquals(1L, levelDbJournalStorage.getNextAvailableKeyForAggregate("agg3"));
+        assertEquals(2L, levelDbJournalStorage.getNextAvailableKeyForAggregate("agg2"));
     }
 
     @Test
     public void testLevelDBTest() throws Exception {
         Options options = new Options();
-        options.cacheSize(100 * 1048576); // 100MB cache
+        options.cacheSize(1 * 1048576); // 1MB cache
         options.createIfMissing(true);
         DB db = null;
         try {

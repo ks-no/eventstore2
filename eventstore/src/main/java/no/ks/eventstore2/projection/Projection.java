@@ -3,6 +3,7 @@ package no.ks.eventstore2.projection;
 import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
 import no.ks.eventstore2.Event;
+import no.ks.eventstore2.eventstore.IncompleteSubscriptionPleaseSendNew;
 import no.ks.eventstore2.eventstore.Subscription;
 import no.ks.eventstore2.reflection.HandlerFinder;
 import no.ks.eventstore2.response.NoResult;
@@ -20,6 +21,7 @@ public abstract class Projection extends UntypedActor {
     protected ActorRef eventStore;
     private Map<Class<? extends Event>, Method> handleEventMap = null;
 
+    private String latestJournalidReceived = null;
 
     //TODO; constructor vs preStart, and how do we handle faling actor creations? Pass exception to parent and shutdown actor system?
     public Projection(ActorRef eventStore) {
@@ -30,16 +32,22 @@ public abstract class Projection extends UntypedActor {
     @Override
     public final void preStart(){
         System.out.println(getSelf().path().toString());
-        subscribe(eventStore);
+        eventStore.tell(getSubscribe(), self());
     }
 
     @Override
     public final void onReceive(Object o) throws Exception{
         try{
-            if (o instanceof Event)
+            if (o instanceof Event) {
+                latestJournalidReceived = ((Event) o).getJournalid();
                 dispatchToCorrectEventHandler((Event) o);
-            else if (o instanceof Call)
+            } else if (o instanceof Call)
                 handleCall((Call) o);
+            else if(o instanceof IncompleteSubscriptionPleaseSendNew){
+                log.debug("Sending new subscription on {} from {}",((IncompleteSubscriptionPleaseSendNew) o).getAggregateId(),latestJournalidReceived);
+                if(latestJournalidReceived == null) throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
+                eventStore.tell(new Subscription(((IncompleteSubscriptionPleaseSendNew) o).getAggregateId(),latestJournalidReceived),self());
+            }
         } catch (Exception e){
             getContext().parent().tell(new ProjectionFailedError(self(), e, o), self());
             log.error("Projection threw exception while handling message: ", e);
@@ -124,15 +132,16 @@ public abstract class Projection extends UntypedActor {
         }
     }
 
-    protected final void subscribe(ActorRef eventStore){
+    protected Subscription getSubscribe(){
         ListensTo annotation = getClass().getAnnotation(ListensTo.class);
         if (annotation != null)
             for (String aggregate : annotation.aggregates())
-                eventStore.tell(new Subscription(aggregate), self());
+                return new Subscription(aggregate);
 
         Subscriber subscriberAnnotation = getClass().getAnnotation(Subscriber.class);
 
         if (subscriberAnnotation != null)
-            eventStore.tell(new Subscription(subscriberAnnotation.value()), self());
+            return new Subscription(subscriberAnnotation.value());
+        throw new RuntimeException("No subscribe annotation");
     }
 }

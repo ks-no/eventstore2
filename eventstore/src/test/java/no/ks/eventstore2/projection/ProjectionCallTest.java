@@ -9,6 +9,8 @@ import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.Handler;
+import no.ks.eventstore2.eventstore.IncompleteSubscriptionPleaseSendNew;
+import no.ks.eventstore2.eventstore.Subscription;
 import no.ks.eventstore2.formProcessorProject.FormParsed;
 import no.ks.eventstore2.formProcessorProject.FormReceived;
 import no.ks.eventstore2.formProcessorProject.FormStatus;
@@ -110,6 +112,11 @@ public class ProjectionCallTest extends TestKit{
                 return new Projection(eventstore) {
                     boolean failed = false;
 
+                    @Override
+                    protected Subscription getSubscribe() {
+                        return new Subscription("agg");
+                    }
+
                     @Handler
                     public void handleEvent(Event event) {
                         if (failed)
@@ -138,10 +145,20 @@ public class ProjectionCallTest extends TestKit{
         FormParsed formParsed = new FormParsed("formid");
         projectionRef.tell(formParsed,super.testActor());
         projectionRef.tell(formParsed,super.testActor());
-
+        expectMsgClass(Subscription.class);
         expectMsgClass(ProjectionFailedError.class);
         expectMsg(formParsed);
     }
 
+    @Test
+    public void testGetNewSubscription() throws Exception {
+        TestActorRef<Actor> newSubscription = TestActorRef.create(_system, Props.create(FormStatuses.class, super.testActor()), "newSubscription");
+        expectMsgClass(Subscription.class);
+        FormParsed formid = new FormParsed("formid");
+        formid.setJournalid("01");
+        newSubscription.tell(formid,super.testActor());
+        newSubscription.tell(new IncompleteSubscriptionPleaseSendNew("agg"),super.testActor());
+        expectMsg(new Subscription("agg","01"));
 
+    }
 }

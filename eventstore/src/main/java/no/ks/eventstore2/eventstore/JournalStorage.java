@@ -6,7 +6,22 @@ public interface JournalStorage {
 
     void saveEvent(Event event);
 
-    void loadEventsAndHandle(String aggregateid, final HandleEvent handleEvent);
+    /**
+     * Load events
+     * @param aggregateid
+     * @param handleEvent
+     * @return true if all events sent
+     */
+    boolean loadEventsAndHandle(String aggregateid, final HandleEvent handleEvent);
+
+    /**
+     * LoadEvent from a key
+     * @param aggregateid
+     * @param handleEvent
+     * @param fromKey from this key
+     * @return true if all events sent
+     */
+    boolean loadEventsAndHandle(String aggregateid, final HandleEvent handleEvent, String fromKey);
 
     void open();
     void close();

@@ -8,6 +8,7 @@ import akka.actor.UntypedActor;
 import akka.cluster.ClusterEvent;
 import no.ks.eventstore2.AkkaClusterInfo;
 import no.ks.eventstore2.Event;
+import no.ks.eventstore2.eventstore.IncompleteSubscriptionPleaseSendNew;
 import no.ks.eventstore2.eventstore.Subscription;
 import no.ks.eventstore2.projection.Subscriber;
 import no.ks.eventstore2.reflection.HandlerFinder;
@@ -33,6 +34,11 @@ public class SagaManager extends UntypedActor {
 
     private Map<SagaCompositeId, ActorRef> sagas = new HashMap<SagaCompositeId, ActorRef>();
     private AkkaClusterInfo akkaClusterInfo;
+    private Map<String,String> latestJournalidReceived = new HashMap<String,String>();
+
+    public static Props mkProps(ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore, String packageScanPath){
+        return Props.create(SagaManager.class,commandDispatcher, repository, eventstore, packageScanPath);
+    }
 
     public SagaManager(ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore, String packageScanPath) {
         this.commandDispatcher = commandDispatcher;
@@ -49,14 +55,25 @@ public class SagaManager extends UntypedActor {
         akkaClusterInfo.subscribeToClusterEvents(self());
         updateLeaderState(null);
         for (String aggregate : aggregates) {
-            eventstore.tell(new Subscription(aggregate), self());
+            eventstore.tell(new Subscription(aggregate,latestJournalidReceived.get(aggregate)), self());
         }
+    }
+
+    @Override
+    public void postRestart(Throwable reason) throws Exception {
+        super.postRestart(reason);
+        log.warn("Restarted sagamanager, restarting storage");
+        repository.close();
+        if(akkaClusterInfo.isLeader())
+            repository.open();
     }
 
     @Override
     public void onReceive(Object o) throws Exception {
 		if(log.isDebugEnabled() && o instanceof  Event)
-			log.debug("Sagamanager Received Event {} is leader {}", o, akkaClusterInfo.isLeader());
+            log.debug("Sagamanager Received Event {} is leader {}", o, akkaClusterInfo.isLeader());
+        if(o instanceof Event)
+            latestJournalidReceived.put(((Event) o).getAggregateId(), ((Event) o).getJournalid());
         if (o instanceof Event && akkaClusterInfo.isLeader()){
 			log.debug("Sagamanager processing Event {}", o);
             Event event = (Event) o;
@@ -68,7 +85,20 @@ public class SagaManager extends UntypedActor {
             }
         } else if( o instanceof ClusterEvent.LeaderChanged){
 			updateLeaderState((ClusterEvent.LeaderChanged)o);
-		}
+		} else if(o instanceof UpgradeSagaRepoStore && akkaClusterInfo.isLeader()){
+            repository.open();
+            if(repository.getState(Saga.class, "upgradedH2Db") != (byte)1){
+                log.info("Upgrading sagaRepository");
+                ((UpgradeSagaRepoStore) o).getSagaRepository().readAllStatesToNewRepository(repository);
+                repository.saveState(Saga.class, "upgradedH2Db", (byte)1);
+            }
+        }else if(o instanceof IncompleteSubscriptionPleaseSendNew){
+            String aggregateId = ((IncompleteSubscriptionPleaseSendNew) o).getAggregateId();
+            log.debug("Sending new subscription on {} from {}", aggregateId,latestJournalidReceived);
+            if(latestJournalidReceived.get(aggregateId) == null) throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
+            Subscription subscription = new Subscription(aggregateId, latestJournalidReceived.get(aggregateId));
+            eventstore.tell(subscription,self());
+        }
     }
 
     private ActorRef getOrCreateSaga(Class<? extends Saga> clz, String sagaId) {
@@ -191,8 +221,10 @@ public class SagaManager extends UntypedActor {
 				removeOldActorsWithWrongState();
 			}
             if(akkaClusterInfo.isLeader()){
+                log.info("Opening repository for sagaManager");
                 repository.open();
             } else {
+                log.info("Closing repository for sagaManager");
                 repository.close();
             }
 		} catch (ConfigurationException e) {

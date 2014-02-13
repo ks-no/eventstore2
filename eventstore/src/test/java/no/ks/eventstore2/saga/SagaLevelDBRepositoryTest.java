@@ -44,8 +44,10 @@ public class SagaLevelDBRepositoryTest extends EmbeddedDatabaseTest{
 		repo.saveState(FormProcess.class, "30d91ec9-f7de-4c56-850a-1b9e4ed92e85", (byte) 45);
 		repo.saveState(FormProcess.class, "30d91ec9-f7de-4c56-850a-1b9e4ed92e85", (byte) 45);
 		assertEquals(45,repo.getState(FormProcess.class, "30d91ec9-f7de-4c56-850a-1b9e4ed92e85"));
-
-
-
 	}
+
+    @Test
+    public void testNullValueInGetState() throws Exception {
+        assertEquals((byte)0, repo.getState(FormProcess.class, "NotValidSagaID"));
+    }
 }

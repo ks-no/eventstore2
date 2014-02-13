@@ -4,8 +4,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCallbackHandler;
 
 import javax.sql.DataSource;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 public class SagaDatasourceRepository extends SagaRepository{
 
@@ -38,6 +41,19 @@ public class SagaDatasourceRepository extends SagaRepository{
 		log.debug("Loading state from repository for clz " + clz + " sagaid " + sagaid + " state " + result);
 		return (byte) result;
 	}
+
+    public void readAllStatesToNewRepository(final SagaRepository repository){
+        template.query("select state,id,clazz from Saga",new RowCallbackHandler() {
+            @Override
+            public void processRow(ResultSet resultSet) throws SQLException {
+                try {
+                    repository.saveState((Class<? extends Saga>)Class.forName(resultSet.getString("clazz")),resultSet.getString("id"),(byte)resultSet.getInt("state"));
+                } catch (ClassNotFoundException e) {
+                    log.info(e.getMessage());
+                }
+            }
+        });
+    }
 
     @Override
     public void close() {

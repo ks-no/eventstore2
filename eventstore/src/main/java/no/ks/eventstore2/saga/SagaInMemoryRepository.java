@@ -25,4 +25,9 @@ public class SagaInMemoryRepository extends SagaRepository{
     public void open() {
 
     }
+
+    @Override
+    public void readAllStatesToNewRepository(SagaRepository repository) {
+
+    }
 }

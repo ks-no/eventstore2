@@ -28,7 +28,9 @@ public class SagaLevelDbRepository extends SagaRepository {
 
     @Override
     public byte getState(Class<? extends Saga> clz, String sagaid) {
-        return levelDbStore.getDb().get(bytes(getKey(clz, sagaid)))[0];
+        byte[] bytes = levelDbStore.getDb().get(bytes(getKey(clz, sagaid)));
+        if(bytes == null) return 0;
+        return bytes[0];
     }
 
     @Override
@@ -39,5 +41,10 @@ public class SagaLevelDbRepository extends SagaRepository {
     @Override
     public void open() {
         levelDbStore.openDb();
+    }
+
+    @Override
+    public void readAllStatesToNewRepository(SagaRepository repository) {
+
     }
 }

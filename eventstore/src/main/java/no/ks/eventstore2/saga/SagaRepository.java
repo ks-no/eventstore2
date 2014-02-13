@@ -9,4 +9,5 @@ public abstract class SagaRepository {
     public abstract void close();
 
     public abstract void open();
+    public abstract void readAllStatesToNewRepository(final SagaRepository repository);
 }

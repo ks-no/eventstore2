@@ -4,6 +4,7 @@ import akka.actor.Actor;
 import akka.actor.ActorRef;
 import akka.actor.UntypedActorFactory;
 
+@Deprecated
 public class SagaManagerFactory implements UntypedActorFactory {
 	private static final long serialVersionUID = 1L;
 

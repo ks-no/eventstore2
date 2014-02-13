@@ -4,6 +4,8 @@ import akka.actor.*;
 import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
+import no.ks.eventstore2.eventstore.IncompleteSubscriptionPleaseSendNew;
+import no.ks.eventstore2.eventstore.Subscription;
 import no.ks.eventstore2.formProcessorProject.*;
 import org.junit.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -70,5 +72,19 @@ public class SagaManagerTest extends TestKit {
                 return new SagaManager(testActor, sagaInMemoryRepository, _system.actorOf(new Props(DummyActor.class)), "no");
             }
         });
+    }
+
+    @Test
+    public void testIncompleteSubscribeSendsCorrectJournalid() throws Exception {
+        final Props props = SagaManager.mkProps(super.testActor(), sagaInMemoryRepository, super.testActor(), "no");
+        final TestActorRef<SagaManager> ref = TestActorRef.create(_system, props, "sagaManagerIncomplete");
+        expectMsgClass(Subscription.class);
+        expectMsgClass(Subscription.class);
+        FormReceived msg = new FormReceived("3");
+        msg.setJournalid("01");
+        ref.tell(msg, super.testActor());
+        expectMsgClass(ParseForm.class);
+        ref.tell(new IncompleteSubscriptionPleaseSendNew(msg.getAggregateId()),super.testActor());
+        expectMsg(new Subscription(msg.getAggregateId(),"01"));
     }
 }

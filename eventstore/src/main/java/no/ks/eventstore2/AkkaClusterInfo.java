@@ -40,7 +40,7 @@ public class AkkaClusterInfo {
                 boolean notReady = true;
                 while (!cluster.readView().self().status().equals(MemberStatus.up())) {
                     try {
-                        Thread.sleep(10);
+                        Thread.sleep(1000);
                     } catch (InterruptedException e) {}
                 }
                 leader = cluster.readView().isLeader();

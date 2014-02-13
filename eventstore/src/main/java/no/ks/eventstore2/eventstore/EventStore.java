@@ -59,7 +59,8 @@ public class EventStore extends UntypedActor {
         super.postRestart(reason);
         log.warn("Restarted eventstore, restarting storage");
         storage.close();
-        storage.open();
+        if(leaderInfo.isLeader())
+            storage.open();
     }
 
     private void updateLeaderState(ClusterEvent.LeaderChanged leaderChanged) {

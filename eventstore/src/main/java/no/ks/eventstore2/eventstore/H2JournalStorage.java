@@ -98,6 +98,11 @@ public class H2JournalStorage implements JournalStorage {
         throw new RuntimeException("NotImplemented");
     }
 
+    @Override
+    public void doBackup(String backupDirectory, String backupfilename) {
+
+    }
+
     private void updateEventToKryo(final int id, final Event event) {
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
         Output kryodata = new Output(output);

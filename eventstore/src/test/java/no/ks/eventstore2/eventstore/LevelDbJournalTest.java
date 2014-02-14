@@ -1,7 +1,9 @@
 package no.ks.eventstore2.eventstore;
 
 import com.esotericsoftware.kryo.Kryo;
+import net.lingala.zip4j.core.ZipFile;
 import no.ks.eventstore2.Event;
+import no.ks.eventstore2.formProcessorProject.FormParsed;
 import org.apache.commons.io.FileUtils;
 import org.iq80.leveldb.DB;
 import org.iq80.leveldb.DBIterator;
@@ -14,9 +16,7 @@ import java.io.File;
 import java.util.ArrayList;
 
 import static org.fusesource.leveldbjni.JniDBFactory.*;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class LevelDbJournalTest {
 
@@ -177,6 +177,40 @@ public class LevelDbJournalTest {
             FileUtils.deleteDirectory(new File("target/journal_old"));
             FileUtils.deleteDirectory(new File("target/journal_new"));
         }
+    }
+
+    @Test
+    public void testBackup() throws Exception {
+        FileUtils.deleteDirectory(new File("target/journal_new"));
+        FileUtils.deleteDirectory(new File("target/backup"));
+        LevelDbJournalStorage storage_new = new LevelDbJournalStorage("target/journal_new", kryoClassRegistration);
+        try {
+            storage_new.open();
+            storage_new.saveEvent(new FormParsed("id"));
+            storage_new.doBackup("target/backup", "backup");
+            storage_new.close();
+            FileUtils.deleteDirectory(new File("target/journal_new"));
+            new File("target/journal_new").mkdirs();
+
+            ZipFile zipFile = new ZipFile("target/backup/backup.zip");
+
+            zipFile.extractAll("target/journal_new");
+
+            storage_new.open();
+            storage_new.loadEventsAndHandle(new FormParsed("id").getAggregateId(),new HandleEvent() {
+                @Override
+                public void handleEvent(Event event) {
+                    assertEquals(new FormParsed("id"),event);
+                }
+            });
+
+        } finally {
+
+            storage_new.close();
+            FileUtils.deleteDirectory(new File("target/journal_new"));
+            FileUtils.deleteDirectory(new File("target/backup"));
+        }
+
     }
 
     @After

@@ -1,5 +1,7 @@
 package no.ks.eventstore2.store;
 
+import net.lingala.zip4j.core.ZipFile;
+import net.lingala.zip4j.model.ZipParameters;
 import org.iq80.leveldb.DB;
 import org.iq80.leveldb.DBIterator;
 import org.iq80.leveldb.Options;
@@ -26,7 +28,7 @@ public class LevelDbStore {
         this.cacheSizeInMB = cacheSizeInMB;
     }
 
-    public void openDb() {
+    public void open() {
         if (db == null) {
             Options options = new Options();
             options.cacheSize(cacheSizeInMB * 1048576); // 100MB cache
@@ -68,6 +70,22 @@ public class LevelDbStore {
 
     public DB getDb(){
         return db;
+    }
+
+    public void doBackup(String backupDir, String filename) {
+        try {
+            close();
+            new File(backupDir).mkdirs();
+            String backupfile = backupDir + File.separator + filename + ".zip";
+            ZipFile zipFile = new ZipFile(backupfile);
+            zipFile.addFolder(directory,new ZipParameters());
+            log.info("Backup of leveldb {} done to file {}" ,directory, backupfile);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            open();
+        }
+
     }
 
     public void close() {

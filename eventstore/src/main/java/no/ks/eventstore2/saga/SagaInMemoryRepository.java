@@ -30,4 +30,9 @@ public class SagaInMemoryRepository extends SagaRepository{
     public void readAllStatesToNewRepository(SagaRepository repository) {
 
     }
+
+    @Override
+    public void doBackup(String backupdir, String backupfilename) {
+
+    }
 }

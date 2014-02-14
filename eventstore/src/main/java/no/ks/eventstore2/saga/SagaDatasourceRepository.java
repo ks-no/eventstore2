@@ -56,6 +56,11 @@ public class SagaDatasourceRepository extends SagaRepository{
     }
 
     @Override
+    public void doBackup(String backupdir, String backupfilename) {
+
+    }
+
+    @Override
     public void close() {
 
     }

@@ -8,10 +8,13 @@ import akka.actor.UntypedActor;
 import akka.cluster.ClusterEvent;
 import no.ks.eventstore2.AkkaClusterInfo;
 import no.ks.eventstore2.Event;
+import no.ks.eventstore2.TakeBackup;
+import no.ks.eventstore2.eventstore.AcknowledgePreviousEventsProcessed;
 import no.ks.eventstore2.eventstore.IncompleteSubscriptionPleaseSendNew;
 import no.ks.eventstore2.eventstore.Subscription;
 import no.ks.eventstore2.projection.Subscriber;
 import no.ks.eventstore2.reflection.HandlerFinder;
+import no.ks.eventstore2.response.Success;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -47,6 +50,10 @@ public class SagaManager extends UntypedActor {
         this.packageScanPath = packageScanPath;
     }
 
+    @Override
+    public void postStop() {
+        repository.close();
+    }
 
     @Override
     public void preStart() {
@@ -64,8 +71,12 @@ public class SagaManager extends UntypedActor {
         super.postRestart(reason);
         log.warn("Restarted sagamanager, restarting storage");
         repository.close();
-        if(akkaClusterInfo.isLeader())
+        if(akkaClusterInfo.isLeader()){
+            // sleep so we are reasonably sure the other node has closed the storage
+            try { Thread.sleep(500); } catch (InterruptedException e) {}
             repository.open();
+        }
+
     }
 
     @Override
@@ -98,7 +109,21 @@ public class SagaManager extends UntypedActor {
             if(latestJournalidReceived.get(aggregateId) == null) throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
             Subscription subscription = new Subscription(aggregateId, latestJournalidReceived.get(aggregateId));
             eventstore.tell(subscription,self());
+        } else if(o instanceof TakeBackup){
+            if(akkaClusterInfo.isLeader())
+                repository.doBackup(((TakeBackup) o).getBackupdir(),((TakeBackup) o).getBackupfilename());
+            else
+                getLeaderSagaManager().tell(o, sender());
+        } else if(o instanceof AcknowledgePreviousEventsProcessed){
+            if(akkaClusterInfo.isLeader())
+                sender().tell(new Success(),self());
+            else
+                getLeaderSagaManager().tell(o,sender());
         }
+    }
+
+    private ActorRef getLeaderSagaManager() {
+        return getContext().actorFor(akkaClusterInfo.getLeaderAdress() + "/user/sagaManager");
     }
 
     private ActorRef getOrCreateSaga(Class<? extends Saga> clz, String sagaId) {
@@ -222,6 +247,8 @@ public class SagaManager extends UntypedActor {
 			}
             if(akkaClusterInfo.isLeader()){
                 log.info("Opening repository for sagaManager");
+                // sleep so we are reasonably sure the other node has closed the storage
+                try { Thread.sleep(500); } catch (InterruptedException e) {}
                 repository.open();
             } else {
                 log.info("Closing repository for sagaManager");

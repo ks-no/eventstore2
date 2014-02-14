@@ -8,6 +8,7 @@ import akka.cluster.ClusterEvent;
 import com.google.common.collect.HashMultimap;
 import no.ks.eventstore2.AkkaClusterInfo;
 import no.ks.eventstore2.Event;
+import no.ks.eventstore2.TakeBackup;
 import no.ks.eventstore2.json.Adapter;
 import no.ks.eventstore2.response.Success;
 import org.joda.time.DateTime;
@@ -46,6 +47,11 @@ public class EventStore extends UntypedActor {
         storage = journalStorage;
 	}
 
+    @Override
+    public void postStop() {
+        storage.close();
+    }
+
 	@Override
 	public void preStart() {
         leaderInfo = new AkkaClusterInfo(getContext().system());
@@ -59,8 +65,11 @@ public class EventStore extends UntypedActor {
         super.postRestart(reason);
         log.warn("Restarted eventstore, restarting storage");
         storage.close();
-        if(leaderInfo.isLeader())
+        if(leaderInfo.isLeader()){
+            // sleep so we are reasonably sure the other node has closed the storage
+            try { Thread.sleep(500); } catch (InterruptedException e) {}
             storage.open();
+        }
     }
 
     private void updateLeaderState(ClusterEvent.LeaderChanged leaderChanged) {
@@ -76,8 +85,12 @@ public class EventStore extends UntypedActor {
             }
 
             if(leaderInfo.isLeader()){
+                // sleep so we are reasonably sure the other node has closed the storage
+                try { Thread.sleep(500); } catch (InterruptedException e) {}
+                log.info("opening journal store");
                 storage.open();
             }else {
+                log.info("closing journal store");
                 storage.close();
             }
 		} catch (ConfigurationException e) {
@@ -148,8 +161,14 @@ public class EventStore extends UntypedActor {
         } else if(o instanceof UpgradeAggregate && leaderInfo.isLeader()){
             UpgradeAggregate upgrade = (UpgradeAggregate) o;
             storage.upgradeFromOldStorage(upgrade.getAggregateId(), upgrade.getOldStorage());
+        } else if (o instanceof TakeBackup) {
+            if (leaderInfo.isLeader()) {
+                storage.doBackup(((TakeBackup) o).getBackupdir(), ((TakeBackup) o).getBackupfilename());
+            } else {
+                leaderEventStore.tell(o, sender());
+            }
         }
-	}
+    }
 
     private void tryToFillSubscription(final ActorRef sender, Subscription subscription) {
         boolean finished = false;

@@ -62,8 +62,13 @@ public class LevelDbJournalStorage implements JournalStorage {
         }
     }
 
+    @Override
+    public void doBackup(String backupDirectory, String backupfilename) {
+        levelDbStore.doBackup(backupDirectory, backupfilename);
+    }
+
     public void open() {
-        levelDbStore.openDb();
+        levelDbStore.open();
     }
 
     @Override
@@ -173,4 +178,6 @@ public class LevelDbJournalStorage implements JournalStorage {
     public void close() {
        levelDbStore.close();
     }
+
+
 }

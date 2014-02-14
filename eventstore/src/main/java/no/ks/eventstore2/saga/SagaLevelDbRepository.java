@@ -40,11 +40,16 @@ public class SagaLevelDbRepository extends SagaRepository {
 
     @Override
     public void open() {
-        levelDbStore.openDb();
+        levelDbStore.open();
     }
 
     @Override
     public void readAllStatesToNewRepository(SagaRepository repository) {
 
+    }
+
+    @Override
+    public void doBackup(String backupdir, String backupfilename) {
+        levelDbStore.doBackup(backupdir, backupfilename);
     }
 }

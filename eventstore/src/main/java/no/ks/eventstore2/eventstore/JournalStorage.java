@@ -27,4 +27,11 @@ public interface JournalStorage {
     void close();
 
     void upgradeFromOldStorage(String aggregateId, JournalStorage oldStorage);
+
+    /**
+     *
+     * @param backupDirectory
+     * @param backupfilename without file ending
+     */
+    void doBackup(String backupDirectory, String backupfilename);
 }

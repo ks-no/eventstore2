@@ -3,7 +3,6 @@ package no.ks.eventstore2;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-import akka.actor.Props;
 import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
 import no.ks.eventstore2.events.Event1;
@@ -11,7 +10,8 @@ import no.ks.eventstore2.events.Event4;
 import no.ks.eventstore2.events.NewEvent;
 import no.ks.eventstore2.events.OldEvent;
 import no.ks.eventstore2.eventstore.AcknowledgePreviousEventsProcessed;
-import no.ks.eventstore2.eventstore.EventStoreFactory;
+import no.ks.eventstore2.eventstore.EventStore;
+import no.ks.eventstore2.eventstore.H2JournalStorage;
 import no.ks.eventstore2.eventstore.Subscription;
 import no.ks.eventstore2.formProcessorProject.FormParsed;
 import no.ks.eventstore2.response.Success;
@@ -35,18 +35,14 @@ public class EventStoreTest extends TestKit {
 
     @Test
     public void testAcknowledgeRespondsCorrectly() throws Exception {
-        EventStoreFactory factory = new EventStoreFactory();
-        factory.setDs(db);
-        ActorRef eventstore = _system.actorOf(new Props(factory), "eventstore");
+        ActorRef eventstore = _system.actorOf(EventStore.mkProps(new H2JournalStorage(db)), "eventstore");
         eventstore.tell(new AcknowledgePreviousEventsProcessed(),super.testActor());
         expectMsgClass(Success.class);
     }
 
     @Test
     public void testPendingSubscriptionsIsFilled() throws Exception {
-        EventStoreFactory factory = new EventStoreFactory();
-        factory.setDs(db);
-        ActorRef eventstore = _system.actorOf(new Props(factory), "eventstore_pendingSubscriptiontest");
+        ActorRef eventstore = _system.actorOf(EventStore.mkProps(new H2JournalStorage(db)), "eventstore_pendingSubscriptiontest");
         FormParsed event = new FormParsed("formid");
         eventstore.tell(event,super.testActor());
         eventstore.tell(new Subscription(event.getAggregateId()),super.testActor());
@@ -55,9 +51,7 @@ public class EventStoreTest extends TestKit {
 
     @Test
     public void testEventsAreUpgraded() throws Exception {
-        EventStoreFactory factory = new EventStoreFactory();
-        factory.setDs(db);
-        ActorRef eventstore = _system.actorOf(new Props(factory), "eventstore_upgradEvent");
+        ActorRef eventstore = _system.actorOf(EventStore.mkProps(new H2JournalStorage(db)), "eventstore_upgradEvent");
         eventstore.tell(new OldEvent(),super.testActor());
         eventstore.tell(new Subscription(new NewEvent().getAggregateId()),super.testActor());
         expectMsgClass(NewEvent.class);
@@ -65,9 +59,7 @@ public class EventStoreTest extends TestKit {
 
     @Test
     public void testEventsAreUpgradedMultipleTimes() throws Exception {
-        EventStoreFactory factory = new EventStoreFactory();
-        factory.setDs(db);
-        ActorRef eventstore = _system.actorOf(new Props(factory), "eventstore_upgradEventMultipleTimes");
+        ActorRef eventstore = _system.actorOf(EventStore.mkProps(new H2JournalStorage(db)), "eventstore_upgradEventMultipleTimes");
         eventstore.tell(new Event1(),super.testActor());
         eventstore.tell(new Subscription(new Event4().getAggregateId()),super.testActor());
         expectMsgClass(Event4.class);

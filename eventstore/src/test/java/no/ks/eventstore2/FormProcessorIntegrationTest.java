@@ -7,7 +7,8 @@ import akka.actor.Props;
 import akka.testkit.JavaTestKit;
 import no.ks.eventstore2.command.CommandDispatcherFactory;
 import no.ks.eventstore2.command.CommandHandlerFactory;
-import no.ks.eventstore2.eventstore.EventStoreFactory;
+import no.ks.eventstore2.eventstore.EventStore;
+import no.ks.eventstore2.eventstore.H2JournalStorage;
 import no.ks.eventstore2.eventstore.Subscription;
 import no.ks.eventstore2.formProcessorProject.*;
 import no.ks.eventstore2.saga.SagaInMemoryRepository;
@@ -35,10 +36,8 @@ public class FormProcessorIntegrationTest extends EmbeddedDatabaseTest {
     @Test
     public void testFormStatusIsCorrectlyUpdatedOnFormReceived() throws Exception {
         new JavaTestKit(system) {{
-            EventStoreFactory eventStoreFactory = new EventStoreFactory();
-            eventStoreFactory.setDs(db);
 
-            final Props eventStoreProps = new Props(eventStoreFactory);
+            final Props eventStoreProps = EventStore.mkProps(new H2JournalStorage(db));
             final ActorRef eventStore = system.actorOf(eventStoreProps, "eventStore");
 
             ArrayList<CommandHandlerFactory> commandHandlerFactories = new ArrayList<CommandHandlerFactory>();

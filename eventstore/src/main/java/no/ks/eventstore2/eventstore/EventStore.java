@@ -9,17 +9,14 @@ import com.google.common.collect.HashMultimap;
 import no.ks.eventstore2.AkkaClusterInfo;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.TakeBackup;
-import no.ks.eventstore2.json.Adapter;
 import no.ks.eventstore2.response.Success;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.Duration;
 
-import javax.sql.DataSource;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -36,11 +33,6 @@ public class EventStore extends UntypedActor {
 
     public static Props mkProps(JournalStorage journalStorage){
         return Props.create(EventStore.class, journalStorage);
-    }
-
-    @Deprecated
-    public EventStore(DataSource dataSource, List<Adapter> adapters){
-        storage = new H2JournalStorage(dataSource);
     }
 
     public EventStore(JournalStorage journalStorage) {

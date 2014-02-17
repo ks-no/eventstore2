@@ -21,7 +21,7 @@ public abstract class Projection extends UntypedActor {
     protected ActorRef eventStore;
     private Map<Class<? extends Event>, Method> handleEventMap = null;
 
-    private String latestJournalidReceived = null;
+    protected String latestJournalidReceived = null;
 
     //TODO; constructor vs preStart, and how do we handle faling actor creations? Pass exception to parent and shutdown actor system?
     public Projection(ActorRef eventStore) {
@@ -30,13 +30,13 @@ public abstract class Projection extends UntypedActor {
     }
 
     @Override
-    public final void preStart(){
+    public void preStart(){
         System.out.println(getSelf().path().toString());
         eventStore.tell(getSubscribe(), self());
     }
 
     @Override
-    public final void onReceive(Object o) throws Exception{
+    public void onReceive(Object o) throws Exception{
         try{
             if (o instanceof Event) {
                 latestJournalidReceived = ((Event) o).getJournalid();

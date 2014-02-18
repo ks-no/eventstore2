@@ -2,6 +2,7 @@ package no.ks.eventstore2.projection;
 
 import akka.actor.*;
 import akka.japi.Function;
+import no.ks.eventstore2.TakeSnapshot;
 import scala.concurrent.duration.Duration;
 
 import java.util.HashMap;
@@ -63,5 +64,10 @@ public class ProjectionManager extends UntypedActor {
             errorListener.tell(o,sender());
         }else if (o instanceof Call && "getProjectionRef".equals(((Call) o).getMethodName()))
             sender().tell(projections.get(((Call) o).getArgs()[0]), self());
+        else if(o instanceof TakeSnapshot){
+            for (ActorRef actorRef : projections.values()) {
+                actorRef.tell(o, sender());
+            }
+        }
     }
 }

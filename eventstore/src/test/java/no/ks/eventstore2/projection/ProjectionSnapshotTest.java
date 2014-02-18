@@ -14,7 +14,6 @@ import no.ks.eventstore2.Eventstore2TestKit;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.TakeSnapshot;
 import no.ks.eventstore2.eventstore.Subscription;
-import no.ks.eventstore2.store.LevelDbStore;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
@@ -85,7 +84,6 @@ public class ProjectionSnapshotTest extends Eventstore2TestKit {
             output.close();
             return outputStream.toByteArray();
         }
-
 
         @Override
         protected void deSerializeData(byte[] bytes) {

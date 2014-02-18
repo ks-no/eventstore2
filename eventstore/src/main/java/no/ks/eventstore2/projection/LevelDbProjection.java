@@ -6,6 +6,7 @@ import no.ks.eventstore2.TakeSnapshot;
 import no.ks.eventstore2.store.LevelDbStore;
 import scala.concurrent.duration.Duration;
 
+import java.io.File;
 import java.util.concurrent.TimeUnit;
 
 import static org.fusesource.leveldbjni.JniDBFactory.asString;
@@ -13,11 +14,20 @@ import static org.fusesource.leveldbjni.JniDBFactory.bytes;
 
 public abstract class LevelDbProjection extends ProjectionSnapshot {
 
-    private final String snapshotDirectory;
+    private String snapshotDirectory;
     private LevelDbStore store;
 
     public LevelDbProjection(ActorRef eventStore, String snapshotDirectory) {
         super(eventStore);
+        this.snapshotDirectory = snapshotDirectory;
+    }
+
+    protected LevelDbProjection(ActorRef eventStore) {
+        super(eventStore);
+        snapshotDirectory = System.getProperty("java.io.tmpdir" + File.separator + "snapshots" + File.separator + this.getClass().getSimpleName());
+    }
+
+    public void setSnapshotDirectory(String snapshotDirectory) {
         this.snapshotDirectory = snapshotDirectory;
     }
 
@@ -33,12 +43,14 @@ public abstract class LevelDbProjection extends ProjectionSnapshot {
 
     @Override
     public void preStart() {
+        new File(snapshotDirectory).mkdirs();
         store = new LevelDbStore(snapshotDirectory,10);
         super.preStart();
     }
 
     @Override
     public void saveSnapshot() {
+        log.info("Saving snapshot for event {}", latestJournalidReceived);
         try {
             store.open();
             if(latestJournalidReceived != null){
@@ -67,11 +79,17 @@ public abstract class LevelDbProjection extends ProjectionSnapshot {
             if(data != null)
                 deSerializeData(data);
             byte[] latestJournalIdSnapshoted = store.getDb().get(getLatestEventIdKey());
-            if(latestJournalIdSnapshoted != null)
+            if(latestJournalIdSnapshoted != null){
                 latestJournalidReceived = asString(latestJournalIdSnapshoted);
+                log.info("loaded snapshot for event {}", latestJournalidReceived);
+            }
+        } catch(Exception e){
+            log.error("Failed to load snapshot for {}", snapshotDirectory, e);
+            latestJournalidReceived = null;
         } finally {
             store.close();
         }
+
     }
 
     protected abstract void deSerializeData(byte[] bytes);

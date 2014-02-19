@@ -50,4 +50,10 @@ public class SagaLevelDBRepositoryTest extends EmbeddedDatabaseTest{
     public void testNullValueInGetState() throws Exception {
         assertEquals((byte)0, repo.getState(FormProcess.class, "NotValidSagaID"));
     }
+
+    @Test
+    public void testSaveLatestJournalId() throws Exception {
+        repo.saveLatestJournalId("agg","0001");
+        assertEquals("0001", repo.loadLatestJournalID("agg"));
+    }
 }

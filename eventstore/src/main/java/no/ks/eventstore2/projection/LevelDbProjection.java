@@ -1,13 +1,11 @@
 package no.ks.eventstore2.projection;
 
 import akka.actor.ActorRef;
-import akka.actor.Cancellable;
-import no.ks.eventstore2.TakeSnapshot;
 import no.ks.eventstore2.store.LevelDbStore;
-import scala.concurrent.duration.Duration;
+import org.iq80.leveldb.WriteBatch;
 
 import java.io.File;
-import java.util.concurrent.TimeUnit;
+import java.io.IOException;
 
 import static org.fusesource.leveldbjni.JniDBFactory.asString;
 import static org.fusesource.leveldbjni.JniDBFactory.bytes;
@@ -31,16 +29,6 @@ public abstract class LevelDbProjection extends ProjectionSnapshot {
         this.snapshotDirectory = snapshotDirectory;
     }
 
-    private final Cancellable snapshotSchedule = getContext().system().scheduler().schedule(
-            Duration.create(1, TimeUnit.HOURS),
-            Duration.create(2, TimeUnit.HOURS),
-            getSelf(), new TakeSnapshot(), getContext().dispatcher(), null);
-
-    @Override
-    public void postStop() {
-        snapshotSchedule.cancel();
-    }
-
     @Override
     public void preStart() {
         new File(snapshotDirectory).mkdirs();
@@ -51,13 +39,23 @@ public abstract class LevelDbProjection extends ProjectionSnapshot {
     @Override
     public void saveSnapshot() {
         log.info("Saving snapshot for event {}", latestJournalidReceived);
+        WriteBatch writeBatch = null;
         try {
             store.open();
-            if(latestJournalidReceived != null){
-                store.getDb().put(getDataKey(), serializeData());
-                store.getDb().put(getLatestEventIdKey(),bytes(latestJournalidReceived));
+
+            writeBatch = store.getDb().createWriteBatch();
+            if (latestJournalidReceived != null) {
+                writeBatch.put(getDataKey(), serializeData());
+                writeBatch.put(getLatestEventIdKey(), bytes(latestJournalidReceived));
+                store.getDb().write(writeBatch);
+                log.info("Saved snapshot for event {}", latestJournalidReceived);
             }
         } finally {
+            if (writeBatch != null) try {
+                writeBatch.close();
+            } catch (IOException e) {
+                log.error("Failed to write snapshot", e);
+            }
             store.close();
         }
     }

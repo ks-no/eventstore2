@@ -61,6 +61,16 @@ public class SagaDatasourceRepository extends SagaRepository{
     }
 
     @Override
+    public String loadLatestJournalID(String aggregate) {
+        return null;
+    }
+
+    @Override
+    public void saveLatestJournalId(String aggregate, String latestJournalId) {
+
+    }
+
+    @Override
     public void close() {
 
     }

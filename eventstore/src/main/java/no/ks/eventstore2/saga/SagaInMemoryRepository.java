@@ -35,4 +35,14 @@ public class SagaInMemoryRepository extends SagaRepository{
     public void doBackup(String backupdir, String backupfilename) {
 
     }
+
+    @Override
+    public String loadLatestJournalID(String aggregate) {
+        return null;
+    }
+
+    @Override
+    public void saveLatestJournalId(String aggregate, String latestJournalId) {
+
+    }
 }

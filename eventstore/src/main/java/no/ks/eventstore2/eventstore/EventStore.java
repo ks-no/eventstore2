@@ -9,6 +9,7 @@ import com.google.common.collect.HashMultimap;
 import no.ks.eventstore2.AkkaClusterInfo;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.TakeBackup;
+import no.ks.eventstore2.TakeSnapshot;
 import no.ks.eventstore2.response.Success;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
@@ -155,7 +156,18 @@ public class EventStore extends UntypedActor {
             storage.upgradeFromOldStorage(upgrade.getAggregateId(), upgrade.getOldStorage());
         } else if (o instanceof TakeBackup) {
             if (leaderInfo.isLeader()) {
+                for (ActorRef actorRef : aggregateSubscribers.values()) {
+                    actorRef.tell(o, self());
+                }
                 storage.doBackup(((TakeBackup) o).getBackupdir(), ((TakeBackup) o).getBackupfilename());
+            } else {
+                leaderEventStore.tell(o, sender());
+            }
+        } else if (o instanceof TakeSnapshot) {
+            if (leaderInfo.isLeader()) {
+                for (ActorRef actorRef : aggregateSubscribers.values()) {
+                    actorRef.tell(o, self());
+                }
             } else {
                 leaderEventStore.tell(o, sender());
             }

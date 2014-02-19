@@ -1,14 +1,12 @@
 package no.ks.eventstore2.saga;
 
 import akka.ConfigurationException;
-import akka.actor.ActorRef;
-import akka.actor.PoisonPill;
-import akka.actor.Props;
-import akka.actor.UntypedActor;
+import akka.actor.*;
 import akka.cluster.ClusterEvent;
 import no.ks.eventstore2.AkkaClusterInfo;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.TakeBackup;
+import no.ks.eventstore2.TakeSnapshot;
 import no.ks.eventstore2.eventstore.AcknowledgePreviousEventsProcessed;
 import no.ks.eventstore2.eventstore.IncompleteSubscriptionPleaseSendNew;
 import no.ks.eventstore2.eventstore.Subscription;
@@ -20,11 +18,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
+import scala.concurrent.duration.Duration;
 
 import java.beans.IntrospectionException;
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.Method;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 public class SagaManager extends UntypedActor {
 
@@ -39,6 +39,11 @@ public class SagaManager extends UntypedActor {
     private AkkaClusterInfo akkaClusterInfo;
     private Map<String,String> latestJournalidReceived = new HashMap<String,String>();
 
+    private final Cancellable snapshotSchedule = getContext().system().scheduler().schedule(
+            Duration.create(1, TimeUnit.HOURS),
+            Duration.create(2, TimeUnit.HOURS),
+            getSelf(), new TakeSnapshot(), getContext().dispatcher(), null);
+
     public static Props mkProps(ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore, String packageScanPath){
         return Props.create(SagaManager.class,commandDispatcher, repository, eventstore, packageScanPath);
     }
@@ -52,6 +57,7 @@ public class SagaManager extends UntypedActor {
 
     @Override
     public void postStop() {
+        snapshotSchedule.cancel();
         repository.close();
     }
 
@@ -111,14 +117,17 @@ public class SagaManager extends UntypedActor {
             eventstore.tell(subscription,self());
         } else if(o instanceof TakeBackup){
             if(akkaClusterInfo.isLeader())
-                repository.doBackup(((TakeBackup) o).getBackupdir(),((TakeBackup) o).getBackupfilename());
-            else
-                getLeaderSagaManager().tell(o, sender());
+                repository.doBackup(((TakeBackup) o).getBackupdir(), ((TakeBackup) o).getBackupfilename());
         } else if(o instanceof AcknowledgePreviousEventsProcessed){
             if(akkaClusterInfo.isLeader())
                 sender().tell(new Success(),self());
             else
                 getLeaderSagaManager().tell(o,sender());
+        } else if(o instanceof TakeSnapshot && akkaClusterInfo.isLeader()){
+            for (String aggregate : latestJournalidReceived.keySet()) {
+                log.info("Saving latestJournalId {} for sagaManager aggregate {}", latestJournalidReceived.get(aggregate), aggregate);
+                repository.saveLatestJournalId(aggregate, latestJournalidReceived.get(aggregate));
+            }
         }
     }
 
@@ -250,6 +259,10 @@ public class SagaManager extends UntypedActor {
                 // sleep so we are reasonably sure the other node has closed the storage
                 try { Thread.sleep(500); } catch (InterruptedException e) {}
                 repository.open();
+                for (String aggregate : aggregates) {
+                    latestJournalidReceived.put(aggregate, repository.loadLatestJournalID(aggregate));
+                    log.info("SagaManager loaded aggregate {} latestJournalid {}", aggregate, latestJournalidReceived.get(aggregate));
+                }
             } else {
                 log.info("Closing repository for sagaManager");
                 repository.close();

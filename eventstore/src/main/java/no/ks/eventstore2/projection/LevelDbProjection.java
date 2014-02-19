@@ -38,7 +38,7 @@ public abstract class LevelDbProjection extends ProjectionSnapshot {
 
     @Override
     public void saveSnapshot() {
-        log.info("Saving snapshot for event {}", latestJournalidReceived);
+        log.info("{} Saving snapshot for event {}", getClass().getSimpleName(), latestJournalidReceived);
         WriteBatch writeBatch = null;
         try {
             store.open();
@@ -48,7 +48,7 @@ public abstract class LevelDbProjection extends ProjectionSnapshot {
                 writeBatch.put(getDataKey(), serializeData());
                 writeBatch.put(getLatestEventIdKey(), bytes(latestJournalidReceived));
                 store.getDb().write(writeBatch);
-                log.info("Saved snapshot for event {}", latestJournalidReceived);
+                log.info("{} Saved snapshot for event {}", getClass().getSimpleName(), latestJournalidReceived);
             }
         } finally {
             if (writeBatch != null) try {

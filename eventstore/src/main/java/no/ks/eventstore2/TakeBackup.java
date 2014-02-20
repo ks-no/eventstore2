@@ -1,27 +1,16 @@
 package no.ks.eventstore2;
 
-import java.io.File;
 import java.io.Serializable;
 
 public class TakeBackup implements Serializable {
 
     private String backupdir;
-    private String backupfilename;
 
     public TakeBackup() {
     }
 
-    public TakeBackup(String backupdir, String backupfilename) {
+    public TakeBackup(String backupdir) {
         this.backupdir = backupdir;
-        this.backupfilename = backupfilename;
-    }
-
-    public String getBackupfilename() {
-        return backupfilename;
-    }
-
-    public void setBackupfilename(String backupfilename) {
-        this.backupfilename = backupfilename;
     }
 
     public String getBackupdir() {
@@ -34,6 +23,6 @@ public class TakeBackup implements Serializable {
 
     @Override
     public String toString() {
-        return backupdir + File.separator + backupfilename;
+        return "Take backup to dir " + backupdir;
     }
 }

@@ -31,7 +31,7 @@ public class LevelDbStore {
     public void open() {
         if (db == null) {
             Options options = new Options();
-            options.cacheSize(cacheSizeInMB * 1048576); // 100MB cache
+            options.cacheSize(cacheSizeInMB * 1048576); // MB cache
             options.createIfMissing(true);
             if(!new File(directory).exists())
                 new File(directory).mkdirs();

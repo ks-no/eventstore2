@@ -23,6 +23,7 @@ import scala.concurrent.duration.Duration;
 import java.beans.IntrospectionException;
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.Method;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -34,6 +35,8 @@ public class SagaManager extends UntypedActor {
     private final SagaRepository repository;
     private ActorRef eventstore;
     private String packageScanPath;
+
+    private SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
 
     private Map<SagaCompositeId, ActorRef> sagas = new HashMap<SagaCompositeId, ActorRef>();
     private AkkaClusterInfo akkaClusterInfo;
@@ -117,7 +120,7 @@ public class SagaManager extends UntypedActor {
             eventstore.tell(subscription,self());
         } else if(o instanceof TakeBackup){
             if(akkaClusterInfo.isLeader())
-                repository.doBackup(((TakeBackup) o).getBackupdir(), ((TakeBackup) o).getBackupfilename());
+                repository.doBackup(((TakeBackup) o).getBackupdir(), "backupSagaRepo" + format.format(new Date()));
         } else if(o instanceof AcknowledgePreviousEventsProcessed){
             if(akkaClusterInfo.isLeader())
                 sender().tell(new Success(),self());

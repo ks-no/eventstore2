@@ -16,6 +16,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.Duration;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
@@ -31,6 +33,7 @@ public class EventStore extends UntypedActor {
 
     private AkkaClusterInfo leaderInfo;
     private JournalStorage storage;
+    private SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
 
     public static Props mkProps(JournalStorage journalStorage){
         return Props.create(EventStore.class, journalStorage);
@@ -159,7 +162,7 @@ public class EventStore extends UntypedActor {
                 for (ActorRef actorRef : aggregateSubscribers.values()) {
                     actorRef.tell(o, self());
                 }
-                storage.doBackup(((TakeBackup) o).getBackupdir(), ((TakeBackup) o).getBackupfilename());
+                storage.doBackup(((TakeBackup) o).getBackupdir(), "backupEventStore"+ format.format(new Date()));
             } else {
                 leaderEventStore.tell(o, sender());
             }

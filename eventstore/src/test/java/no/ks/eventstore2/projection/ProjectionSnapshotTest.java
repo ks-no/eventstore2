@@ -86,6 +86,11 @@ public class ProjectionSnapshotTest extends Eventstore2TestKit {
         }
 
         @Override
+        protected String getSnapshotDataVersion() {
+            return "1";
+        }
+
+        @Override
         protected void deSerializeData(byte[] bytes) {
             Input input = new Input(bytes);
             data = (Map<String, Event>) kryo.readClassAndObject(input);

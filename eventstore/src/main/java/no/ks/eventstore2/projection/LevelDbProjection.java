@@ -62,11 +62,17 @@ public abstract class LevelDbProjection extends ProjectionSnapshot {
 
     protected abstract byte[] serializeData();
 
+    /**
+     * Data version this projection uses
+     * @return
+     */
+    protected abstract String getSnapshotDataVersion();
+
     private byte[] getDataKey() {
-        return bytes("snapshot!" + this.getClass().getName() + "!data");
+        return bytes("snapshot!" + getSnapshotDataVersion() + "!" + this.getClass().getName() + "!data");
     }
     private byte[] getLatestEventIdKey() {
-        return bytes("snapshot!" + this.getClass().getName() + "!key");
+        return bytes("snapshot!" + getSnapshotDataVersion() + "!" + this.getClass().getName() + "!key");
     }
 
     @Override

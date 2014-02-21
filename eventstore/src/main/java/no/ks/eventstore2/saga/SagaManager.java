@@ -70,9 +70,7 @@ public class SagaManager extends UntypedActor {
         akkaClusterInfo = new AkkaClusterInfo(getContext().system());
         akkaClusterInfo.subscribeToClusterEvents(self());
         updateLeaderState(null);
-        for (String aggregate : aggregates) {
-            eventstore.tell(new Subscription(aggregate,latestJournalidReceived.get(aggregate)), self());
-        }
+
     }
 
     @Override
@@ -265,6 +263,9 @@ public class SagaManager extends UntypedActor {
                 for (String aggregate : aggregates) {
                     latestJournalidReceived.put(aggregate, repository.loadLatestJournalID(aggregate));
                     log.info("SagaManager loaded aggregate {} latestJournalid {}", aggregate, latestJournalidReceived.get(aggregate));
+                }
+                for (String aggregate : aggregates) {
+                    eventstore.tell(new Subscription(aggregate,latestJournalidReceived.get(aggregate)), self());
                 }
             } else {
                 log.info("Closing repository for sagaManager");

@@ -35,17 +35,6 @@ public class LevelDbStore {
             options.createIfMissing(true);
             if(!new File(directory).exists())
                 new File(directory).mkdirs();
-            File lockfile = new File(directory + File.pathSeparator + "LOCK");
-            if(lockfile.exists()){
-                log.warn("LEVELDB: Lockfile exists, waiting 5 sec");
-                try {
-                    Thread.sleep(5000);
-                } catch (InterruptedException e) { }
-                if(lockfile.exists()){
-                    log.warn("LEVELDB: Deleteing lockfile");
-                    lockfile.delete();
-                }
-            }
             try {
                 db = factory.open(new File(directory), options);
             } catch (IOException e) {

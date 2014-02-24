@@ -4,6 +4,7 @@ import com.esotericsoftware.kryo.Kryo;
 import net.lingala.zip4j.core.ZipFile;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.formProcessorProject.FormParsed;
+import no.ks.eventstore2.store.LevelDbStore;
 import org.apache.commons.io.FileUtils;
 import org.iq80.leveldb.DB;
 import org.iq80.leveldb.DBIterator;
@@ -210,7 +211,6 @@ public class LevelDbJournalTest {
             FileUtils.deleteDirectory(new File("target/journal_new"));
             FileUtils.deleteDirectory(new File("target/backup"));
         }
-
     }
 
     @After

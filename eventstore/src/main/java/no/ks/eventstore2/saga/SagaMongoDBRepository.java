@@ -23,7 +23,12 @@ public class SagaMongoDBRepository extends SagaRepository{
     public byte getState(Class<? extends Saga> clz, String sagaid) {
         DBCursor cursor = states.find(new BasicDBObject("clz", clz.getName()).append("sid", sagaid)).limit(1);
         if(!cursor.hasNext()) return 0;
-        return (Byte) cursor.next().get("s");
+
+        Object s = cursor.next().get("s");
+        if(s instanceof Integer)
+            return ((Integer) s).byteValue();
+        else
+            return (Byte) s;
     }
 
     @Override

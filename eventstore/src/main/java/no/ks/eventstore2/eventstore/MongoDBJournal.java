@@ -55,9 +55,7 @@ public class MongoDBJournal implements JournalStorage {
     public void saveEvent(Event event) {
         DBCollection collection = db.getCollection(event.getAggregateId());
         event.setJournalid(String.valueOf(getNextJournalId(collection)));
-        BasicDBObject doc = new BasicDBObject("a", event.getAggregateId()).
-                append("c", event.getCreated()).
-                append("jid", Long.parseLong(event.getJournalid())).
+        BasicDBObject doc = new BasicDBObject("jid", Long.parseLong(event.getJournalid())).
                 append("d", serielize(event));
         collection.insert(doc);
     }

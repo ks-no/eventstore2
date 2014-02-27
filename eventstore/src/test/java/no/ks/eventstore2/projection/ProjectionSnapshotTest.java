@@ -9,8 +9,15 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.MapSerializer;
-import com.github.fakemongo.Fongo;
 import com.mongodb.MongoClient;
+import de.flapdoodle.embed.mongo.MongodExecutable;
+import de.flapdoodle.embed.mongo.MongodProcess;
+import de.flapdoodle.embed.mongo.MongodStarter;
+import de.flapdoodle.embed.mongo.config.IMongodConfig;
+import de.flapdoodle.embed.mongo.config.MongodConfigBuilder;
+import de.flapdoodle.embed.mongo.config.Net;
+import de.flapdoodle.embed.mongo.distribution.Version;
+import de.flapdoodle.embed.process.runtime.Network;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.Eventstore2TestKit;
 import no.ks.eventstore2.Handler;
@@ -32,18 +39,29 @@ public class ProjectionSnapshotTest extends Eventstore2TestKit {
 
     private static Kryo kryo = new Kryo();
     private MongoClient mongoClient;
-    private Fongo fongo = new Fongo("mongodb server name");
-
+    private MongodExecutable mongodExecutable = null;
+    private MongodProcess mongod = null;
 
     @Before
     public void setUp() throws Exception {
-//        mongoClient = fongo.getMongo();
-        mongoClient = new MongoClient("192.168.33.20");
+        MongodStarter runtime = MongodStarter.getDefaultInstance();
+        mongodExecutable = runtime.prepare(new MongodConfigBuilder()
+                .version(Version.Main.PRODUCTION)
+                .net(new Net(12345, Network.localhostIsIPv6()))
+                .build());
+        mongod = mongodExecutable.start();
+        mongoClient = new MongoClient("localhost", 12345);
     }
 
     @After
     public void tearDown() throws Exception {
-         mongoClient.close();
+        if (mongod != null) {
+            mongod.stop();
+        }
+        if (mongodExecutable != null) {
+            mongodExecutable.stop();
+        }
+        mongoClient.close();
     }
 
     @Test

@@ -16,7 +16,7 @@ public class SagaMongoDBRepository extends SagaRepository{
 
     @Override
     public void saveState(Class<? extends Saga> clz, String sagaid, byte state) {
-        states.insert(new BasicDBObject("clz", clz.getName()).append("sid", sagaid).append("s", state));
+        states.update(new BasicDBObject("clz", clz.getName()).append("sid", sagaid), new BasicDBObject("clz", clz.getName()).append("sid", sagaid).append("s", state), true, false);
     }
 
     @Override

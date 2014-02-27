@@ -37,7 +37,8 @@ public class ProjectionSnapshotTest extends Eventstore2TestKit {
 
     @Before
     public void setUp() throws Exception {
-        mongoClient = fongo.getMongo();
+//        mongoClient = fongo.getMongo();
+        mongoClient = new MongoClient("192.168.33.20");
     }
 
     @After
@@ -96,7 +97,7 @@ public class ProjectionSnapshotTest extends Eventstore2TestKit {
 
         @Override
         protected String getSnapshotDataVersion() {
-            return "1";
+            return "2";
         }
 
         @Override

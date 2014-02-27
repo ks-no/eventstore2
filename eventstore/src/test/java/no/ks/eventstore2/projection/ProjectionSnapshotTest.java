@@ -9,41 +9,46 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.MapSerializer;
+import com.github.fakemongo.Fongo;
+import com.mongodb.MongoClient;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.Eventstore2TestKit;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.TakeSnapshot;
 import no.ks.eventstore2.eventstore.Subscription;
-import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class ProjectionSnapshotTest extends Eventstore2TestKit {
 
     private static Kryo kryo = new Kryo();
+    private MongoClient mongoClient;
+    private Fongo fongo = new Fongo("mongodb server name");
+
 
     @Before
     public void setUp() throws Exception {
-        FileUtils.deleteDirectory(new File("target/snapshot"));
+        mongoClient = fongo.getMongo();
     }
 
     @After
     public void tearDown() throws Exception {
-        FileUtils.deleteDirectory(new File("target/snapshot"));
+         mongoClient.close();
     }
 
     @Test
-    public void test_that_a_projection_can_save_snapshot() throws Exception {
-        TestActorRef<Actor> testActor = TestActorRef.create(_system, Props.create(TestProjection.class, super.testActor(),"target/snapshot"), UUID.randomUUID().toString());
+    public void test_that_a_projection_can_save_and_load_snapshot() throws Exception {
+
+        TestActorRef<Actor> testActor = TestActorRef.create(_system, Props.create(TestProjection.class, super.testActor(), mongoClient), UUID.randomUUID().toString());
         expectMsgClass(Subscription.class);
         testActor.tell(new TestEvent(), super.testActor());
         testActor.tell(new TakeSnapshot(), super.testActor());
@@ -53,23 +58,27 @@ public class ProjectionSnapshotTest extends Eventstore2TestKit {
         assertTrue(testProjection.testEventRecieved);
         assertTrue(testProjection.data.size() == 1);
 
-        TestActorRef<Actor> testActorReader = TestActorRef.create(_system, Props.create(TestProjection.class, super.testActor(),"target/snapshot"), UUID.randomUUID().toString());
+        TestActorRef<Actor> testActorReader = TestActorRef.create(_system, Props.create(TestProjection.class, super.testActor(), mongoClient), UUID.randomUUID().toString());
         expectMsg(new Subscription("TestAggregate","000000001"));
 
         TestProjection testProjectionRead = (TestProjection) testActorReader.underlyingActor();
         assertTrue(testProjectionRead.data.size() == 1);
+
+        Event event = testProjection.data.get("1");
+        assertEquals("TestAggregate", event.getAggregateId());
+        assertEquals("000000001", event.getJournalid());
     }
 
 
 
     @Subscriber("TestAggregate")
-    private static class TestProjection extends LevelDbProjection {
+    private static class TestProjection extends MongoDbProjection {
 
         public boolean testEventRecieved = false;
         private Map<String, Event> data = new HashMap<String, Event>();
 
-        public TestProjection(ActorRef eventStore,String leveldbDirectory) {
-            super(eventStore,leveldbDirectory);
+        public TestProjection(ActorRef eventStore, MongoClient client) throws Exception {
+            super(eventStore, client);
             MapSerializer serializer = new MapSerializer();
             kryo.register(HashMap.class, serializer);
             kryo.register(HashMap.class, 10);

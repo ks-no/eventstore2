@@ -9,6 +9,8 @@ import org.springframework.jdbc.core.RowCallbackHandler;
 import javax.sql.DataSource;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class SagaDatasourceRepository extends SagaRepository{
 
@@ -43,16 +45,18 @@ public class SagaDatasourceRepository extends SagaRepository{
 	}
 
     public void readAllStatesToNewRepository(final SagaRepository repository){
+        final List<State> list = new ArrayList<State>();
         template.query("select state,id,clazz from Saga",new RowCallbackHandler() {
             @Override
             public void processRow(ResultSet resultSet) throws SQLException {
                 try {
-                    repository.saveState((Class<? extends Saga>)Class.forName(resultSet.getString("clazz")),resultSet.getString("id"),(byte)resultSet.getInt("state"));
+                    list.add(new State((Class<? extends Saga>)Class.forName(resultSet.getString("clazz")),resultSet.getString("id"),(byte)resultSet.getInt("state")));
                 } catch (ClassNotFoundException e) {
                     log.info(e.getMessage());
                 }
             }
         });
+        repository.saveStates(list);
     }
 
     @Override
@@ -68,6 +72,13 @@ public class SagaDatasourceRepository extends SagaRepository{
     @Override
     public void saveLatestJournalId(String aggregate, String latestJournalId) {
 
+    }
+
+    @Override
+    public void saveStates(List<State> list) {
+        for (State state : list) {
+            saveState(state.getClazz(), state.getId(), state.getState());
+        }
     }
 
     @Override

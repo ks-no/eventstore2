@@ -9,6 +9,8 @@ import com.mongodb.*;
 import de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer;
 import no.ks.eventstore2.Event;
 import org.joda.time.DateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -23,6 +25,7 @@ public class MongoDBJournal implements JournalStorage {
     private String dataversion = "01";
 
     private int eventReadLimit = 5000;
+    private Logger log = LoggerFactory.getLogger(MongoDBJournal.class);
 
     public MongoDBJournal(DB db, KryoClassRegistration registration, List<String> aggregates, int eventReadLimit) {
         this(db, registration, aggregates);
@@ -66,6 +69,7 @@ public class MongoDBJournal implements JournalStorage {
     }
 
     public void saveEvents(List<Event> events) {
+        if(events == null || events.size() == 0) return;
         String agg = events.get(0).getAggregateId();
         DBCollection collection = db.getCollection(agg);
         long nextJournalId = getNextJournalId(collection);
@@ -86,22 +90,17 @@ public class MongoDBJournal implements JournalStorage {
 
     @Override
     public boolean loadEventsAndHandle(String aggregateid, HandleEvent handleEvent) {
-        DBCursor dbObjects = db.getCollection(aggregateid).find().sort(new BasicDBObject("jid", 1));
-        try {
-            while (dbObjects.hasNext()) {
-                DBObject next = dbObjects.next();
-                handleEvent.handleEvent(deSerialize((byte[]) next.get("d")));
-            }
-        } finally {
-            dbObjects.close();
-        }
-        return true;
+        return loadEventsAndHandle(aggregateid, handleEvent, "0", eventReadLimit);
     }
 
     @Override
     public boolean loadEventsAndHandle(String aggregateid, HandleEvent handleEvent, String fromKey) {
+        return loadEventsAndHandle(aggregateid, handleEvent, fromKey, eventReadLimit);
+    }
+
+    private boolean loadEventsAndHandle(String aggregateid, HandleEvent handleEvent, String fromKey, int readlimit) {
         BasicDBObject query = new BasicDBObject("jid", new BasicDBObject("$gt", Long.parseLong(fromKey)));
-        DBCursor dbObjects = db.getCollection(aggregateid).find(query).sort(new BasicDBObject("jid", 1)).limit(eventReadLimit);
+        DBCursor dbObjects = db.getCollection(aggregateid).find(query).sort(new BasicDBObject("jid", 1)).limit(readlimit);
         int i = 0;
         try {
             while (dbObjects.hasNext()) {
@@ -112,7 +111,7 @@ public class MongoDBJournal implements JournalStorage {
         } finally {
             dbObjects.close();
         }
-        return i < eventReadLimit;
+        return i < readlimit;
     }
 
     @Override
@@ -127,20 +126,37 @@ public class MongoDBJournal implements JournalStorage {
 
     @Override
     public void upgradeFromOldStorage(String aggregateId, JournalStorage oldStorage) {
-        if(metaCollection.find(new BasicDBObject("_id", "upgraded_to_" + dataversion)).hasNext()) return;
-        final ArrayList<Event> events = new ArrayList<Event>(10000);
-        oldStorage.loadEventsAndHandle(aggregateId, new HandleEvent() {
+        DBCursor id = metaCollection.find(new BasicDBObject("_id", "upgrade_" + aggregateId));
+        if (id.hasNext() && dataversion.equals(id.next().get("version"))) {
+            log.info("Already upgraded aggregate " + aggregateId);
+            return;
+        }
+
+        final ArrayList<Event> events = new ArrayList<Event>();
+        boolean done = false;
+        HandleEvent handleEvent = new HandleEvent() {
             @Override
             public void handleEvent(Event event) {
                 events.add(event);
-                if (events.size() > 9000) {
+                if(events.size() > eventReadLimit){
+                    log.info("Events reached {}, saving away", eventReadLimit);
                     saveEvents(events);
-                    events.removeAll(events);
+                    events.clear();
                 }
             }
-        });
+        };
+        done = oldStorage.loadEventsAndHandle(aggregateId, handleEvent);
+        while (!done) {
+            String lastJournalID = events.get(events.size()-1).getJournalid();
+            log.info("saving to lastJournalId {}",lastJournalID);
+            saveEvents(events);
+            events.clear();
+            done = oldStorage.loadEventsAndHandle(aggregateId, handleEvent,lastJournalID);
+
+        }
         saveEvents(events);
-        metaCollection.save(new BasicDBObject("_id", "upgraded_to_" + dataversion));
+        events.clear();
+        metaCollection.save(new BasicDBObject("_id", "upgrade_" + aggregateId).append("version", dataversion));
     }
 
     @Override

@@ -2,6 +2,8 @@ package no.ks.eventstore2.saga;
 
 import com.mongodb.*;
 
+import java.util.List;
+
 public class SagaMongoDBRepository extends SagaRepository{
     private final DBCollection states;
     private final DBCollection journalid;
@@ -61,5 +63,15 @@ public class SagaMongoDBRepository extends SagaRepository{
     @Override
     public void saveLatestJournalId(String aggregate, String latestJournalId) {
         journalid.save(new BasicDBObject("_id", aggregate).append("latestJournalID", latestJournalId));
+    }
+
+    @Override
+    public void saveStates(List<State> list) {
+        states.setWriteConcern(WriteConcern.UNACKNOWLEDGED);
+        for (State state : list) {
+            saveState(state.getClazz(), state.getId(), state.getState());
+        }
+        states.setWriteConcern(WriteConcern.ACKNOWLEDGED);
+
     }
 }

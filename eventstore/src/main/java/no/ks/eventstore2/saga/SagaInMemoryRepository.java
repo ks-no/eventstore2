@@ -1,6 +1,7 @@
 package no.ks.eventstore2.saga;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class SagaInMemoryRepository extends SagaRepository{
@@ -44,5 +45,12 @@ public class SagaInMemoryRepository extends SagaRepository{
     @Override
     public void saveLatestJournalId(String aggregate, String latestJournalId) {
 
+    }
+
+    @Override
+    public void saveStates(List<State> list) {
+        for (State state : list) {
+            saveState(state.getClazz(), state.getId(), state.getState());
+        }
     }
 }

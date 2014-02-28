@@ -2,6 +2,8 @@ package no.ks.eventstore2.saga;
 
 import no.ks.eventstore2.store.LevelDbStore;
 
+import java.util.List;
+
 import static org.fusesource.leveldbjni.JniDBFactory.asString;
 import static org.fusesource.leveldbjni.JniDBFactory.bytes;
 
@@ -64,6 +66,13 @@ public class SagaLevelDbRepository extends SagaRepository {
     @Override
     public void saveLatestJournalId(String aggregate, String latestJournalId) {
         levelDbStore.getDb().put(getLatestJournalIdKey(aggregate),bytes(latestJournalId));
+    }
+
+    @Override
+    public void saveStates(List<State> list) {
+        for (State state : list) {
+            saveState(state.getClazz(), state.getId(), state.getState());
+        }
     }
 
     private byte[] getLatestJournalIdKey(String aggregate){

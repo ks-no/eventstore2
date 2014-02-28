@@ -155,8 +155,11 @@ public class EventStore extends UntypedActor {
             else
                 leaderEventStore.tell(o,sender());
         } else if(o instanceof UpgradeAggregate && leaderInfo.isLeader()){
+
             UpgradeAggregate upgrade = (UpgradeAggregate) o;
+            log.info("Upgrading aggregate " + upgrade.getAggregateId());
             storage.upgradeFromOldStorage(upgrade.getAggregateId(), upgrade.getOldStorage());
+            log.info("Upgraded aggregate " + upgrade.getAggregateId());
         } else if (o instanceof TakeBackup) {
             if (leaderInfo.isLeader()) {
                 for (ActorRef actorRef : aggregateSubscribers.values()) {

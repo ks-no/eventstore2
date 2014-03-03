@@ -9,18 +9,17 @@ import com.mongodb.gridfs.GridFSInputFile;
 import no.ks.eventstore2.store.MongoDbStore;
 import org.apache.commons.io.IOUtils;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-
 public abstract class MongoDbProjection extends ProjectionSnapshot {
 
     private MongoDbStore store;
     private GridFS gridFS;
 
+    private static String nodename = System.getProperty("nodename") != null ? System.getProperty("nodename") : "local";
+
     public MongoDbProjection(ActorRef eventStore, MongoClient client) throws Exception {
         super(eventStore);
-        this.store = new MongoDbStore(client, "SnapshotRepository");
-        gridFS = new GridFS(store.getDb(), "snapshot_data");
+        this.store = new MongoDbStore(client, nodename + "_SnapshotRepository");
+        gridFS = new GridFS(store.getDb(), nodename + "_snapshot_data");
     }
 
     @Override
@@ -40,8 +39,7 @@ public abstract class MongoDbProjection extends ProjectionSnapshot {
                 DBObject update = new BasicDBObject("_id", getId())
                         .append("jid", latestJournalidReceived)
                         .append("dataVersion", getSnapshotDataVersion())
-                        .append("projectionId", getClass().getSimpleName())
-                        .append("hostname", getHostName());
+                        .append("projectionId", getClass().getSimpleName());
 
                 collection.save(update);
 
@@ -64,8 +62,8 @@ public abstract class MongoDbProjection extends ProjectionSnapshot {
             store.open();
             DBCollection collection = store.getCollection("snapshot");
             BasicDBObject query = new BasicDBObject("projectionId", getClass().getSimpleName())
-                    .append("dataVersion", getSnapshotDataVersion())
-                    .append("hostname", getHostName());
+                    .append("dataVersion", getSnapshotDataVersion());
+
 
             dbObjects = collection.find(query);
 
@@ -100,14 +98,6 @@ public abstract class MongoDbProjection extends ProjectionSnapshot {
         GridFSInputFile file = gridFS.createFile(serializeData());
         file.setId(getId());
         file.save();
-    }
-
-    protected String getHostName() {
-        try {
-        return InetAddress.getLocalHost().getHostName();
-        }catch (UnknownHostException e) {
-            return "unknown";
-        }
     }
 
     private String getId() {

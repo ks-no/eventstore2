@@ -71,11 +71,14 @@ public abstract class Projection extends UntypedActor {
         try {
             Method method = getCallMethod(call);
         	Object result = method.invoke(this, call.getArgs());
-        	if(result != null){
-        		sender().tell(result, self());
-        	} else {
-        		sender().tell(new NoResult(), self());
-        	}
+
+            if (!method.getReturnType().equals(Void.TYPE)) {
+                if(result != null){
+                    sender().tell(result, self());
+                } else {
+                    sender().tell(new NoResult(), self());
+                }
+            }
         } catch (Exception e) {
             throw new RuntimeException("Error handling projection call!", e);
         }

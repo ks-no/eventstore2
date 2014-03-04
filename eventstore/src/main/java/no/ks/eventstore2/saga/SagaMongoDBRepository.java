@@ -13,7 +13,9 @@ public class SagaMongoDBRepository extends SagaRepository{
         this.db = db;
         states = db.getCollection("states");
         states.ensureIndex(new BasicDBObject("clz",1).append("sid",1));
+        states.setWriteConcern(WriteConcern.JOURNAL_SAFE);
         journalid = db.getCollection("journalid");
+        journalid.setWriteConcern(WriteConcern.JOURNAL_SAFE);
     }
 
     @Override
@@ -71,7 +73,7 @@ public class SagaMongoDBRepository extends SagaRepository{
         for (State state : list) {
             saveState(state.getClazz(), state.getId(), state.getState());
         }
-        states.setWriteConcern(WriteConcern.ACKNOWLEDGED);
+        states.setWriteConcern(WriteConcern.JOURNAL_SAFE);
 
     }
 }

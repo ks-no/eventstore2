@@ -34,10 +34,13 @@ public class MongoDBJournal implements JournalStorage {
 
     public MongoDBJournal(DB db, KryoClassRegistration registration, List<String> aggregates) {
         this.db = db;
+        db.setWriteConcern(WriteConcern.JOURNAL_SAFE);
         for (String aggregate : aggregates) {
             db.getCollection(aggregate).ensureIndex("jid");
+            db.getCollection(aggregate).setWriteConcern(WriteConcern.JOURNAL_SAFE);
         }
         metaCollection = db.getCollection("journalMetadata");
+        metaCollection.setWriteConcern(WriteConcern.JOURNAL_SAFE);
         kryo = new Kryo();
         kryo.setInstantiatorStrategy(new SerializingInstantiatorStrategy());
         kryo.setDefaultSerializer(CompatibleFieldSerializer.class);
@@ -50,8 +53,7 @@ public class MongoDBJournal implements JournalStorage {
         ByteBufferOutput output = new ByteBufferOutput(outputs);
         kryo.writeClassAndObject(output, event);
         output.close();
-        byte[] bytes = outputs.toByteArray();
-        return bytes;
+        return outputs.toByteArray();
     }
 
     private Event deSerialize(byte[] value) {

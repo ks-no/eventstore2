@@ -20,6 +20,7 @@ public abstract class MongoDbProjection extends ProjectionSnapshot {
         super(eventStore);
         this.store = new MongoDbStore(client, nodename + "_SnapshotRepository");
         gridFS = new GridFS(store.getDb(), nodename + "_snapshot_data");
+        store.getCollection("snapshot").ensureIndex(new BasicDBObject("dataversion", 1).append("projectionId",1));
     }
 
     @Override
@@ -33,7 +34,6 @@ public abstract class MongoDbProjection extends ProjectionSnapshot {
         log.info("{} Saving snapshot for event {}", getClass().getSimpleName(), latestJournalidReceived);
 
         try {
-            store.open();
             DBCollection collection = store.getCollection("snapshot");
             if (latestJournalidReceived != null) {
                 DBObject update = new BasicDBObject("_id", getId())
@@ -59,7 +59,6 @@ public abstract class MongoDbProjection extends ProjectionSnapshot {
 
         DBCursor dbObjects = null;
         try {
-            store.open();
             DBCollection collection = store.getCollection("snapshot");
             BasicDBObject query = new BasicDBObject("projectionId", getClass().getSimpleName())
                     .append("dataVersion", getSnapshotDataVersion());

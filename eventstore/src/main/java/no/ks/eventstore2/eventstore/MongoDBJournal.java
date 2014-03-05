@@ -34,13 +34,13 @@ public class MongoDBJournal implements JournalStorage {
 
     public MongoDBJournal(DB db, KryoClassRegistration registration, List<String> aggregates) {
         this.db = db;
-        db.setWriteConcern(WriteConcern.JOURNAL_SAFE);
+        db.setWriteConcern(WriteConcern.SAFE);
         for (String aggregate : aggregates) {
             db.getCollection(aggregate).ensureIndex("jid");
-            db.getCollection(aggregate).setWriteConcern(WriteConcern.JOURNAL_SAFE);
+            db.getCollection(aggregate).setWriteConcern(WriteConcern.SAFE);
         }
         metaCollection = db.getCollection("journalMetadata");
-        metaCollection.setWriteConcern(WriteConcern.JOURNAL_SAFE);
+        metaCollection.setWriteConcern(WriteConcern.SAFE);
         kryo = new Kryo();
         kryo.setInstantiatorStrategy(new SerializingInstantiatorStrategy());
         kryo.setDefaultSerializer(CompatibleFieldSerializer.class);

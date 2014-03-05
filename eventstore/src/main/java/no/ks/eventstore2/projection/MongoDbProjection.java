@@ -20,12 +20,13 @@ public abstract class MongoDbProjection extends ProjectionSnapshot {
         super(eventStore);
         this.store = new MongoDbStore(client, nodename + "_SnapshotRepository");
         gridFS = new GridFS(store.getDb(), nodename + "_snapshot_data");
-        store.getCollection("snapshot").ensureIndex(new BasicDBObject("dataversion", 1).append("projectionId",1));
+        store.getCollection("snapshot").ensureIndex(new BasicDBObject("dataVersion", 1).append("projectionId",1));
     }
 
     @Override
     public void preStart() {
         super.preStart();
+        loadSnapshot();
 
     }
 

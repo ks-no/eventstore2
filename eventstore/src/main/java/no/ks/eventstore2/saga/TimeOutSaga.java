@@ -12,7 +12,7 @@ public abstract class TimeOutSaga extends Saga {
 
     private Cancellable cancellable;
 
-    private static final Logger log = LoggerFactory.getLogger(TimeOutSaga.class);
+    private final Logger log = LoggerFactory.getLogger(this.getClass());
 
     public TimeOutSaga(String id, ActorRef commandDispatcher, SagaRepository repository) {
         super(id, commandDispatcher, repository);

@@ -16,7 +16,7 @@ import java.util.*;
 
 public abstract class Projection extends UntypedActor {
 
-	static final Logger log = LoggerFactory.getLogger(Projection.class);
+	final Logger log = LoggerFactory.getLogger(this.getClass());
     protected ActorRef eventStore;
     private Map<Class<? extends Event>, Method> handleEventMap = null;
 

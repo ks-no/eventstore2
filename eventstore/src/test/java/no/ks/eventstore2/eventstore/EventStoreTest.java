@@ -68,7 +68,7 @@ public class EventStoreTest extends TestKit {
         actorTestActorRef.tell(new Subscription("agg",null),super.testActor());
         for(int i = 0; i<3;i++)
             expectMsgClass(AggEvent.class);
-        expectNoMsg();
+        expectMsgClass(CompleteSubscriptionRegistered.class);
     }
 
     @Test
@@ -82,7 +82,6 @@ public class EventStoreTest extends TestKit {
             expectMsgClass(AggEvent.class);
         expectMsgClass(IncompleteSubscriptionPleaseSendNew.class);
         actorTestActorRef.tell(new Subscription("agg","0000000000000000009"),super.testActor());
-        expectNoMsg();
-
+        expectMsgClass(CompleteSubscriptionRegistered.class);
     }
 }

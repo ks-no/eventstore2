@@ -203,6 +203,7 @@ public class EventStore extends UntypedActor {
             sender.tell(new IncompleteSubscriptionPleaseSendNew(subscription.getAggregateId()),self());
             return;
         } else {
+            sender.tell(new CompleteSubscriptionRegistered(subscription.getAggregateId()),self());
             addSubscriber(subscription);
         }
     }

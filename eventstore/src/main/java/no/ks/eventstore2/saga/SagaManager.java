@@ -83,7 +83,6 @@ public class SagaManager extends UntypedActor {
             try { Thread.sleep(500); } catch (InterruptedException e) {}
             repository.open();
         }
-
     }
 
     @Override

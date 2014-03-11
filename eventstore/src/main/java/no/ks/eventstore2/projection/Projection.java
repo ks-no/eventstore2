@@ -3,6 +3,7 @@ package no.ks.eventstore2.projection;
 import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
 import no.ks.eventstore2.Event;
+import no.ks.eventstore2.eventstore.CompleteSubscriptionRegistered;
 import no.ks.eventstore2.eventstore.IncompleteSubscriptionPleaseSendNew;
 import no.ks.eventstore2.eventstore.Subscription;
 import no.ks.eventstore2.reflection.HandlerFinder;
@@ -11,9 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public abstract class Projection extends UntypedActor {
 
@@ -23,6 +22,9 @@ public abstract class Projection extends UntypedActor {
 
     protected String latestJournalidReceived = null;
 
+    private boolean subscribePhase = true;
+
+    private ArrayList<PendingCall> pendingCalls = new ArrayList<PendingCall>();
     //TODO; constructor vs preStart, and how do we handle faling actor creations? Pass exception to parent and shutdown actor system?
     public Projection(ActorRef eventStore) {
         this.eventStore = eventStore;
@@ -41,12 +43,22 @@ public abstract class Projection extends UntypedActor {
             if (o instanceof Event) {
                 latestJournalidReceived = ((Event) o).getJournalid();
                 dispatchToCorrectEventHandler((Event) o);
-            } else if (o instanceof Call)
+            } else if (o instanceof Call && !subscribePhase)
                 handleCall((Call) o);
             else if(o instanceof IncompleteSubscriptionPleaseSendNew){
                 log.debug("Sending new subscription on {} from {}",((IncompleteSubscriptionPleaseSendNew) o).getAggregateId(),latestJournalidReceived);
                 if(latestJournalidReceived == null) throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
                 eventStore.tell(new Subscription(((IncompleteSubscriptionPleaseSendNew) o).getAggregateId(),latestJournalidReceived),self());
+            }else if(o instanceof CompleteSubscriptionRegistered){
+                log.info("Subscription on {} is complete", ((CompleteSubscriptionRegistered) o).getAggregateId());
+                subscribePhase = false;
+                for (PendingCall pendingCall : pendingCalls) {
+                    self().tell(pendingCall.getCall(), pendingCall.getSender());
+                }
+                pendingCalls.clear();
+            } else if(o instanceof Call && subscribePhase){
+                log.debug("Adding call {} to pending calls", o);
+                pendingCalls.add(new PendingCall((Call) o,sender()));
             }
         } catch (Exception e){
             getContext().parent().tell(new ProjectionFailedError(self(), e, o), self());
@@ -62,6 +74,7 @@ public abstract class Projection extends UntypedActor {
             try {
                 method.invoke(this, event);
             } catch (Exception e) {
+                log.error("Failed to call method " + method + " with event " + event,e);
                 throw new RuntimeException(e);
             }
     }
@@ -146,5 +159,31 @@ public abstract class Projection extends UntypedActor {
         if (subscriberAnnotation != null)
             return new Subscription(subscriberAnnotation.value());
         throw new RuntimeException("No subscribe annotation");
+    }
+
+    private class PendingCall {
+        private Call call;
+        private ActorRef sender;
+
+        private PendingCall(Call call, ActorRef sender) {
+            this.call = call;
+            this.sender = sender;
+        }
+
+        public Call getCall() {
+            return call;
+        }
+
+        public void setCall(Call call) {
+            this.call = call;
+        }
+
+        public ActorRef getSender() {
+            return sender;
+        }
+
+        public void setSender(ActorRef sender) {
+            this.sender = sender;
+        }
     }
 }

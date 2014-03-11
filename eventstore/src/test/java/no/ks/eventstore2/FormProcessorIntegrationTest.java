@@ -7,6 +7,7 @@ import akka.actor.Props;
 import akka.testkit.JavaTestKit;
 import no.ks.eventstore2.command.CommandDispatcherFactory;
 import no.ks.eventstore2.command.CommandHandlerFactory;
+import no.ks.eventstore2.eventstore.CompleteSubscriptionRegistered;
 import no.ks.eventstore2.eventstore.EventStore;
 import no.ks.eventstore2.eventstore.H2JournalStorage;
 import no.ks.eventstore2.eventstore.Subscription;
@@ -61,6 +62,7 @@ public class FormProcessorIntegrationTest extends EmbeddedDatabaseTest {
             eventStore.tell(new FormReceived("form_id_1"), getRef());
             eventStore.tell(new Subscription("FORM"), getRef());
             expectMsgClass(FormReceived.class);
+            expectMsgClass(CompleteSubscriptionRegistered.class);
             expectMsgClass(FormParsed.class);
             expectMsgClass(FormDelivered.class);
 

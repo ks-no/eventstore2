@@ -64,9 +64,10 @@ public abstract class Saga extends UntypedActor {
 	}
 
 	protected void transitionState(byte state){
+        if(getState() == state) return;
 		this.state = state;
 		try {
-			repository.saveState(this.getClass(), id, state);
+	        repository.saveState(this.getClass(), id, state);
 		} catch(Exception e){
 			log.error("Failed to save state for class " + this.getClass() + " id "  + id + " state " + state);
 			throw new RuntimeException(e);

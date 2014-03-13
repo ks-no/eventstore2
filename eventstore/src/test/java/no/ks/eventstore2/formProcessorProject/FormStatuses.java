@@ -45,5 +45,4 @@ public class FormStatuses extends Projection {
         }
         return result;
     }
-
 }

@@ -104,7 +104,7 @@ public abstract class Projection extends UntypedActor {
         for (int i = 0; i < call.getArgs().length; i++) {
             classes[i] = call.getArgs()[i].getClass();
         }
-        Method[] allMethods = this.getClass().getDeclaredMethods();
+        Method[] allMethods = this.getClass().getMethods();
         for (Method m : allMethods) {
             if (methodAssignable(call.getMethodName(), classes, m))
                 return m;
@@ -159,6 +159,10 @@ public abstract class Projection extends UntypedActor {
         if (subscriberAnnotation != null)
             return new Subscription(subscriberAnnotation.value());
         throw new RuntimeException("No subscribe annotation");
+    }
+
+    public boolean isSubscribePhase(){
+        return subscribePhase;
     }
 
     private class PendingCall {

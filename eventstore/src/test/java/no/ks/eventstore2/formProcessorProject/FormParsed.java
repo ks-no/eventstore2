@@ -26,6 +26,11 @@ public class FormParsed extends Event {
     }
 
     @Override
+    public String getAggregateRootId() {
+        return formId;
+    }
+
+    @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;

@@ -24,4 +24,9 @@ public class FormReceived extends Event {
     public String getLogMessage() {
         return "Form has been received";
     }
+
+    @Override
+    public String getAggregateRootId() {
+        return formId;
+    }
 }

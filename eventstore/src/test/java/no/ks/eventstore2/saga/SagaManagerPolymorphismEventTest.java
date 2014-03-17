@@ -73,5 +73,10 @@ public class SagaManagerPolymorphismEventTest extends Eventstore2TestKit{
         public String getLogMessage() {
             return null;
         }
+
+        @Override
+        public String getAggregateRootId() {
+            return null;
+        }
     }
 }

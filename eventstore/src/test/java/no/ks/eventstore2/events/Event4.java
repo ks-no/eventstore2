@@ -13,4 +13,9 @@ public class Event4 extends Event {
     public String getLogMessage() {
         return null;  //To change body of implemented methods use File | Settings | File Templates.
     }
+
+    @Override
+    public String getAggregateRootId() {
+        return "1";
+    }
 }

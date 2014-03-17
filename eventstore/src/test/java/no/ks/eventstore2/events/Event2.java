@@ -18,4 +18,9 @@ public class Event2 extends Event {
     public Event upgrade() {
         return new Event3();
     }
+
+    @Override
+    public String getAggregateRootId() {
+        return "1";
+    }
 }

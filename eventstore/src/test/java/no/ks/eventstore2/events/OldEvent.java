@@ -17,4 +17,9 @@ public class OldEvent extends Event {
     public Event upgrade() {
         return new NewEvent();
     }
+
+    @Override
+    public String getAggregateRootId() {
+        return "1";
+    }
 }

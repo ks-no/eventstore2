@@ -51,7 +51,12 @@ public class SagaNewAnnotationStyleTest extends Eventstore2TestKit{
             return null;
         }
 
-        public String getTestId(){
+         @Override
+         public String getAggregateRootId() {
+             return null;
+         }
+
+         public String getTestId(){
             return testId;
         }
 

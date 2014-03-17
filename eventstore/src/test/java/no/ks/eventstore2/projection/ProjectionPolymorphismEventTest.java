@@ -81,6 +81,11 @@ public class ProjectionPolymorphismEventTest extends Eventstore2TestKit {
         public String getLogMessage() {
             return null;  //To change body of implemented methods use File | Settings | File Templates.
         }
+
+        @Override
+        public String getAggregateRootId() {
+            return null;
+        }
     }
 
     private static class Test2Event extends Event {
@@ -92,6 +97,11 @@ public class ProjectionPolymorphismEventTest extends Eventstore2TestKit {
         public String getLogMessage() {
             return null;  //To change body of implemented methods use File | Settings | File Templates.
         }
+
+        @Override
+        public String getAggregateRootId() {
+            return null;
+        }
     }
 
     private static class TestSubEvent extends Event {
@@ -102,6 +112,11 @@ public class ProjectionPolymorphismEventTest extends Eventstore2TestKit {
         @Override
         public String getLogMessage() {
             return null;  //To change body of implemented methods use File | Settings | File Templates.
+        }
+
+        @Override
+        public String getAggregateRootId() {
+            return null;
         }
     }
 

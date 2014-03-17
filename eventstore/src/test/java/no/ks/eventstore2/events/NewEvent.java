@@ -12,4 +12,9 @@ public class NewEvent extends Event {
     public String getLogMessage() {
         return null;  //To change body of implemented methods use File | Settings | File Templates.
     }
+
+    @Override
+    public String getAggregateRootId() {
+        return null;
+    }
 }

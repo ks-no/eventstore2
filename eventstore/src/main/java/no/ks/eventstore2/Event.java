@@ -9,8 +9,6 @@ public abstract class Event implements Serializable{
     /* aggregate type*/
     protected String aggregateId;
 
-    protected String aggregateRootId;
-
     private String journalid;
 
     protected DateTime created;
@@ -43,13 +41,7 @@ public abstract class Event implements Serializable{
         this.journalid = journalid;
     }
 
-    public String getAggregateRootId() {
-        return aggregateRootId;
-    }
-
-    public void setAggregateRootId(String aggregateRootId) {
-        this.aggregateRootId = aggregateRootId;
-    }
+    public abstract String getAggregateRootId();
 
     @Override
     public String toString() {

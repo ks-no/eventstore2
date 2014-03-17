@@ -24,4 +24,9 @@ public class FormDelivered extends Event {
     public String getLogMessage() {
         return "Form has been delivered";
     }
+
+    @Override
+    public String getAggregateRootId() {
+        return formId;
+    }
 }

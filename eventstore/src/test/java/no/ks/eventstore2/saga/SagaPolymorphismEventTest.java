@@ -91,6 +91,11 @@ public class SagaPolymorphismEventTest extends Eventstore2TestKit{
             return null;
         }
 
+        @Override
+        public String getAggregateRootId() {
+            return null;
+        }
+
         public String getTestId() {
             return testId;
         }
@@ -119,6 +124,11 @@ public class SagaPolymorphismEventTest extends Eventstore2TestKit{
         public String getLogMessage() {
             return null;
         }
+
+        @Override
+        public String getAggregateRootId() {
+            return null;
+        }
     }
 
     private static class AnotherSubEvent extends SuperEvent {
@@ -129,6 +139,11 @@ public class SagaPolymorphismEventTest extends Eventstore2TestKit{
 
         @Override
         public String getLogMessage() {
+            return null;
+        }
+
+        @Override
+        public String getAggregateRootId() {
             return null;
         }
     }

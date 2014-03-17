@@ -84,4 +84,5 @@ public class EventStoreTest extends TestKit {
         actorTestActorRef.tell(new Subscription("agg","0000000000000000009"),super.testActor());
         expectMsgClass(CompleteSubscriptionRegistered.class);
     }
+
 }

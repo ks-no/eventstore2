@@ -37,6 +37,7 @@ public class MongoDBJournal implements JournalStorage {
         db.setWriteConcern(WriteConcern.SAFE);
         for (String aggregate : aggregates) {
             db.getCollection(aggregate).ensureIndex("jid");
+            db.getCollection(aggregate).ensureIndex("rid");
             db.getCollection(aggregate).setWriteConcern(WriteConcern.SAFE);
         }
         metaCollection = db.getCollection("journalMetadata");
@@ -66,6 +67,7 @@ public class MongoDBJournal implements JournalStorage {
         DBCollection collection = db.getCollection(event.getAggregateId());
         event.setJournalid(String.valueOf(getNextJournalId(collection)));
         BasicDBObject doc = new BasicDBObject("jid", Long.parseLong(event.getJournalid())).
+                append("rid", event.getAggregateRootId()).
                 append("d", serielize(event));
         collection.insert(doc);
     }
@@ -79,6 +81,7 @@ public class MongoDBJournal implements JournalStorage {
         for (Event event : events) {
             event.setJournalid(String.valueOf(nextJournalId));
             BasicDBObject doc = new BasicDBObject("jid", nextJournalId).
+                    append("rid", event.getAggregateRootId()).
                     append("d", serielize(event));
             nextJournalId++;
             dbObjectArrayList.add(doc);

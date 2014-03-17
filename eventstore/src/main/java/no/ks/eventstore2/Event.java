@@ -6,8 +6,10 @@ import java.io.Serializable;
 
 public abstract class Event implements Serializable{
 	private static final long serialVersionUID = 1L;
-
+    /* aggregate type*/
     protected String aggregateId;
+
+    protected String aggregateRootId;
 
     private String journalid;
 
@@ -41,10 +43,19 @@ public abstract class Event implements Serializable{
         this.journalid = journalid;
     }
 
+    public String getAggregateRootId() {
+        return aggregateRootId;
+    }
+
+    public void setAggregateRootId(String aggregateRootId) {
+        this.aggregateRootId = aggregateRootId;
+    }
+
     @Override
     public String toString() {
         return "Event{"
                 + "aggregateId='" + getAggregateId() + '\''
+                + "aggregateRootId='" + getAggregateRootId() + '\''
                 + ", journalid='" + getJournalid() + '\''
                 + ", created=" + created
                 + '}';

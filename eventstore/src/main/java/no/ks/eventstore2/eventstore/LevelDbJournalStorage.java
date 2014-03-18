@@ -45,7 +45,9 @@ public class LevelDbJournalStorage implements JournalStorage {
     }
 
     public void upgradeFromOldStorage(String aggregateType, JournalStorage storage){
-        if(levelDbStore.getDb() == null) throw new RuntimeException("Database not open, please open first");
+        if(levelDbStore.getDb() == null) {
+        	throw new RuntimeException("Database not open, please open first");
+        }
         String upgradedToVersionKey = "!sys!upgradedaggregate!" + currentDataVersion + "!" + aggregateType;
         byte[] key = bytes(upgradedToVersionKey + aggregateType);
         String string = asString(levelDbStore.getDb().get(key));
@@ -113,8 +115,9 @@ public class LevelDbJournalStorage implements JournalStorage {
                 iterator.seekToLast();
                 if (iterator.hasNext()) {
                     String key = asString(iterator.next().getKey());
-                    if (key.startsWith(aggregateType))
-                        return getNextKeyFromKey(key);
+                    if (key.startsWith(aggregateType)) {
+                    	return getNextKeyFromKey(key);
+                    }
                 }
             }
             if (!iterator.hasPrev() && !iterator.hasNext()) {
@@ -131,13 +134,13 @@ public class LevelDbJournalStorage implements JournalStorage {
             try {
                 iterator.close();
             } catch (IOException e) {
-                e.printStackTrace();
+            	log.info("Error closing iterator", e);
             }
         }
     }
 
     private long getNextKeyFromKey(String key) {
-        return Long.parseLong(key.substring(key.indexOf("!") + 1)) + 1L;
+        return Long.parseLong(key.substring(key.indexOf('!') + 1)) + 1L;
     }
 
     public void printDB() throws IOException {

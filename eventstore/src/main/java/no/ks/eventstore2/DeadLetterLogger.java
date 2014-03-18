@@ -17,7 +17,9 @@ public class DeadLetterLogger extends UntypedActor {
 
     @Override
     public void onReceive(Object o) throws Exception {
-        if(o instanceof DeadLetter && ((DeadLetter) o).message() instanceof Success) return;
+        if(o instanceof DeadLetter && ((DeadLetter) o).message() instanceof Success) {
+        	return;
+        }
         log.warn("Dead letter: {}", o);
     }
 

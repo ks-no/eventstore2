@@ -26,7 +26,8 @@ public abstract class OnlyExecuteOnLeaderCommandHandler extends CommandHandler {
 			akkaClusterInfo.updateLeaderState((ClusterEvent.LeaderChanged) o);
 		}
 
-		if(akkaClusterInfo.isLeader() || "HandlesClasses".equals(o))
+		if(akkaClusterInfo.isLeader() || "HandlesClasses".equals(o)) {
 			super.onReceive(o);
+		}
 	}
 }

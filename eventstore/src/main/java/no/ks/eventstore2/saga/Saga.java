@@ -1,14 +1,17 @@
 package no.ks.eventstore2.saga;
 
-import akka.actor.ActorRef;
-import akka.actor.UntypedActor;
+import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
+
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.reflection.HandlerFinder;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Method;
-import java.util.HashMap;
+import akka.actor.ActorRef;
+import akka.actor.UntypedActor;
 
 public abstract class Saga extends UntypedActor {
 
@@ -22,7 +25,7 @@ public abstract class Saga extends UntypedActor {
 	private byte state = STATE_INITIAL;
 	protected ActorRef commandDispatcher;
     protected SagaRepository repository;
-	private HashMap<Class<? extends Event>, Method> handleEventMap;
+	private Map<Class<? extends Event>, Method> handleEventMap;
 
 	public Saga(String id, ActorRef commandDispatcher, SagaRepository repository) {
 		this.id = id;
@@ -64,7 +67,9 @@ public abstract class Saga extends UntypedActor {
 	}
 
 	protected void transitionState(byte state){
-        if(getState() == state) return;
+        if(getState() == state) {
+        	return;
+        }
 		this.state = state;
 		try {
 	        repository.saveState(this.getClass(), id, state);

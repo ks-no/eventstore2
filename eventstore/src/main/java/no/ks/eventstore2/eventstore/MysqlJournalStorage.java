@@ -11,8 +11,6 @@ import javax.sql.DataSource;
 import no.ks.eventstore2.Event;
 
 import org.joda.time.DateTime;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.support.AbstractLobCreatingPreparedStatementCallback;
@@ -29,8 +27,6 @@ import com.esotericsoftware.shaded.org.objenesis.strategy.SerializingInstantiato
 import de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer;
 
 public class MysqlJournalStorage implements JournalStorage {
-
-	public static Logger log = LoggerFactory.getLogger(MysqlJournalStorage.class);
 
 	private JdbcTemplate template;
 	private Kryo kryov2;

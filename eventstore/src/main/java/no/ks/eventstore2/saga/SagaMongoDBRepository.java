@@ -26,13 +26,16 @@ public class SagaMongoDBRepository extends SagaRepository{
     @Override
     public byte getState(Class<? extends Saga> clz, String sagaid) {
         DBCursor cursor = states.find(new BasicDBObject("clz", clz.getName()).append("sid", sagaid)).limit(1);
-        if(!cursor.hasNext()) return 0;
+        if(!cursor.hasNext()){
+        	return 0;
+        }
 
         Object s = cursor.next().get("s");
-        if(s instanceof Integer)
-            return ((Integer) s).byteValue();
-        else
-            return (Byte) s;
+        if(s instanceof Integer) {
+        	return ((Integer) s).byteValue();
+        } else {
+        	return (Byte) s;
+        }
     }
 
     @Override
@@ -58,7 +61,9 @@ public class SagaMongoDBRepository extends SagaRepository{
     @Override
     public String loadLatestJournalID(String aggregate) {
         DBCursor limit = journalid.find(new BasicDBObject("_id", aggregate)).limit(1);
-        if(!limit.hasNext()) return null;
+        if(!limit.hasNext()) {
+        	return null;
+        }
         return (String) limit.next().get("latestJournalID");
     }
 

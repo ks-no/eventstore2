@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
 
 public class AkkaClusterInfo {
 
-    ActorSystem system;
+    private ActorSystem system;
     private static final Logger log = LoggerFactory.getLogger(AkkaClusterInfo.class);
     private Address leaderAdress;
     private boolean leader;
@@ -49,8 +49,9 @@ public class AkkaClusterInfo {
                 leader = cluster.readView().selfAddress().equals(leaderAdress);
             }
             log.info("{} leader changed from {} to {}",subscriber, oldLeader, leader);
-            if(cluster.readView().leader().isDefined())
-                leaderAdress = cluster.readView().leader().get();
+            if(cluster.readView().leader().isDefined()) {
+            	leaderAdress = cluster.readView().leader().get();
+            }
             log.debug("leader adress {}", leaderAdress);
 
         } catch (ConfigurationException e) {

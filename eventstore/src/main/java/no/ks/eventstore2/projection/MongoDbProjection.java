@@ -16,7 +16,7 @@ public abstract class MongoDbProjection extends ProjectionSnapshot {
 
     private static String nodename = System.getProperty("nodename") != null ? System.getProperty("nodename") : "local";
 
-    public MongoDbProjection(ActorRef eventStore, MongoClient client) throws Exception {
+    public MongoDbProjection(ActorRef eventStore, MongoClient client) {
         super(eventStore);
         this.store = new MongoDbStore(client, nodename + "_SnapshotRepository");
         gridFS = new GridFS(store.getDb(), nodename + "_snapshot_data");

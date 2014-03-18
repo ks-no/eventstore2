@@ -18,7 +18,7 @@ public class CommandDispatcher extends UntypedActor {
     private List<CommandHandlerFactory> commandHandlerFactories;
     private Map<Class<? extends Command>, ActorRef> commandHandlers = new HashMap<Class<? extends Command>, ActorRef>();
 
-    int remainingCommandHandlers = 0;
+    private int remainingCommandHandlers = 0;
     private static final Logger log = LoggerFactory.getLogger(CommandDispatcher.class);
 
     public static Props mkProps(ActorRef eventStore, List<CommandHandlerFactory> commandHandlerFactories){
@@ -44,26 +44,28 @@ public class CommandDispatcher extends UntypedActor {
 	@Override
 	public void preStart() throws InterruptedException {
         log.debug("PreStartCalled");
-        if(commandHandlerFactories != null)
-		for (CommandHandlerFactory factory : commandHandlerFactories) {
-			factory.setEventStore(eventStore);
-			Props props = new Props(factory);
-			if (factory.useRouter()) {
-				props = props.withRouter(factory.getRouter());
-			}
-			ActorRef ref = getContext().actorOf(props);
-            log.debug("Created subactor " + ref);
-            ref.tell("HandlesClasses", self());
-            log.debug("sent Handles classes to " + ref);
-            remainingCommandHandlers++;
-		}
-        if(commandHandlerProps != null)
-        for (Props prop : commandHandlerProps) {
-            ActorRef ref = getContext().actorOf(prop);
-            log.debug("Created subactor " + ref);
-            ref.tell("HandlesClasses", self());
-            log.debug("sent Handles classes to " + ref);
-            remainingCommandHandlers++;
+        if(commandHandlerFactories != null) {
+        	for (CommandHandlerFactory factory : commandHandlerFactories) {
+        		factory.setEventStore(eventStore);
+        		Props props = new Props(factory);
+        		if (factory.useRouter()) {
+        			props = props.withRouter(factory.getRouter());
+        		}
+        		ActorRef ref = getContext().actorOf(props);
+        		log.debug("Created subactor " + ref);
+        		ref.tell("HandlesClasses", self());
+        		log.debug("sent Handles classes to " + ref);
+        		remainingCommandHandlers++;
+        	}
+        }
+        if(commandHandlerProps != null) {
+        	for (Props prop : commandHandlerProps) {
+        		ActorRef ref = getContext().actorOf(prop);
+        		log.debug("Created subactor " + ref);
+        		ref.tell("HandlesClasses", self());
+        		log.debug("sent Handles classes to " + ref);
+        		remainingCommandHandlers++;
+        	}
         }
         //a small wait so that all children can start, before we start procesing messages.
         Thread.sleep(100);

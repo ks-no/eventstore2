@@ -5,7 +5,8 @@ import java.util.List;
 import java.util.Map;
 
 public class SagaInMemoryRepository extends SagaRepository{
-	Map<SagaCompositeId, Byte> map = new HashMap<SagaCompositeId, Byte>();
+
+	private Map<SagaCompositeId, Byte> map = new HashMap<SagaCompositeId, Byte>();
 
     @Override
     public void saveState(Class<? extends Saga> clz, String sagaid, byte state) {

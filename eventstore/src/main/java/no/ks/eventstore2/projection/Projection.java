@@ -16,15 +16,15 @@ import java.util.*;
 
 public abstract class Projection extends UntypedActor {
 
-	final Logger log = LoggerFactory.getLogger(this.getClass());
+	protected final Logger log = LoggerFactory.getLogger(this.getClass());
     protected ActorRef eventStore;
     private Map<Class<? extends Event>, Method> handleEventMap = null;
 
-    protected String latestJournalidReceived = null;
+    protected String latestJournalidReceived;
 
     private boolean subscribePhase = true;
 
-    private ArrayList<PendingCall> pendingCalls = new ArrayList<PendingCall>();
+    private List<PendingCall> pendingCalls = new ArrayList<PendingCall>();
     //TODO; constructor vs preStart, and how do we handle faling actor creations? Pass exception to parent and shutdown actor system?
     public Projection(ActorRef eventStore) {
         this.eventStore = eventStore;
@@ -33,23 +33,25 @@ public abstract class Projection extends UntypedActor {
 
     @Override
     public void preStart(){
-        System.out.println(getSelf().path().toString());
+    	log.debug(getSelf().path().toString());
         eventStore.tell(getSubscribe(), self());
     }
 
     @Override
-    public void onReceive(Object o) throws Exception{
+    public void onReceive(Object o) {
         try{
             if (o instanceof Event) {
                 latestJournalidReceived = ((Event) o).getJournalid();
                 dispatchToCorrectEventHandler((Event) o);
-            } else if (o instanceof Call && !subscribePhase)
-                handleCall((Call) o);
-            else if(o instanceof IncompleteSubscriptionPleaseSendNew){
+            } else if (o instanceof Call && !subscribePhase) {
+            	handleCall((Call) o);
+            } else if(o instanceof IncompleteSubscriptionPleaseSendNew){
                 log.debug("Sending new subscription on {} from {}",((IncompleteSubscriptionPleaseSendNew) o).getAggregateType(),latestJournalidReceived);
-                if(latestJournalidReceived == null) throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
+                if(latestJournalidReceived == null) {
+                	throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
+                }
                 eventStore.tell(new Subscription(((IncompleteSubscriptionPleaseSendNew) o).getAggregateType(),latestJournalidReceived),self());
-            }else if(o instanceof CompleteSubscriptionRegistered){
+            } else if(o instanceof CompleteSubscriptionRegistered){
                 log.info("Subscription on {} is complete", ((CompleteSubscriptionRegistered) o).getAggregateType());
                 subscribePhase = false;
                 for (PendingCall pendingCall : pendingCalls) {
@@ -70,13 +72,14 @@ public abstract class Projection extends UntypedActor {
     public final void dispatchToCorrectEventHandler(Event event) {
         Method method = HandlerFinder.findHandlingMethod(handleEventMap, event);
 
-        if (method != null)
+        if (method != null) {
             try {
                 method.invoke(this, event);
             } catch (Exception e) {
                 log.error("Failed to call method " + method + " with event " + event,e);
                 throw new RuntimeException(e);
             }
+        }
     }
 
     public final void handleCall(Call call) {
@@ -98,7 +101,9 @@ public abstract class Projection extends UntypedActor {
     }
 
     private Method getCallMethod(Call call) throws NoSuchMethodException {
-        if(call == null) throw new IllegalArgumentException("Call can't be null");
+        if(call == null) {
+        	throw new IllegalArgumentException("Call can't be null");
+        }
 
         Class<?>[] classes = new Class<?>[call.getArgs().length];
         for (int i = 0; i < call.getArgs().length; i++) {
@@ -150,14 +155,16 @@ public abstract class Projection extends UntypedActor {
 
     protected Subscription getSubscribe(){
         ListensTo annotation = getClass().getAnnotation(ListensTo.class);
-        if (annotation != null)
-            for (String aggregate : annotation.aggregates())
+        if (annotation != null) {
+            for (String aggregate : annotation.aggregates()) {
                 return new Subscription(aggregate);
-
+            }
+        }
         Subscriber subscriberAnnotation = getClass().getAnnotation(Subscriber.class);
 
-        if (subscriberAnnotation != null)
-            return new Subscription(subscriberAnnotation.value());
+        if (subscriberAnnotation != null) {
+        	return new Subscription(subscriberAnnotation.value());
+        }
         throw new RuntimeException("No subscribe annotation");
     }
 

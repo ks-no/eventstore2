@@ -10,7 +10,6 @@ public abstract class ProjectionSnapshot extends Projection {
         super(eventStore);
     }
 
-    @Override
     protected Subscription getSubscribe() {
         return super.getSubscribe();
     }
@@ -24,7 +23,7 @@ public abstract class ProjectionSnapshot extends Projection {
 
 
     @Override
-    public void onReceive(Object o) throws Exception {
+    public void onReceive(Object o) {
         super.onReceive(o);
         if(o instanceof TakeSnapshot){
             saveSnapshot();

@@ -41,7 +41,9 @@ public abstract class SqlSagaRepository extends SagaRepository {
 		} catch (EmptyResultDataAccessException e){
 
 		}
-		if(result > Byte.MAX_VALUE) throw new RuntimeException("Failed to convert to byte " + result);
+		if(result > Byte.MAX_VALUE) {
+			throw new RuntimeException("Failed to convert to byte " + result);
+		}
 		log.debug("Loading state from repository for clz " + clz + " sagaid " + sagaid + " state " + result);
 		return (byte) result;
 	}

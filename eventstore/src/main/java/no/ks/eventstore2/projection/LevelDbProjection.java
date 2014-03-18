@@ -51,10 +51,12 @@ public abstract class LevelDbProjection extends ProjectionSnapshot {
                 log.info("{} Saved snapshot for event {}", getClass().getSimpleName(), latestJournalidReceived);
             }
         } finally {
-            if (writeBatch != null) try {
-                writeBatch.close();
-            } catch (IOException e) {
-                log.error("Failed to write snapshot", e);
+            if (writeBatch != null) {
+            	try {
+            		writeBatch.close();
+	            } catch (IOException e) {
+	                log.error("Failed to write snapshot", e);
+	            }
             }
             store.close();
         }

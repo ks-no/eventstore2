@@ -67,11 +67,11 @@ public abstract class CommandHandler extends UntypedActor{
         }
     }
 
-    private HashMap<Class<? extends Command>, Method> getNewStyleHandlers() {
+    private Map<Class<? extends Command>, Method> getNewStyleHandlers() {
         return  HandlerFinder.getCommandHandlers(this.getClass());
     }
 
-    private HashMap<Class<? extends Command>, Method> getOldStyleHandlers() throws NoSuchMethodException {
+    private Map<Class<? extends Command>, Method> getOldStyleHandlers() throws NoSuchMethodException {
         HashMap<Class<? extends Command>, Method> oldStyleMap = new HashMap<Class<? extends Command>, Method>();
         Class<? extends CommandHandler> handlerClass = this.getClass();
         HandlesCommand annotation = handlerClass.getAnnotation(HandlesCommand.class);

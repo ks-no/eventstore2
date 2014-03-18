@@ -27,7 +27,7 @@ import java.sql.SQLException;
 
 public class H2JournalStorage implements JournalStorage {
 
-    public static Logger log = LoggerFactory.getLogger(H2JournalStorage.class);
+    private static Logger log = LoggerFactory.getLogger(H2JournalStorage.class);
     private JdbcTemplate template;
 
     private Kryo kryov2 = new Kryo();

@@ -73,7 +73,9 @@ public class MongoDBJournal implements JournalStorage {
     }
 
     public void saveEvents(List<Event> events) {
-        if(events == null || events.size() == 0) return;
+        if(events == null || events.size() == 0) {
+        	return;
+        }
         String agg = events.get(0).getAggregateType();
         DBCollection collection = db.getCollection(agg);
         long nextJournalId = getNextJournalId(collection);

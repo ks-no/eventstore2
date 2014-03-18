@@ -1,27 +1,31 @@
 package no.ks.eventstore2.eventstore;
 
-import akka.ConfigurationException;
-import akka.actor.ActorRef;
-import akka.actor.Props;
-import akka.actor.UntypedActor;
-import akka.cluster.ClusterEvent;
-import com.google.common.collect.HashMultimap;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+
 import no.ks.eventstore2.AkkaClusterInfo;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.TakeBackup;
 import no.ks.eventstore2.TakeSnapshot;
 import no.ks.eventstore2.response.Success;
+
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.duration.Duration;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
+import scala.concurrent.duration.Duration;
+import akka.ConfigurationException;
+import akka.actor.ActorRef;
+import akka.actor.Props;
+import akka.actor.UntypedActor;
+import akka.cluster.ClusterEvent;
+
+import com.google.common.collect.HashMultimap;
 
 public class EventStore extends UntypedActor {
 
@@ -148,7 +152,9 @@ public class EventStore extends UntypedActor {
 			log.debug("Pong received from {}", sender());
 		} else if("startping".equals(o)){
 			log.debug("starting ping sending to {} from {}",leaderEventStore, self() );
-			if(leaderEventStore != null) leaderEventStore.tell("ping",self());
+			if(leaderEventStore != null) {
+				leaderEventStore.tell("ping",self());
+			}
 		} else if(o instanceof AcknowledgePreviousEventsProcessed){
             if(leaderInfo.isLeader()) {
             	sender().tell(new Success(),self());
@@ -208,10 +214,12 @@ public class EventStore extends UntypedActor {
         }
     }
 
-    private HashMap<String,HashSet<ActorRef>> pendingSubscriptions = new HashMap<String, HashSet<ActorRef>>();
+    private Map<String,HashSet<ActorRef>> pendingSubscriptions = new HashMap<String, HashSet<ActorRef>>();
 
     private void fillPendingSubscriptions() {
-        if(pendingSubscriptions.isEmpty())return;
+        if(pendingSubscriptions.isEmpty()) {
+        	return;
+        }
         log.info("Filling pending subscriptions {}", pendingSubscriptions);
         for (final String aggregateType : pendingSubscriptions.keySet()) {
             storage.loadEventsAndHandle(aggregateType, new HandleEvent() {
@@ -226,8 +234,9 @@ public class EventStore extends UntypedActor {
     }
 
     private void addPendingSubscription(ActorRef subscriber, String aggregateType) {
-        if(pendingSubscriptions.get(aggregateType) == null) pendingSubscriptions.put(aggregateType,new HashSet<ActorRef>());
-
+        if(pendingSubscriptions.get(aggregateType) == null) {
+        	pendingSubscriptions.put(aggregateType,new HashSet<ActorRef>());
+        }
         pendingSubscriptions.get(aggregateType).add(subscriber);
 
         getContext().system().scheduler().scheduleOnce(Duration.create(250, TimeUnit.MILLISECONDS),
@@ -240,8 +249,9 @@ public class EventStore extends UntypedActor {
 
 	private void publishEvent(Event event) {
 		Set<ActorRef> actorRefs = aggregateSubscribers.get(event.getAggregateType());
-		if (actorRefs == null)
+		if (actorRefs == null) {
 			return;
+		}
 		sendEvent(event,actorRefs);
 	}
 
@@ -255,23 +265,22 @@ public class EventStore extends UntypedActor {
 	}
 
     private void sendEvent(Event event, ActorRef subscriber) {
-        event = upgradeEvent(event);
-
-        log.debug("Publishing event {} to {}", event, subscriber);
-        subscriber.tell(event, self());
+        Event upgadedEvent = upgradeEvent(event);
+        log.debug("Publishing event {} to {}", upgadedEvent, subscriber);
+        subscriber.tell(upgadedEvent, self());
     }
 
     private void sendEvent(Event event, Set<ActorRef> subscribers){
-        event = upgradeEvent(event);
+        Event upgradedEvent = upgradeEvent(event);
         for (ActorRef subscriber : subscribers) {
-            log.debug("Publishing event {} to {}",event,subscriber);
-            subscriber.tell(event, self());
+            log.debug("Publishing event {} to {}",upgradedEvent,subscriber);
+            subscriber.tell(upgradedEvent, self());
         }
     }
 
     private Event upgradeEvent(Event event) {
         Event upgraded = event.upgrade();
-        while(upgraded != event){
+        while(!upgraded.equals(event)){
             event = upgraded;
             upgraded = event.upgrade();
         }

@@ -32,7 +32,9 @@ public class SagaLevelDbRepository extends SagaRepository {
     @Override
     public byte getState(Class<? extends Saga> clz, String sagaid) {
         byte[] bytes = levelDbStore.getDb().get(bytes(getKey(clz, sagaid)));
-        if(bytes == null) return 0;
+        if(bytes == null) {
+        	return 0;
+        }
         return bytes[0];
     }
 
@@ -59,7 +61,9 @@ public class SagaLevelDbRepository extends SagaRepository {
     @Override
     public String loadLatestJournalID(String aggregate) {
         byte[] bytes = levelDbStore.getDb().get(getLatestJournalIdKey(aggregate));
-        if(bytes == null) return null;
+        if(bytes == null) {
+        	return null;
+        }
         return asString(bytes);
     }
 

@@ -31,10 +31,11 @@ public class LevelDbStore {
     public void open() {
         if (db == null) {
             Options options = new Options();
-            options.cacheSize(cacheSizeInMB * 1048576); // MB cache
+            options.cacheSize(cacheSizeInMB * 1048576L); // MB cache
             options.createIfMissing(true);
-            if(!new File(directory).exists())
-                new File(directory).mkdirs();
+            if(!new File(directory).exists()) {
+            	new File(directory).mkdirs();
+            }
             try {
                 db = factory.open(new File(directory), options);
             } catch (IOException e) {

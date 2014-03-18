@@ -64,16 +64,15 @@ public class ProjectionManager extends UntypedActor {
         return strategy;
     }
 
-
     @Override
     public void onReceive(Object o) throws Exception {
-        if(o instanceof ProjectionFailedError){
+        if(o instanceof ProjectionFailedError) {
             errorListener.tell(o,sender());
-        }else if (o instanceof Call && "getProjectionRef".equals(((Call) o).getMethodName()))
-            sender().tell(projections.get(((Call) o).getArgs()[0]), self());
-        else if (o instanceof Call && "isAnyoneInSubscribePhase".equals(((Call) o).getMethodName()))
-            isAnyoneInSubscribePhase();
-        else if(o instanceof TakeSnapshot){
+        } else if (o instanceof Call && "getProjectionRef".equals(((Call) o).getMethodName())) {
+        	sender().tell(projections.get(((Call) o).getArgs()[0]), self());
+        } else if (o instanceof Call && "isAnyoneInSubscribePhase".equals(((Call) o).getMethodName())) {
+        	isAnyoneInSubscribePhase();
+        } else if(o instanceof TakeSnapshot) {
             for (ActorRef actorRef : projections.values()) {
                 actorRef.tell(o, sender());
             }
@@ -89,13 +88,13 @@ public class ProjectionManager extends UntypedActor {
 
         scala.concurrent.Future<Boolean> future = fold(false, futures, new Function2<Boolean, Object, Boolean>() {
             @Override
-            public Boolean apply(Boolean o, Object o2) throws Exception {
+            public Boolean apply(Boolean o, Object o2) {
                     return (Boolean) o2 || o;
             }
         }, getContext().dispatcher());
         future.onSuccess(new OnSuccess<Boolean>() {
             @Override
-            public void onSuccess(Boolean aObject) throws Exception {
+            public void onSuccess(Boolean aObject) {
                 sender.tell(aObject, self());
             }
         }, getContext().dispatcher());

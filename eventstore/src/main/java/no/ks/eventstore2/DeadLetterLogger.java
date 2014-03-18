@@ -7,8 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DeadLetterLogger extends UntypedActor {
-
-    static final Logger log = LoggerFactory.getLogger(DeadLetterLogger.class);
+	private static Logger log = LoggerFactory.getLogger(DeadLetterLogger.class);
 
 	@Override
 	public void preStart() {

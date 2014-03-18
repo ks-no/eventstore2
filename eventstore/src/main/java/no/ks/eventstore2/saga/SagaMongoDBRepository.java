@@ -7,10 +7,8 @@ import java.util.List;
 public class SagaMongoDBRepository extends SagaRepository{
     private final DBCollection states;
     private final DBCollection journalid;
-    private DB db;
 
     public SagaMongoDBRepository(DB db) {
-        this.db = db;
         states = db.getCollection("states");
         states.ensureIndex(new BasicDBObject("clz",1).append("sid",1));
         states.setWriteConcern(WriteConcern.JOURNAL_SAFE);

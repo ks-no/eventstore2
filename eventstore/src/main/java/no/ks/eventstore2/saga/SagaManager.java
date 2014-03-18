@@ -28,8 +28,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 public class SagaManager extends UntypedActor {
-
-	static final Logger log = LoggerFactory.getLogger(SagaManager.class);
+	private static Logger log = LoggerFactory.getLogger(SagaManager.class);
 
     private final ActorRef commandDispatcher;
     private final SagaRepository repository;

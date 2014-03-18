@@ -111,8 +111,9 @@ public abstract class Projection extends UntypedActor {
         }
         Method[] allMethods = this.getClass().getMethods();
         for (Method m : allMethods) {
-            if (methodAssignable(call.getMethodName(), classes, m))
-                return m;
+            if (methodAssignable(call.getMethodName(), classes, m)) {
+            	return m;
+            }
         }
         throw new NoSuchMethodException("method " + call.getMethodName() + "(" + Arrays.toString(classes) +") not found in " + this.getClass().getSimpleName());
     }
@@ -172,7 +173,7 @@ public abstract class Projection extends UntypedActor {
         return subscribePhase;
     }
 
-    private class PendingCall {
+    private final class PendingCall {
         private Call call;
         private ActorRef sender;
 

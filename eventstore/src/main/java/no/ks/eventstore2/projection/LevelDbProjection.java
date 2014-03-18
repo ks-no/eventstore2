@@ -82,8 +82,9 @@ public abstract class LevelDbProjection extends ProjectionSnapshot {
         try {
             store.open();
             byte[] data = store.getDb().get(getDataKey());
-            if(data != null)
-                deSerializeData(data);
+            if(data != null) {
+            	deSerializeData(data);
+            }
             byte[] latestJournalIdSnapshoted = store.getDb().get(getLatestEventIdKey());
             if(latestJournalIdSnapshoted != null){
                 latestJournalidReceived = asString(latestJournalIdSnapshoted);

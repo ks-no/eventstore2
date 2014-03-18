@@ -29,8 +29,7 @@ import com.google.common.collect.HashMultimap;
 
 public class EventStore extends UntypedActor {
 
-
-	private static final Logger log = LoggerFactory.getLogger(EventStore.class);
+	private static Logger log = LoggerFactory.getLogger(EventStore.class);
 
 	private HashMultimap<String,ActorRef> aggregateSubscribers = HashMultimap.create();
 	private ActorRef leaderEventStore;

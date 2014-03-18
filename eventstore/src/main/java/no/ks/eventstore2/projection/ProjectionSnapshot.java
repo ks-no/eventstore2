@@ -10,10 +10,6 @@ public abstract class ProjectionSnapshot extends Projection {
         super(eventStore);
     }
 
-    protected Subscription getSubscribe() {
-        return super.getSubscribe();
-    }
-
     @Override
     public void preStart(){
         loadSnapshot();

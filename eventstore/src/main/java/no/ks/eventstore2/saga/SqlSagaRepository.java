@@ -14,8 +14,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowCallbackHandler;
 
 public abstract class SqlSagaRepository extends SagaRepository {
+	private static Logger log = LoggerFactory.getLogger(SagaDatasourceRepository.class);
 
-	private static final Logger log = LoggerFactory.getLogger(SagaDatasourceRepository.class);
 	private JdbcTemplate template;
 
 	public SqlSagaRepository(DataSource dataSource) {

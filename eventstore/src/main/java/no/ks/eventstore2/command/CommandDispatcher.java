@@ -13,13 +13,14 @@ import java.util.Map;
 
 public class CommandDispatcher extends UntypedActor {
 
-    private List<Props> commandHandlerProps;
+	private static Logger log = LoggerFactory.getLogger(CommandDispatcher.class);
+
+	private List<Props> commandHandlerProps;
     private ActorRef eventStore;
     private List<CommandHandlerFactory> commandHandlerFactories;
     private Map<Class<? extends Command>, ActorRef> commandHandlers = new HashMap<Class<? extends Command>, ActorRef>();
 
     private int remainingCommandHandlers = 0;
-    private static final Logger log = LoggerFactory.getLogger(CommandDispatcher.class);
 
     public static Props mkProps(ActorRef eventStore, List<CommandHandlerFactory> commandHandlerFactories){
         return Props.create(CommandDispatcher.class, eventStore, commandHandlerFactories);

@@ -15,12 +15,10 @@ import static org.fusesource.leveldbjni.JniDBFactory.asString;
 import static org.fusesource.leveldbjni.JniDBFactory.factory;
 
 public class LevelDbStore {
+	private static Logger log = LoggerFactory.getLogger(LevelDbStore.class);
 
-    public static final Logger log = LoggerFactory.getLogger(LevelDbStore.class);
-    private final String directory;
+	private final String directory;
     private final int cacheSizeInMB;
-
-
     private DB db;
 
     public LevelDbStore(String directory, int cacheSizeInMB) {

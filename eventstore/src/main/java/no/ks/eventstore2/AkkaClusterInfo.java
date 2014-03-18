@@ -11,9 +11,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class AkkaClusterInfo {
+	private static Logger log = LoggerFactory.getLogger(AkkaClusterInfo.class);
 
     private ActorSystem system;
-    private static final Logger log = LoggerFactory.getLogger(AkkaClusterInfo.class);
     private Address leaderAdress;
     private boolean leader;
     private ActorRef subscriber;

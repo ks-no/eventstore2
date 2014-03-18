@@ -23,16 +23,14 @@ import static org.fusesource.leveldbjni.JniDBFactory.bytes;
 
 public class LevelDbJournalStorage implements JournalStorage {
 
-    private final String directory;
     private Kryo kryo = new Kryo();
     private Logger log = LoggerFactory.getLogger(LevelDbJournalStorage.class);
     private static String currentDataVersion = "01";
-    private long eventReadLimit = 1000L;;
+    private long eventReadLimit = 1000L;
     private LevelDbStore levelDbStore;
 
     public LevelDbJournalStorage(String directory, KryoClassRegistration registration) {
         levelDbStore = new LevelDbStore(directory, 100);
-        this.directory = directory;
         kryo.setInstantiatorStrategy(new SerializingInstantiatorStrategy());
         kryo.setDefaultSerializer(CompatibleFieldSerializer.class);
         kryo.register(DateTime.class, new JodaDateTimeSerializer());
@@ -93,8 +91,7 @@ public class LevelDbJournalStorage implements JournalStorage {
         ByteBufferOutput output = new ByteBufferOutput(outputs);
         kryo.writeClassAndObject(output, event);
         output.close();
-        byte[] bytes = outputs.toByteArray();
-        return bytes;
+        return outputs.toByteArray();
     }
 
     private String getKey(String aggregateType, String journalid) {

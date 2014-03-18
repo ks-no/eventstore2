@@ -50,7 +50,7 @@ public class MysqlJournalStorage implements JournalStorage {
 		template.execute("INSERT INTO event (aggregateid, class, dataversion, kryoeventdata) VALUES(?,?,?,?)",
 				new AbstractLobCreatingPreparedStatementCallback(lobHandler) {
 			protected void setValues(PreparedStatement ps, LobCreator lobCreator) throws SQLException {
-				ps.setString(1, event.getAggregateId());
+				ps.setString(1, event.getAggregateType());
 				ps.setString(2, event.getClass().getName());
 				ps.setInt(3, 2);
 				lobCreator.setBlobAsBytes(ps, 4, output.toByteArray());

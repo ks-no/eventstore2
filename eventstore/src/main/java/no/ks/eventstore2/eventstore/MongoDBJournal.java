@@ -64,7 +64,7 @@ public class MongoDBJournal implements JournalStorage {
 
     @Override
     public void saveEvent(Event event) {
-        DBCollection collection = db.getCollection(event.getAggregateId());
+        DBCollection collection = db.getCollection(event.getAggregateType());
         event.setJournalid(String.valueOf(getNextJournalId(collection)));
         BasicDBObject doc = new BasicDBObject("jid", Long.parseLong(event.getJournalid())).
                 append("rid", event.getAggregateRootId()).
@@ -74,7 +74,7 @@ public class MongoDBJournal implements JournalStorage {
 
     public void saveEvents(List<Event> events) {
         if(events == null || events.size() == 0) return;
-        String agg = events.get(0).getAggregateId();
+        String agg = events.get(0).getAggregateType();
         DBCollection collection = db.getCollection(agg);
         long nextJournalId = getNextJournalId(collection);
         List<DBObject> dbObjectArrayList = new ArrayList<DBObject>();

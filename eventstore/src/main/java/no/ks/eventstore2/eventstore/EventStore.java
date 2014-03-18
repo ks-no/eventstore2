@@ -239,7 +239,7 @@ public class EventStore extends UntypedActor {
 	}
 
 	private void publishEvent(Event event) {
-		Set<ActorRef> actorRefs = aggregateSubscribers.get(event.getAggregateId());
+		Set<ActorRef> actorRefs = aggregateSubscribers.get(event.getAggregateType());
 		if (actorRefs == null)
 			return;
 		sendEvent(event,actorRefs);

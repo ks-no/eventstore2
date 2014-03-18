@@ -5,11 +5,13 @@ import akka.actor.Actor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
+
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.MapSerializer;
 import com.mongodb.MongoClient;
+
 import de.flapdoodle.embed.mongo.MongodExecutable;
 import de.flapdoodle.embed.mongo.MongodProcess;
 import de.flapdoodle.embed.mongo.MongodStarter;
@@ -23,6 +25,7 @@ import no.ks.eventstore2.Eventstore2TestKit;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.TakeSnapshot;
 import no.ks.eventstore2.eventstore.Subscription;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -84,7 +87,7 @@ public class ProjectionSnapshotTest extends Eventstore2TestKit {
         assertTrue(testProjectionRead.data.size() == 1);
 
         Event event = testProjection.data.get("1");
-        assertEquals("TestAggregate", event.getAggregateId());
+        assertEquals("TestAggregate", event.getAggregateType());
         assertEquals("000000001", event.getJournalid());
     }
 
@@ -132,8 +135,9 @@ public class ProjectionSnapshotTest extends Eventstore2TestKit {
 
     }
     private static class TestEvent extends Event {
-        TestEvent() {
-            setAggregateId("TestAggregate");
+		private static final long serialVersionUID = 1L;
+
+		TestEvent() {
             setJournalid("000000001");
         }
 
@@ -146,5 +150,10 @@ public class ProjectionSnapshotTest extends Eventstore2TestKit {
         public String getAggregateRootId() {
             return null;
         }
+        
+        @Override
+    	public String getAggregateType() {
+    		return "TestAggregate";
+    	}
     }
 }

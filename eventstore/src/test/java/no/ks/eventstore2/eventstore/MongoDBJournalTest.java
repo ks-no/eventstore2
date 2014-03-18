@@ -1,21 +1,21 @@
 package no.ks.eventstore2.eventstore;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.github.fakemongo.Fongo;
-import com.mongodb.DB;
-import com.mongodb.FongoDB;
-import no.ks.eventstore2.Event;
-import org.junit.Before;
-import org.junit.Test;
-import org.springframework.test.util.ReflectionTestUtils;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import no.ks.eventstore2.Event;
+
+import org.junit.Before;
+import org.junit.Test;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.github.fakemongo.Fongo;
+import com.mongodb.DB;
 
 public class MongoDBJournalTest {
 
@@ -46,7 +46,7 @@ public class MongoDBJournalTest {
             }
         });
         assertEquals(1,events.size());
-        assertEquals("agg1", events.get(0).getAggregateId());
+        assertEquals("agg1", events.get(0).getAggregateType());
     }
 
     @Test
@@ -61,7 +61,7 @@ public class MongoDBJournalTest {
             }
         }, "1");
         assertEquals(1,events.size());
-        assertEquals("agg1", events.get(0).getAggregateId());
+        assertEquals("agg1", events.get(0).getAggregateType());
     }
 
     @Test

@@ -7,6 +7,7 @@ import no.ks.eventstore2.Event;
 import no.ks.eventstore2.Eventstore2TestKit;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.projection.Subscriber;
+
 import org.junit.Test;
 
 import java.util.UUID;
@@ -16,49 +17,56 @@ import static org.junit.Assert.assertEquals;
 public class SagaNewAnnotationStyleTest extends Eventstore2TestKit{
 
 
-    @Test
-    public void test_that_methods_with_eventHandler_annotations_are_called_when_saga_receives_events() throws Exception {
-        Props props = Props.create(SagaWithNewAnotation.class, "a test id", super.testActor(), new SagaInMemoryRepository());
-        TestActorRef<SagaWithNewAnotation> testActor = TestActorRef.create(_system, props, UUID.randomUUID().toString());
+	@Test
+	public void test_that_methods_with_eventHandler_annotations_are_called_when_saga_receives_events() throws Exception {
+		Props props = Props.create(SagaWithNewAnotation.class, "a test id", super.testActor(), new SagaInMemoryRepository());
+		TestActorRef<SagaWithNewAnotation> testActor = TestActorRef.create(_system, props, UUID.randomUUID().toString());
 
-        testActor.tell(new TestEvent("a test id"), super.testActor());
-        assertEquals(Saga.STATE_FINISHED, testActor.underlyingActor().getState());
-    }
+		testActor.tell(new TestEvent("a test id"), super.testActor());
+		assertEquals(Saga.STATE_FINISHED, testActor.underlyingActor().getState());
+	}
 
-    @SagaEventIdProperty("testId")
-    @Subscriber("TestAggregate")
-     static class SagaWithNewAnotation extends Saga {
+	@SagaEventIdProperty("testId")
+	@Subscriber("TestAggregate")
+	static class SagaWithNewAnotation extends Saga {
 
-        public SagaWithNewAnotation(String id, ActorRef commandDispatcher, SagaRepository repository) {
-            super(id, commandDispatcher, repository);
-        }
+		public SagaWithNewAnotation(String id, ActorRef commandDispatcher, SagaRepository repository) {
+			super(id, commandDispatcher, repository);
+		}
 
-        @Handler
-        public void handleEvent(TestEvent event){
-            transitionState(STATE_FINISHED);
-        }
-    }
+		@Handler
+		public void handleEvent(TestEvent event){
+			transitionState(STATE_FINISHED);
+		}
+	}
 
-     static class TestEvent extends Event{
-        private String testId;
+	static class TestEvent extends Event{
+		private static final long serialVersionUID = 1L;
 
-        private TestEvent(String testId) {
-            this.testId = testId;
-        }
+		private String testId;
 
-        @Override
-        public String getLogMessage() {
-            return null;
-        }
+		private TestEvent(String testId) {
+			this.testId = testId;
+		}
 
-         @Override
-         public String getAggregateRootId() {
-             return null;
-         }
+		@Override
+		public String getLogMessage() {
+			return null;
+		}
 
-         public String getTestId(){
-            return testId;
-        }
+		@Override
+		public String getAggregateRootId() {
+			return null;
+		}
 
-    }
+		public String getTestId(){
+			return testId;
+		}
+
+		@Override
+		public String getAggregateType() {
+			return "TestAggregate";
+		}
+
+	}
 }

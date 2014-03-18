@@ -74,10 +74,10 @@ public class LevelDbJournalStorage implements JournalStorage {
     @Override
     public void saveEvent(Event event) {
         log.trace("Saving event " + event);
-        String aggregateId = event.getAggregateId();
+        String aggregateId = event.getAggregateType();
         long key = getNextAvailableKeyForAggregate(aggregateId);
         String journalid = convertToStringKey(key);
-        String leveldbhashkey = getKey(event.getAggregateId(), journalid);
+        String leveldbhashkey = getKey(event.getAggregateType(), journalid);
         log.trace("got key" + leveldbhashkey);
         event.setJournalid(journalid);
         levelDbStore.getDb().put(bytes(leveldbhashkey), serielize(event));

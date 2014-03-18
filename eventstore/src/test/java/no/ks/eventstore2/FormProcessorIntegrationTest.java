@@ -1,24 +1,30 @@
 package no.ks.eventstore2;
 
-import akka.actor.Actor;
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.testkit.JavaTestKit;
+import java.util.ArrayList;
+
 import no.ks.eventstore2.command.CommandDispatcherFactory;
 import no.ks.eventstore2.command.CommandHandlerFactory;
 import no.ks.eventstore2.eventstore.CompleteSubscriptionRegistered;
 import no.ks.eventstore2.eventstore.EventStore;
 import no.ks.eventstore2.eventstore.H2JournalStorage;
 import no.ks.eventstore2.eventstore.Subscription;
-import no.ks.eventstore2.formProcessorProject.*;
+import no.ks.eventstore2.formProcessorProject.FormDelivered;
+import no.ks.eventstore2.formProcessorProject.FormDeliverer;
+import no.ks.eventstore2.formProcessorProject.FormParsed;
+import no.ks.eventstore2.formProcessorProject.FormParser;
+import no.ks.eventstore2.formProcessorProject.FormReceived;
 import no.ks.eventstore2.saga.SagaInMemoryRepository;
 import no.ks.eventstore2.saga.SagaManagerFactory;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.util.ArrayList;
+import akka.actor.Actor;
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
+import akka.testkit.JavaTestKit;
 
 public class FormProcessorIntegrationTest extends EmbeddedDatabaseTest {
 

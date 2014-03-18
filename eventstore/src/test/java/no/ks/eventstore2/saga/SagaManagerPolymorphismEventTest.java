@@ -9,6 +9,7 @@ import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.eventstore.Subscription;
 import no.ks.eventstore2.projection.Subscriber;
 import no.ks.eventstore2.response.Success;
+
 import org.junit.Test;
 
 import java.util.UUID;
@@ -47,12 +48,12 @@ public class SagaManagerPolymorphismEventTest extends Eventstore2TestKit{
     }
 
     public abstract static class SuperEvent extends Event {
+		private static final long serialVersionUID = 1L;
 
-        private String testId;
+		private String testId;
 
         SuperEvent(String testId) {
             this.testId = testId;
-            setAggregateId("TestAggregate");
         }
 
         public String getTestId() {
@@ -62,10 +63,17 @@ public class SagaManagerPolymorphismEventTest extends Eventstore2TestKit{
         public void setTestId(String testId) {
             this.testId = testId;
         }
+        
+        @Override
+    	public String getAggregateType() {
+    		return "TestAggregate";
+    	}
     }
 
     public static class SubEvent extends SuperEvent {
-        SubEvent(String testId) {
+		private static final long serialVersionUID = 1L;
+
+		SubEvent(String testId) {
             super(testId);
         }
 

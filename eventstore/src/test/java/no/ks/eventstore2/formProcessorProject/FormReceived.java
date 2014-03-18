@@ -9,7 +9,6 @@ public class FormReceived extends Event {
 
     public FormReceived(String formId) {
         this.formId = formId;
-        this.aggregateId = "FORM";
     }
 
     public String getFormId() {
@@ -29,4 +28,9 @@ public class FormReceived extends Event {
     public String getAggregateRootId() {
         return formId;
     }
+    
+	@Override
+	public String getAggregateType() {
+		return "FORM";
+	}
 }

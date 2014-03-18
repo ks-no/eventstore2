@@ -3,7 +3,9 @@ package no.ks.eventstore2.formProcessorProject;
 import no.ks.eventstore2.command.Command;
 
 public class DeliverForm extends Command {
-    private String formId;
+	private static final long serialVersionUID = 1L;
+
+	private String formId;
 
     public DeliverForm(String formId) {
         this.formId = formId;

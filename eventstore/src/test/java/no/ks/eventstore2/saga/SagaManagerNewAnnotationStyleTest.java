@@ -8,6 +8,7 @@ import no.ks.eventstore2.Eventstore2TestKit;
 import no.ks.eventstore2.eventstore.Subscription;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.projection.Subscriber;
+
 import org.junit.Test;
 
 import java.util.UUID;
@@ -67,5 +68,9 @@ public class SagaManagerNewAnnotationStyleTest extends Eventstore2TestKit{
             return testId;
         }
 
+        @Override
+    	public String getAggregateType() {
+    		return "TestAggregate";
+    	}
     }
 }

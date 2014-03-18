@@ -1,16 +1,17 @@
 package no.ks.eventstore2.command;
 
-import akka.actor.Actor;
-import akka.actor.ActorRef;
-import akka.actor.Props;
-import akka.testkit.TestActorRef;
-import no.ks.eventstore2.Eventstore2TestKit;
-import no.ks.eventstore2.Handler;
-import org.junit.Test;
+import static junit.framework.Assert.assertTrue;
 
 import java.util.UUID;
 
-import static junit.framework.Assert.assertTrue;
+import no.ks.eventstore2.Eventstore2TestKit;
+import no.ks.eventstore2.Handler;
+
+import org.junit.Test;
+
+import akka.actor.ActorRef;
+import akka.actor.Props;
+import akka.testkit.TestActorRef;
 
 public class CommandHandlerNewStyleAnnotationsTest extends Eventstore2TestKit {
 

@@ -31,7 +31,6 @@ public class SagaManagerTest extends TestKit {
         final TestActorRef<SagaManager> ref = TestActorRef.create(_system, props, "sagaManager");
 
         FormReceived formReceived = new FormReceived("1");
-        formReceived.setAggregateId("FORM");
         ref.tell(formReceived, super.testActor());
         expectMsgClass(ParseForm.class);
     }
@@ -41,11 +40,9 @@ public class SagaManagerTest extends TestKit {
         final Props props = getSagaManagerProps();
         final TestActorRef<SagaManager> ref = TestActorRef.create(_system, props, "sagaManager1");
         FormReceived formReceived = new FormReceived("2");
-        formReceived.setAggregateId("FORM");
         ref.tell(formReceived, super.testActor());
         expectMsgClass(ParseForm.class);
         FormParsed formParsed = new FormParsed("2");
-        formParsed.setAggregateId("FORM");
         ref.tell(formParsed, super.testActor());
         expectMsgClass(DeliverForm.class);
     }
@@ -55,12 +52,10 @@ public class SagaManagerTest extends TestKit {
         final Props props = getSagaManagerProps();
         final TestActorRef<SagaManager> ref = TestActorRef.create(_system, props, "sagaManager2");
         FormReceived formReceived = new FormReceived("2");
-        formReceived.setAggregateId("FORM");
         ref.tell(formReceived, super.testActor());
         ((HashMap <SagaCompositeId, ActorRef>)ReflectionTestUtils.getField(ref.underlyingActor(), "sagas")).get(new SagaCompositeId(FormProcess.class, "2")).tell("BOOM!", super.testActor());
         expectMsgClass(ParseForm.class);
         FormParsed formParsed = new FormParsed("2");
-        formParsed.setAggregateId("FORM");
         ref.tell(formParsed, super.testActor());
         expectMsgClass(DeliverForm.class);
     }
@@ -84,7 +79,7 @@ public class SagaManagerTest extends TestKit {
         msg.setJournalid("01");
         ref.tell(msg, super.testActor());
         expectMsgClass(ParseForm.class);
-        ref.tell(new IncompleteSubscriptionPleaseSendNew(msg.getAggregateId()),super.testActor());
-        expectMsg(new Subscription(msg.getAggregateId(),"01"));
+        ref.tell(new IncompleteSubscriptionPleaseSendNew(msg.getAggregateType()),super.testActor());
+        expectMsg(new Subscription(msg.getAggregateType(),"01"));
     }
 }

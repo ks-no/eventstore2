@@ -9,7 +9,6 @@ public class FormParsed extends Event {
 
     public FormParsed(String formId) {
         this.formId = formId;
-        this.aggregateId = "FORM";
     }
 
     public String getFormId() {
@@ -30,6 +29,11 @@ public class FormParsed extends Event {
         return formId;
     }
 
+	@Override
+	public String getAggregateType() {
+		return "FORM";
+	}
+	
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

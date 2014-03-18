@@ -45,7 +45,7 @@ public class EventStoreTest extends TestKit {
         ActorRef eventstore = _system.actorOf(EventStore.mkProps(new H2JournalStorage(db)), "eventstore_pendingSubscriptiontest");
         FormParsed event = new FormParsed("formid");
         eventstore.tell(event,super.testActor());
-        eventstore.tell(new Subscription(event.getAggregateId()),super.testActor());
+        eventstore.tell(new Subscription(event.getAggregateType()),super.testActor());
         expectMsg(event);
     }
 
@@ -53,7 +53,7 @@ public class EventStoreTest extends TestKit {
     public void testEventsAreUpgraded() throws Exception {
         ActorRef eventstore = _system.actorOf(EventStore.mkProps(new H2JournalStorage(db)), "eventstore_upgradEvent");
         eventstore.tell(new OldEvent(),super.testActor());
-        eventstore.tell(new Subscription(new NewEvent().getAggregateId()),super.testActor());
+        eventstore.tell(new Subscription(new NewEvent().getAggregateType()),super.testActor());
         expectMsgClass(NewEvent.class);
     }
 
@@ -61,7 +61,7 @@ public class EventStoreTest extends TestKit {
     public void testEventsAreUpgradedMultipleTimes() throws Exception {
         ActorRef eventstore = _system.actorOf(EventStore.mkProps(new H2JournalStorage(db)), "eventstore_upgradEventMultipleTimes");
         eventstore.tell(new Event1(),super.testActor());
-        eventstore.tell(new Subscription(new Event4().getAggregateId()),super.testActor());
+        eventstore.tell(new Subscription(new Event4().getAggregateType()),super.testActor());
         expectMsgClass(Event4.class);
     }
 

@@ -9,7 +9,6 @@ public class FormDelivered extends Event {
 
     public FormDelivered(String formId) {
         this.formId = formId;
-        this.aggregateId = "FORM";
     }
 
     public String getFormId() {
@@ -29,4 +28,9 @@ public class FormDelivered extends Event {
     public String getAggregateRootId() {
         return formId;
     }
+    
+	@Override
+	public String getAggregateType() {
+		return "FORM";
+	}
 }

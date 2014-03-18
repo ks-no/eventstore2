@@ -7,6 +7,7 @@ import akka.testkit.TestActorRef;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.Eventstore2TestKit;
 import no.ks.eventstore2.Handler;
+
 import org.junit.Test;
 
 import java.util.UUID;
@@ -73,11 +74,9 @@ public class ProjectionPolymorphismEventTest extends Eventstore2TestKit {
     }
 
     private static class TestEvent extends Event {
-        TestEvent() {
-            setAggregateId("TestAggregate");
-        }
+		private static final long serialVersionUID = 1L;
 
-        @Override
+		@Override
         public String getLogMessage() {
             return null;  //To change body of implemented methods use File | Settings | File Templates.
         }
@@ -86,14 +85,17 @@ public class ProjectionPolymorphismEventTest extends Eventstore2TestKit {
         public String getAggregateRootId() {
             return null;
         }
+        
+    	@Override
+    	public String getAggregateType() {
+    		return "TestAggregate";
+    	}
     }
 
     private static class Test2Event extends Event {
-        Test2Event() {
-            setAggregateId("TestAggregate");
-        }
+		private static final long serialVersionUID = 1L;
 
-        @Override
+		@Override
         public String getLogMessage() {
             return null;  //To change body of implemented methods use File | Settings | File Templates.
         }
@@ -102,14 +104,17 @@ public class ProjectionPolymorphismEventTest extends Eventstore2TestKit {
         public String getAggregateRootId() {
             return null;
         }
+        
+        @Override
+    	public String getAggregateType() {
+    		return "TestAggregate";
+    	}
     }
 
     private static class TestSubEvent extends Event {
-        TestSubEvent() {
-            setAggregateId("TestAggregate");
-        }
+		private static final long serialVersionUID = 1L;
 
-        @Override
+		@Override
         public String getLogMessage() {
             return null;  //To change body of implemented methods use File | Settings | File Templates.
         }
@@ -118,17 +123,25 @@ public class ProjectionPolymorphismEventTest extends Eventstore2TestKit {
         public String getAggregateRootId() {
             return null;
         }
+        
+        @Override
+    	public String getAggregateType() {
+    		return "TestAggregate";
+    	}
     }
 
     private static class TestSubSubEvent extends TestSubEvent {
-        TestSubSubEvent() {
-            setAggregateId("TestAggregate");
-        }
+		private static final long serialVersionUID = 1L;
 
-        @Override
+		@Override
         public String getLogMessage() {
             return null;  //To change body of implemented methods use File | Settings | File Templates.
         }
+        
+        @Override
+    	public String getAggregateType() {
+    		return "TestAggregate";
+    	}
     }
 }
 

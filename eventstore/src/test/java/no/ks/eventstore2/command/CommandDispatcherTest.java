@@ -1,23 +1,25 @@
 package no.ks.eventstore2.command;
 
+import static akka.testkit.JavaTestKit.duration;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import no.ks.eventstore2.formProcessorProject.FormParsed;
+import no.ks.eventstore2.formProcessorProject.FormParser;
+import no.ks.eventstore2.formProcessorProject.ParseForm;
+
+import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import akka.actor.Actor;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
+
 import com.typesafe.config.ConfigFactory;
-import no.ks.eventstore2.formProcessorProject.FormParsed;
-import no.ks.eventstore2.formProcessorProject.FormParser;
-import no.ks.eventstore2.formProcessorProject.ParseForm;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import static akka.testkit.JavaTestKit.duration;
 
 public class CommandDispatcherTest extends TestKit {
 

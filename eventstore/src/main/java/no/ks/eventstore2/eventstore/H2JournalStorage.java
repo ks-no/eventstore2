@@ -52,7 +52,7 @@ public class H2JournalStorage implements JournalStorage {
                 new AbstractLobCreatingPreparedStatementCallback(lobHandler) {
                     protected void setValues(PreparedStatement ps, LobCreator lobCreator) throws SQLException {
                         ps.setBigDecimal(1, new BigDecimal(id));
-                        ps.setString(2, event.getAggregateId());
+                        ps.setString(2, event.getAggregateType());
                         ps.setString(3, event.getClass().getName());
                         ps.setInt(4, 2);
                         lobCreator.setBlobAsBytes(ps, 5, output.toByteArray());

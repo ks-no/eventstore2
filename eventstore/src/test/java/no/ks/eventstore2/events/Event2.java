@@ -3,24 +3,25 @@ package no.ks.eventstore2.events;
 import no.ks.eventstore2.Event;
 
 public class Event2 extends Event {
+	private static final long serialVersionUID = 1L;
 
-    public Event2() {
-        setAggregateId("upgrade");
-    }
+	@Override
+	public String getLogMessage() {
+		return null;
+	}
 
+	@Override
+	public Event upgrade() {
+		return new Event3();
+	}
 
-    @Override
-    public String getLogMessage() {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
-    }
+	@Override
+	public String getAggregateRootId() {
+		return "1";
+	}
 
-    @Override
-    public Event upgrade() {
-        return new Event3();
-    }
-
-    @Override
-    public String getAggregateRootId() {
-        return "1";
-    }
+	@Override
+	public String getAggregateType() {
+		return "upgrade";
+	}
 }

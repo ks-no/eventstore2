@@ -1,10 +1,19 @@
 package no.ks.eventstore2.eventstore;
 
-import com.esotericsoftware.kryo.Kryo;
+import static org.fusesource.leveldbjni.JniDBFactory.asString;
+import static org.fusesource.leveldbjni.JniDBFactory.bytes;
+import static org.fusesource.leveldbjni.JniDBFactory.factory;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+import java.io.File;
+import java.util.ArrayList;
+
 import net.lingala.zip4j.core.ZipFile;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.formProcessorProject.FormParsed;
-import no.ks.eventstore2.store.LevelDbStore;
+
 import org.apache.commons.io.FileUtils;
 import org.iq80.leveldb.DB;
 import org.iq80.leveldb.DBIterator;
@@ -13,11 +22,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.File;
-import java.util.ArrayList;
-
-import static org.fusesource.leveldbjni.JniDBFactory.*;
-import static org.junit.Assert.*;
+import com.esotericsoftware.kryo.Kryo;
 
 public class LevelDbJournalTest {
 
@@ -198,7 +203,7 @@ public class LevelDbJournalTest {
             zipFile.extractAll("target/journal_new");
 
             storage_new.open();
-            storage_new.loadEventsAndHandle(new FormParsed("id").getAggregateId(),new HandleEvent() {
+            storage_new.loadEventsAndHandle(new FormParsed("id").getAggregateType(),new HandleEvent() {
                 @Override
                 public void handleEvent(Event event) {
                     assertEquals(new FormParsed("id"),event);

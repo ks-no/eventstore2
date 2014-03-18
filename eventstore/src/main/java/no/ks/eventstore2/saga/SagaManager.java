@@ -90,7 +90,7 @@ public class SagaManager extends UntypedActor {
 		if(log.isDebugEnabled() && o instanceof  Event)
             log.debug("Sagamanager Received Event {} is leader {}", o, akkaClusterInfo.isLeader());
         if(o instanceof Event)
-            latestJournalidReceived.put(((Event) o).getAggregateId(), ((Event) o).getJournalid());
+            latestJournalidReceived.put(((Event) o).getAggregateType(), ((Event) o).getJournalid());
         if (o instanceof Event && akkaClusterInfo.isLeader()){
 			log.debug("Sagamanager processing Event {}", o);
             Event event = (Event) o;

@@ -13,12 +13,20 @@ public abstract class Event implements Serializable{
 
     protected DateTime created;
 
+    /* @Deprecated use getAggregateType() instead. */
+    @Deprecated
     public String getAggregateId() {
         return aggregateId;
     }
 
+    /* @Deprecated do not set the aggregate id, just override getAggregateType() instead. */
+    @Deprecated
     public void setAggregateId(String aggregateId) {
         this.aggregateId = aggregateId;
+    }
+
+    public String getAggregateType() {
+    	return aggregateId;
     }
 
     public DateTime getCreated() {
@@ -46,7 +54,7 @@ public abstract class Event implements Serializable{
     @Override
     public String toString() {
         return "Event{"
-                + "aggregateId='" + getAggregateId() + '\''
+                + "aggregateId='" + getAggregateType() + '\''
                 + "aggregateRootId='" + getAggregateRootId() + '\''
                 + ", journalid='" + getJournalid() + '\''
                 + ", created=" + created

@@ -47,7 +47,7 @@ public class MysqlJournalStorage implements JournalStorage {
 	public void saveEvent(final Event event) {
 		final ByteArrayOutputStream output = createByteArrayOutputStream(event);
 		LobHandler lobHandler = new DefaultLobHandler();
-		template.execute("INSERT INTO event (aggregateid, class, dataversion, kryoeventdata) VALUES(?,?,?,?)",
+		template.execute("INSERT INTO event (aggregatetype, class, dataversion, kryoeventdata) VALUES(?,?,?,?)",
 				new AbstractLobCreatingPreparedStatementCallback(lobHandler) {
 			protected void setValues(PreparedStatement ps, LobCreator lobCreator) throws SQLException {
 				ps.setString(1, event.getAggregateType());
@@ -59,7 +59,7 @@ public class MysqlJournalStorage implements JournalStorage {
 	}
 
 	public boolean loadEventsAndHandle(String aggregate, final HandleEvent handleEvent) {
-		template.query("SELECT * FROM event WHERE aggregateid = ? ORDER BY ID", new Object[]{aggregate}, new RowCallbackHandler() {
+		template.query("SELECT * FROM event WHERE aggregatetype = ? ORDER BY ID", new Object[]{aggregate}, new RowCallbackHandler() {
 			@Override
 			public void processRow(ResultSet resultSet) throws SQLException {
 				if (resultSet.getInt("dataversion") == 2) {
@@ -76,7 +76,7 @@ public class MysqlJournalStorage implements JournalStorage {
 	}
 
 	@Override
-	public boolean loadEventsAndHandle(String aggregateid, HandleEvent handleEvent, String fromKey) {
+	public boolean loadEventsAndHandle(String aggregateType, HandleEvent handleEvent, String fromKey) {
 		return false;
 	}
 
@@ -91,7 +91,7 @@ public class MysqlJournalStorage implements JournalStorage {
 	}
 
 	@Override
-	public void upgradeFromOldStorage(String aggregateId, JournalStorage oldStorage) {
+	public void upgradeFromOldStorage(String aggregateType, JournalStorage oldStorage) {
 		throw new RuntimeException("NotImplemented");
 	}
 

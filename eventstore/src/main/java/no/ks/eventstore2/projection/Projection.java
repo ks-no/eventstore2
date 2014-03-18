@@ -46,11 +46,11 @@ public abstract class Projection extends UntypedActor {
             } else if (o instanceof Call && !subscribePhase)
                 handleCall((Call) o);
             else if(o instanceof IncompleteSubscriptionPleaseSendNew){
-                log.debug("Sending new subscription on {} from {}",((IncompleteSubscriptionPleaseSendNew) o).getAggregateId(),latestJournalidReceived);
+                log.debug("Sending new subscription on {} from {}",((IncompleteSubscriptionPleaseSendNew) o).getAggregateType(),latestJournalidReceived);
                 if(latestJournalidReceived == null) throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
-                eventStore.tell(new Subscription(((IncompleteSubscriptionPleaseSendNew) o).getAggregateId(),latestJournalidReceived),self());
+                eventStore.tell(new Subscription(((IncompleteSubscriptionPleaseSendNew) o).getAggregateType(),latestJournalidReceived),self());
             }else if(o instanceof CompleteSubscriptionRegistered){
-                log.info("Subscription on {} is complete", ((CompleteSubscriptionRegistered) o).getAggregateId());
+                log.info("Subscription on {} is complete", ((CompleteSubscriptionRegistered) o).getAggregateType());
                 subscribePhase = false;
                 for (PendingCall pendingCall : pendingCalls) {
                     self().tell(pendingCall.getCall(), pendingCall.getSender());

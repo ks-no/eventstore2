@@ -3,30 +3,31 @@ package no.ks.eventstore2.eventstore;
 import java.io.Serializable;
 
 public class Subscription implements Serializable{
+	private static final long serialVersionUID = 1L;
 
-	private String aggregateId;
+	private String aggregateType;
     private String fromJournalId;
 
     /**
      * Subscription from start
-     * @param aggregateId
+     * @param aggregateType
      */
-    public Subscription(String aggregateId) {
-        this.aggregateId = aggregateId;
+    public Subscription(String aggregateType) {
+        this.aggregateType = aggregateType;
     }
 
     /**
      * Subscription from last event
-     * @param aggregateId
+     * @param aggregateType
      * @param fromJournalId lastJournalidReceived (Not the next one to expect)
      */
-    public Subscription(String aggregateId, String fromJournalId) {
-        this.aggregateId = aggregateId;
+    public Subscription(String aggregateType, String fromJournalId) {
+        this.aggregateType = aggregateType;
         this.fromJournalId = fromJournalId;
     }
 
-    public String getAggregateId() {
-        return aggregateId;
+    public String getAggregateType() {
+        return aggregateType;
     }
 
     public String getFromJournalId() {
@@ -35,7 +36,7 @@ public class Subscription implements Serializable{
 
     @Override
     public String toString() {
-        return "Subscription on '" + aggregateId + "' from '" + fromJournalId + "'";
+        return "Subscription on '" + aggregateType + "' from '" + fromJournalId + "'";
     }
 
     @Override
@@ -45,7 +46,7 @@ public class Subscription implements Serializable{
 
         Subscription that = (Subscription) o;
 
-        if (aggregateId != null ? !aggregateId.equals(that.aggregateId) : that.aggregateId != null) return false;
+        if (aggregateType != null ? !aggregateType.equals(that.aggregateType) : that.aggregateType != null) return false;
         if (fromJournalId != null ? !fromJournalId.equals(that.fromJournalId) : that.fromJournalId != null)
             return false;
 
@@ -54,7 +55,7 @@ public class Subscription implements Serializable{
 
     @Override
     public int hashCode() {
-        int result = aggregateId != null ? aggregateId.hashCode() : 0;
+        int result = aggregateType != null ? aggregateType.hashCode() : 0;
         result = 31 * result + (fromJournalId != null ? fromJournalId.hashCode() : 0);
         return result;
     }

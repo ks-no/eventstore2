@@ -2,7 +2,7 @@ CREATE SEQUENCE seq;
 
 create table Event(
 	id number primary key,
-	aggregateid varchar(255),
+	aggregatetype varchar(255),
 	class varchar(255),
 	kryoeventdata BLOB,
 	dataversion integer default 0

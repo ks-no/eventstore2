@@ -3,15 +3,16 @@ package no.ks.eventstore2.eventstore;
 import java.io.Serializable;
 
 public class IncompleteSubscriptionPleaseSendNew implements Serializable {
+	private static final long serialVersionUID = 1L;
 
-    private String aggregateId;
+	private String aggregateType;
 
-    public IncompleteSubscriptionPleaseSendNew(String aggregateId) {
-        this.aggregateId = aggregateId;
+    public IncompleteSubscriptionPleaseSendNew(String aggregateType) {
+        this.aggregateType = aggregateType;
     }
 
-    public String getAggregateId() {
-        return aggregateId;
+    public String getAggregateType() {
+        return aggregateType;
     }
 
     @Override
@@ -21,13 +22,13 @@ public class IncompleteSubscriptionPleaseSendNew implements Serializable {
 
         IncompleteSubscriptionPleaseSendNew that = (IncompleteSubscriptionPleaseSendNew) o;
 
-        if (aggregateId != null ? !aggregateId.equals(that.aggregateId) : that.aggregateId != null) return false;
+        if (aggregateType != null ? !aggregateType.equals(that.aggregateType) : that.aggregateType != null) return false;
 
         return true;
     }
 
     @Override
     public int hashCode() {
-        return aggregateId != null ? aggregateId.hashCode() : 0;
+        return aggregateType != null ? aggregateType.hashCode() : 0;
     }
 }

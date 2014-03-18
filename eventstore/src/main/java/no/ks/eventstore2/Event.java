@@ -6,58 +6,41 @@ import java.io.Serializable;
 
 public abstract class Event implements Serializable{
 	private static final long serialVersionUID = 1L;
-    /* aggregate type*/
-    protected String aggregateId;
 
-    private String journalid;
+	private String journalid;
+	protected DateTime created;
 
-    protected DateTime created;
+	public abstract String getAggregateType();
 
-    /* @Deprecated use getAggregateType() instead. */
-    @Deprecated
-    public String getAggregateId() {
-        return aggregateId;
-    }
+	public DateTime getCreated() {
+		return created;
+	}
 
-    /* @Deprecated do not set the aggregate id, just override getAggregateType() instead. */
-    @Deprecated
-    public void setAggregateId(String aggregateId) {
-        this.aggregateId = aggregateId;
-    }
+	public void setCreated(DateTime created) {
+		this.created = created;
+	}
 
-    public String getAggregateType() {
-    	return aggregateId;
-    }
+	public abstract String getLogMessage();
 
-    public DateTime getCreated() {
-        return created;
-    }
+	public Event upgrade(){return this;}
 
-    public void setCreated(DateTime created) {
-        this.created = created;
-    }
+	public String getJournalid() {
+		return journalid;
+	}
 
-    public abstract String getLogMessage();
+	public void setJournalid(String journalid) {
+		this.journalid = journalid;
+	}
 
-    public Event upgrade(){return this;}
+	public abstract String getAggregateRootId();
 
-    public String getJournalid() {
-        return journalid;
-    }
-
-    public void setJournalid(String journalid) {
-        this.journalid = journalid;
-    }
-
-    public abstract String getAggregateRootId();
-
-    @Override
-    public String toString() {
-        return "Event{"
-                + "aggregateId='" + getAggregateType() + '\''
-                + "aggregateRootId='" + getAggregateRootId() + '\''
-                + ", journalid='" + getJournalid() + '\''
-                + ", created=" + created
-                + '}';
-    }
+	@Override
+	public String toString() {
+		return "Event{"
+				+ "aggregateType='" + getAggregateType() + '\''
+				+ "aggregateRootId='" + getAggregateRootId() + '\''
+				+ ", journalid='" + getJournalid() + '\''
+				+ ", created=" + created
+				+ '}';
+	}
 }

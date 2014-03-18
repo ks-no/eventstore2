@@ -110,10 +110,10 @@ public class SagaManager extends UntypedActor {
                 repository.saveState(Saga.class, "upgradedH2Db", (byte)1);
             }
         }else if(o instanceof IncompleteSubscriptionPleaseSendNew){
-            String aggregateId = ((IncompleteSubscriptionPleaseSendNew) o).getAggregateId();
-            log.debug("Sending new subscription on {} from {}", aggregateId,latestJournalidReceived);
-            if(latestJournalidReceived.get(aggregateId) == null) throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
-            Subscription subscription = new Subscription(aggregateId, latestJournalidReceived.get(aggregateId));
+            String aggregateType = ((IncompleteSubscriptionPleaseSendNew) o).getAggregateType();
+            log.debug("Sending new subscription on {} from {}", aggregateType,latestJournalidReceived);
+            if(latestJournalidReceived.get(aggregateType) == null) throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
+            Subscription subscription = new Subscription(aggregateType, latestJournalidReceived.get(aggregateType));
             eventstore.tell(subscription,self());
         } else if(o instanceof TakeBackup){
             if(akkaClusterInfo.isLeader())

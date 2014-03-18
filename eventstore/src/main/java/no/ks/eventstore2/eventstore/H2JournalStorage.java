@@ -48,7 +48,7 @@ public class H2JournalStorage implements JournalStorage {
         LobHandler lobHandler = new DefaultLobHandler();
         final long id = template.queryForLong("select seq.nextval from dual");
         event.setJournalid(String.valueOf(id));
-        template.execute("INSERT INTO event (id,aggregateid, class, dataversion, kryoeventdata) VALUES(?,?,?,?,?)",
+        template.execute("INSERT INTO event (id, aggregatetype, class, dataversion, kryoeventdata) VALUES(?,?,?,?,?)",
                 new AbstractLobCreatingPreparedStatementCallback(lobHandler) {
                     protected void setValues(PreparedStatement ps, LobCreator lobCreator) throws SQLException {
                         ps.setBigDecimal(1, new BigDecimal(id));
@@ -62,7 +62,7 @@ public class H2JournalStorage implements JournalStorage {
     }
 
     public boolean loadEventsAndHandle(String aggregate, final HandleEvent handleEvent) {
-        template.query("SELECT * FROM event WHERE aggregateid = ? ORDER BY ID", new Object[]{aggregate}, new RowCallbackHandler() {
+        template.query("SELECT * FROM event WHERE aggregatetype = ? ORDER BY ID", new Object[]{aggregate}, new RowCallbackHandler() {
             @Override
             public void processRow(ResultSet resultSet) throws SQLException {
                 if (resultSet.getInt("dataversion") == 2) {
@@ -79,7 +79,7 @@ public class H2JournalStorage implements JournalStorage {
     }
 
     @Override
-    public boolean loadEventsAndHandle(String aggregateid, HandleEvent handleEvent, String fromKey) {
+    public boolean loadEventsAndHandle(String aggregateType, HandleEvent handleEvent, String fromKey) {
         return false;
     }
 
@@ -94,7 +94,7 @@ public class H2JournalStorage implements JournalStorage {
     }
 
     @Override
-    public void upgradeFromOldStorage(String aggregateId, JournalStorage oldStorage) {
+    public void upgradeFromOldStorage(String aggregateType, JournalStorage oldStorage) {
         throw new RuntimeException("NotImplemented");
     }
 

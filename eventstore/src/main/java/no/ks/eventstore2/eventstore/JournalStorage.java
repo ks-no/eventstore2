@@ -8,25 +8,25 @@ public interface JournalStorage {
 
     /**
      * Load events
-     * @param aggregateid
+     * @param aggregateType
      * @param handleEvent
      * @return true if all events sent
      */
-    boolean loadEventsAndHandle(String aggregateid, final HandleEvent handleEvent);
+    boolean loadEventsAndHandle(String aggregateType, final HandleEvent handleEvent);
 
     /**
      * LoadEvent from a key
-     * @param aggregateid
+     * @param aggregateType
      * @param handleEvent
      * @param fromKey from this key
      * @return true if all events sent
      */
-    boolean loadEventsAndHandle(String aggregateid, final HandleEvent handleEvent, String fromKey);
+    boolean loadEventsAndHandle(String aggregateType, final HandleEvent handleEvent, String fromKey);
 
     void open();
     void close();
 
-    void upgradeFromOldStorage(String aggregateId, JournalStorage oldStorage);
+    void upgradeFromOldStorage(String aggregateType, JournalStorage oldStorage);
 
     /**
      *

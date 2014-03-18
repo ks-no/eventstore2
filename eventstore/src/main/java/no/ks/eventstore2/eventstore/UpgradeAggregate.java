@@ -2,14 +2,14 @@ package no.ks.eventstore2.eventstore;
 
 public class UpgradeAggregate {
     private JournalStorage oldStorage;
-    private String aggregateId;
+    private String aggregateType;
 
     public UpgradeAggregate() {
     }
 
-    public UpgradeAggregate(JournalStorage oldStorage, String aggregateId) {
+    public UpgradeAggregate(JournalStorage oldStorage, String aggregateType) {
         this.oldStorage = oldStorage;
-        this.aggregateId = aggregateId;
+        this.aggregateType = aggregateType;
     }
 
     public JournalStorage getOldStorage() {
@@ -20,11 +20,11 @@ public class UpgradeAggregate {
         this.oldStorage = oldStorage;
     }
 
-    public String getAggregateId() {
-        return aggregateId;
+    public String getAggregateType() {
+        return aggregateType;
     }
 
-    public void setAggregateId(String aggregateId) {
-        this.aggregateId = aggregateId;
+    public void setAggregateType(String aggregateType) {
+        this.aggregateType = aggregateType;
     }
 }

@@ -26,9 +26,9 @@ import java.util.concurrent.TimeUnit;
 public class EventStore extends UntypedActor {
 
 
-	static final Logger log = LoggerFactory.getLogger(EventStore.class);
+	private static final Logger log = LoggerFactory.getLogger(EventStore.class);
 
-	HashMultimap<String,ActorRef> aggregateSubscribers = HashMultimap.create();
+	private HashMultimap<String,ActorRef> aggregateSubscribers = HashMultimap.create();
 	private ActorRef leaderEventStore;
 
     private AkkaClusterInfo leaderInfo;
@@ -150,16 +150,16 @@ public class EventStore extends UntypedActor {
 			log.debug("starting ping sending to {} from {}",leaderEventStore, self() );
 			if(leaderEventStore != null) leaderEventStore.tell("ping",self());
 		} else if(o instanceof AcknowledgePreviousEventsProcessed){
-            if(leaderInfo.isLeader())
-                sender().tell(new Success(),self());
-            else
-                leaderEventStore.tell(o,sender());
+            if(leaderInfo.isLeader()) {
+            	sender().tell(new Success(),self());
+            } else {
+            	leaderEventStore.tell(o,sender());
+            }
         } else if(o instanceof UpgradeAggregate && leaderInfo.isLeader()){
-
             UpgradeAggregate upgrade = (UpgradeAggregate) o;
-            log.info("Upgrading aggregate " + upgrade.getAggregateId());
-            storage.upgradeFromOldStorage(upgrade.getAggregateId(), upgrade.getOldStorage());
-            log.info("Upgraded aggregate " + upgrade.getAggregateId());
+            log.info("Upgrading aggregate " + upgrade.getAggregateType());
+            storage.upgradeFromOldStorage(upgrade.getAggregateType(), upgrade.getOldStorage());
+            log.info("Upgraded aggregate " + upgrade.getAggregateType());
         } else if (o instanceof TakeBackup) {
             if (leaderInfo.isLeader()) {
                 for (ActorRef actorRef : aggregateSubscribers.values()) {
@@ -183,14 +183,14 @@ public class EventStore extends UntypedActor {
     private void tryToFillSubscription(final ActorRef sender, Subscription subscription) {
         boolean finished = false;
         if(subscription.getFromJournalId() == null || "".equals(subscription.getFromJournalId().trim())){
-            finished = storage.loadEventsAndHandle(subscription.getAggregateId(), new HandleEvent() {
+            finished = storage.loadEventsAndHandle(subscription.getAggregateType(), new HandleEvent() {
                 @Override
                 public void handleEvent(Event event) {
                     sendEvent(event,sender);
                 }
             });
         } else {
-            finished = storage.loadEventsAndHandle(subscription.getAggregateId(), new HandleEvent() {
+            finished = storage.loadEventsAndHandle(subscription.getAggregateType(), new HandleEvent() {
                 @Override
                 public void handleEvent(Event event) {
                     sendEvent(event, sender);
@@ -200,10 +200,10 @@ public class EventStore extends UntypedActor {
         }
         if(!finished){
             log.info("Subscription {} not Complete {} should ask for more",subscription,sender );
-            sender.tell(new IncompleteSubscriptionPleaseSendNew(subscription.getAggregateId()),self());
+            sender.tell(new IncompleteSubscriptionPleaseSendNew(subscription.getAggregateType()),self());
             return;
         } else {
-            sender.tell(new CompleteSubscriptionRegistered(subscription.getAggregateId()),self());
+            sender.tell(new CompleteSubscriptionRegistered(subscription.getAggregateType()),self());
             addSubscriber(subscription);
         }
     }
@@ -213,11 +213,11 @@ public class EventStore extends UntypedActor {
     private void fillPendingSubscriptions() {
         if(pendingSubscriptions.isEmpty())return;
         log.info("Filling pending subscriptions {}", pendingSubscriptions);
-        for (final String aggregateid : pendingSubscriptions.keySet()) {
-            storage.loadEventsAndHandle(aggregateid, new HandleEvent() {
+        for (final String aggregateType : pendingSubscriptions.keySet()) {
+            storage.loadEventsAndHandle(aggregateType, new HandleEvent() {
                 @Override
                 public void handleEvent(Event event) {
-                    sendEvent(event,pendingSubscriptions.get(aggregateid));
+                    sendEvent(event,pendingSubscriptions.get(aggregateType));
                 }
             });
         }
@@ -225,17 +225,17 @@ public class EventStore extends UntypedActor {
         log.info("Filled pending subscriptions");
     }
 
-    private void addPendingSubscription(ActorRef subscriber, String aggregateId) {
-        if(pendingSubscriptions.get(aggregateId) == null) pendingSubscriptions.put(aggregateId,new HashSet<ActorRef>());
+    private void addPendingSubscription(ActorRef subscriber, String aggregateType) {
+        if(pendingSubscriptions.get(aggregateType) == null) pendingSubscriptions.put(aggregateType,new HashSet<ActorRef>());
 
-        pendingSubscriptions.get(aggregateId).add(subscriber);
+        pendingSubscriptions.get(aggregateType).add(subscriber);
 
         getContext().system().scheduler().scheduleOnce(Duration.create(250, TimeUnit.MILLISECONDS),
                 self(), "FillPendingSubscriptions", getContext().system().dispatcher(), self());
     }
 
     private void addSubscriber(SubscriptionRefresh refresh) {
-        aggregateSubscribers.putAll(refresh.getAggregateId(), refresh.getSubscribers());
+        aggregateSubscribers.putAll(refresh.getAggregateType(), refresh.getSubscribers());
 	}
 
 	private void publishEvent(Event event) {
@@ -246,7 +246,7 @@ public class EventStore extends UntypedActor {
 	}
 
 	private void addSubscriber(Subscription subscription) {
-		aggregateSubscribers.put(subscription.getAggregateId(), sender());
+		aggregateSubscribers.put(subscription.getAggregateType(), sender());
 	}
 
     public void storeEvent(final Event event) {

@@ -94,18 +94,18 @@ public class MongoDBJournal implements JournalStorage {
     }
 
     @Override
-    public boolean loadEventsAndHandle(String aggregateid, HandleEvent handleEvent) {
-        return loadEventsAndHandle(aggregateid, handleEvent, "0", eventReadLimit);
+    public boolean loadEventsAndHandle(String aggregateType, HandleEvent handleEvent) {
+        return loadEventsAndHandle(aggregateType, handleEvent, "0", eventReadLimit);
     }
 
     @Override
-    public boolean loadEventsAndHandle(String aggregateid, HandleEvent handleEvent, String fromKey) {
-        return loadEventsAndHandle(aggregateid, handleEvent, fromKey, eventReadLimit);
+    public boolean loadEventsAndHandle(String aggregateType, HandleEvent handleEvent, String fromKey) {
+        return loadEventsAndHandle(aggregateType, handleEvent, fromKey, eventReadLimit);
     }
 
-    private boolean loadEventsAndHandle(String aggregateid, HandleEvent handleEvent, String fromKey, int readlimit) {
+    private boolean loadEventsAndHandle(String aggregateType, HandleEvent handleEvent, String fromKey, int readlimit) {
         BasicDBObject query = new BasicDBObject("jid", new BasicDBObject("$gt", Long.parseLong(fromKey)));
-        DBCursor dbObjects = db.getCollection(aggregateid).find(query).sort(new BasicDBObject("jid", 1)).limit(readlimit);
+        DBCursor dbObjects = db.getCollection(aggregateType).find(query).sort(new BasicDBObject("jid", 1)).limit(readlimit);
         int i = 0;
         try {
             while (dbObjects.hasNext()) {
@@ -130,10 +130,10 @@ public class MongoDBJournal implements JournalStorage {
     }
 
     @Override
-    public void upgradeFromOldStorage(String aggregateId, JournalStorage oldStorage) {
-        DBCursor id = metaCollection.find(new BasicDBObject("_id", "upgrade_" + aggregateId));
+    public void upgradeFromOldStorage(String aggregateType, JournalStorage oldStorage) {
+        DBCursor id = metaCollection.find(new BasicDBObject("_id", "upgrade_" + aggregateType));
         if (id.hasNext() && dataversion.equals(id.next().get("version"))) {
-            log.info("Already upgraded aggregate " + aggregateId);
+            log.info("Already upgraded aggregate " + aggregateType);
             return;
         }
 
@@ -150,18 +150,18 @@ public class MongoDBJournal implements JournalStorage {
                 }
             }
         };
-        done = oldStorage.loadEventsAndHandle(aggregateId, handleEvent);
+        done = oldStorage.loadEventsAndHandle(aggregateType, handleEvent);
         while (!done) {
             String lastJournalID = events.get(events.size()-1).getJournalid();
             log.info("saving to lastJournalId {}",lastJournalID);
             saveEvents(events);
             events.clear();
-            done = oldStorage.loadEventsAndHandle(aggregateId, handleEvent,lastJournalID);
+            done = oldStorage.loadEventsAndHandle(aggregateType, handleEvent,lastJournalID);
 
         }
         saveEvents(events);
         events.clear();
-        metaCollection.save(new BasicDBObject("_id", "upgrade_" + aggregateId).append("version", dataversion));
+        metaCollection.save(new BasicDBObject("_id", "upgrade_" + aggregateType).append("version", dataversion));
     }
 
     @Override

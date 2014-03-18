@@ -19,7 +19,7 @@ public abstract class ProjectionSnapshot extends Projection {
     public void preStart(){
         loadSnapshot();
         Subscription subscribe = getSubscribe();
-        eventStore.tell(new Subscription(subscribe.getAggregateId(), latestJournalidReceived), self());
+        eventStore.tell(new Subscription(subscribe.getAggregateType(), latestJournalidReceived), self());
     }
 
 

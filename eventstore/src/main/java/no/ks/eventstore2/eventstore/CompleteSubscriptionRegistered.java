@@ -3,17 +3,16 @@ package no.ks.eventstore2.eventstore;
 import java.io.Serializable;
 
 public class CompleteSubscriptionRegistered implements Serializable{
-    private String aggregateId;
+	private static final long serialVersionUID = 1L;
 
-    public CompleteSubscriptionRegistered(String aggregateId) {
-        this.aggregateId = aggregateId;
-    }
+	private String aggregateType;
 
-    public String getAggregateId() {
-        return aggregateId;
-    }
+	public CompleteSubscriptionRegistered(String aggregateType) {
+		this.aggregateType = aggregateType;
+	}
 
-    public void setAggregateId(String aggregateId) {
-        this.aggregateId = aggregateId;
-    }
+	public String getAggregateType() {
+		return aggregateType;
+	}
+
 }

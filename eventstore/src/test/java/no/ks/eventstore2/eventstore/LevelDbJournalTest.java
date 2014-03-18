@@ -54,9 +54,9 @@ public class LevelDbJournalTest {
         assertEquals(5, results.size());
     }
 
-    private ArrayList<Event> getEvents(LevelDbJournalStorage storage, String aggregateid) {
+    private ArrayList<Event> getEvents(LevelDbJournalStorage storage, String aggregateType) {
         final ArrayList<Event> results = new ArrayList<Event>();
-        storage.loadEventsAndHandle(aggregateid, new HandleEvent() {
+        storage.loadEventsAndHandle(aggregateType, new HandleEvent() {
             @Override
             public void handleEvent(Event event) {
                 results.add(event);

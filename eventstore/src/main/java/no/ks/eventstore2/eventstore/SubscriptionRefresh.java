@@ -7,16 +7,18 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class SubscriptionRefresh implements Serializable {
-	private final String aggregateId;
+	private static final long serialVersionUID = 1L;
+
+	private final String aggregateType;
 	private final Set<ActorRef> subscribers;
 
-	public SubscriptionRefresh(String aggregateId, Set<ActorRef> subscribers) {
-		this.aggregateId = aggregateId;
+	public SubscriptionRefresh(String aggregateType, Set<ActorRef> subscribers) {
+		this.aggregateType = aggregateType;
 		this.subscribers = new HashSet<ActorRef>(subscribers);
 	}
 
-	public String getAggregateId() {
-		return aggregateId;
+	public String getAggregateType() {
+		return aggregateType;
 	}
 
 	public Set<ActorRef> getSubscribers() {
@@ -26,7 +28,7 @@ public class SubscriptionRefresh implements Serializable {
 	@Override
 	public String toString() {
 		return "SubscriptionRefresh{"
-				+"aggregateId='" + aggregateId + '\''
+				+"aggregateType='" + aggregateType + '\''
 				+", subscribers=" + subscribers
 				+'}';
 	}

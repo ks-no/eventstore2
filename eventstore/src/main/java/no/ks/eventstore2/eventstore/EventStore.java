@@ -278,10 +278,11 @@ public class EventStore extends UntypedActor {
     }
 
     private Event upgradeEvent(Event event) {
-        Event upgraded = event.upgrade();
-        while(!upgraded.equals(event)){
-            event = upgraded;
-            upgraded = event.upgrade();
+        Event currentEvent = event;
+        Event upgraded = currentEvent.upgrade();
+        while(upgraded != currentEvent){
+            currentEvent = upgraded;
+            upgraded = currentEvent.upgrade();
         }
         return upgraded;
     }

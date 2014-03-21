@@ -1,6 +1,8 @@
 package no.ks.eventstore2.saga;
 
-public class UpgradeSagaRepoStore {
+import java.io.Serializable;
+
+public class UpgradeSagaRepoStore implements Serializable{
 
     private SagaRepository sagaRepository;
 

@@ -1,6 +1,8 @@
 package no.ks.eventstore2.eventstore;
 
-public class UpgradeAggregate {
+import java.io.Serializable;
+
+public class UpgradeAggregate implements Serializable{
     private JournalStorage oldStorage;
     private String aggregateType;
 

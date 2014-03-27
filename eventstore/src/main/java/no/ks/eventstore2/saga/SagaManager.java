@@ -87,13 +87,13 @@ public class SagaManager extends UntypedActor {
     @Override
     public void onReceive(Object o) throws Exception {
 		if(log.isDebugEnabled() && o instanceof  Event) {
-			log.debug("Sagamanager Received Event {} is leader {}", o, akkaClusterInfo.isLeader());
+			log.debug("SagaManager received event {} is leader {}", o, akkaClusterInfo.isLeader());
 		}
 		if(o instanceof Event) {
 			latestJournalidReceived.put(((Event) o).getAggregateType(), ((Event) o).getJournalid());
 		}
         if (o instanceof Event && akkaClusterInfo.isLeader()){
-			log.debug("Sagamanager processing Event {}", o);
+			log.debug("SagaManager processing event {}", o);
             Event event = (Event) o;
             Set<SagaEventMapping> sagaClassesForEvent = getSagaClassesForEvent(event.getClass());
             for (SagaEventMapping mapping : sagaClassesForEvent) {
@@ -112,7 +112,7 @@ public class SagaManager extends UntypedActor {
             }
         }else if(o instanceof IncompleteSubscriptionPleaseSendNew){
             String aggregateType = ((IncompleteSubscriptionPleaseSendNew) o).getAggregateType();
-            log.debug("Sending new subscription on {} from {}", aggregateType,latestJournalidReceived);
+            log.debug("Sending new subscription on '{}' from latest journalid '{}'", aggregateType,latestJournalidReceived);
             if(latestJournalidReceived.get(aggregateType) == null) {
             	throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
             }
@@ -237,7 +237,7 @@ public class SagaManager extends UntypedActor {
     private Set<SagaEventMapping> getSagaClassesForEvent(Class<? extends Event> eventClass) {
         Set<SagaEventMapping> handlingSagas = new HashSet<SagaEventMapping>();
 
-        Class clazz = eventClass;
+        Class<?> clazz = eventClass;
 
         while(clazz != Object.class){
             if (eventToSagaMap.containsKey(clazz)) {

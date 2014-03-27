@@ -134,7 +134,7 @@ public class EventStore extends UntypedActor {
 			Subscription subscription = (Subscription) o;
 			addSubscriber(subscription);
 			if (leaderInfo.isLeader()) {
-                log.info("Got subscription on {} from {}, filling subscriptions", subscription , sender().path());
+				log.info("Got subscription on aggregate '" + subscription.getAggregateType() + "' from journalid '" + subscription.getFromJournalId() + "' with path '" + sender().path() + "'");
                 tryToFillSubscription(sender(),subscription);
             } else {
                 log.info("Sending subscription to leader {} from {}", leaderEventStore.path(), sender().path());

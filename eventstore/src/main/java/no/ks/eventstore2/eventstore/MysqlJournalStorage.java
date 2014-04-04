@@ -96,7 +96,12 @@ public class MysqlJournalStorage implements JournalStorage {
 
 	}
 
-	protected ByteArrayOutputStream createByteArrayOutputStream(final Event event) {
+    @Override
+    public EventBatch loadEventsForAggregateId(String aggregateType, String aggregateId, String fromJournalId) {
+        return null;
+    }
+
+    protected ByteArrayOutputStream createByteArrayOutputStream(final Event event) {
 		final ByteArrayOutputStream output = new ByteArrayOutputStream();
 		Output kryodata = new Output(output);
 		kryov2.writeClassAndObject(kryodata, event);

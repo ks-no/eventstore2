@@ -12,7 +12,12 @@ public class AggEvent extends Event {
 		this.aggregateType = aggregateType;
 	}
 
-	@Override
+    public AggEvent(String aggregateRootId, String aggregateType) {
+        this.aggregateRootId = aggregateRootId;
+        this.aggregateType = aggregateType;
+    }
+
+    @Override
 	public String getLogMessage() {
 		return null;
 	}
@@ -26,4 +31,26 @@ public class AggEvent extends Event {
 	public String getAggregateType() {
 		return aggregateType;
 	}
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof AggEvent)) return false;
+
+        AggEvent aggEvent = (AggEvent) o;
+
+        if (aggregateRootId != null ? !aggregateRootId.equals(aggEvent.aggregateRootId) : aggEvent.aggregateRootId != null)
+            return false;
+        if (aggregateType != null ? !aggregateType.equals(aggEvent.aggregateType) : aggEvent.aggregateType != null)
+            return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = aggregateRootId != null ? aggregateRootId.hashCode() : 0;
+        result = 31 * result + (aggregateType != null ? aggregateType.hashCode() : 0);
+        return result;
+    }
 }

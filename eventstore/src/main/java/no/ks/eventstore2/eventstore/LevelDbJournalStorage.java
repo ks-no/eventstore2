@@ -67,6 +67,11 @@ public class LevelDbJournalStorage implements JournalStorage {
         levelDbStore.doBackup(backupDirectory, backupfilename);
     }
 
+    @Override
+    public EventBatch loadEventsForAggregateId(String aggregateType, String aggregateId, String fromJournalId) {
+        return null;
+    }
+
     public void open() {
         levelDbStore.open();
     }

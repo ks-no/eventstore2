@@ -34,4 +34,13 @@ public interface JournalStorage {
      * @param backupfilename without file ending
      */
     void doBackup(String backupDirectory, String backupfilename);
+
+    /**
+     *
+     * @param aggregateType
+     * @param aggregateId
+     * @param fromJournalId null if read from begining
+     * @return
+     */
+    EventBatch loadEventsForAggregateId(String aggregateType, String aggregateId, String fromJournalId);
 }

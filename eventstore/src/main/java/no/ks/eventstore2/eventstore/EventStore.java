@@ -130,7 +130,14 @@ public class EventStore extends UntypedActor {
 				log.info("Sending to leader {} event {}", sender(), o);
 				leaderEventStore.tell(o, sender());
 			}
-		} else if (o instanceof Subscription) {
+		} else if(o instanceof RetreiveAggregateEvents){
+            if (leaderInfo.isLeader()) {
+                readAggregateEvents((RetreiveAggregateEvents)o);
+            } else {
+                log.info("Sending to leader {} retrieveAggregateEvents {}", sender(), o);
+                leaderEventStore.tell(o, sender());
+            }
+        } else if (o instanceof Subscription) {
 			Subscription subscription = (Subscription) o;
 			addSubscriber(subscription);
 			if (leaderInfo.isLeader()) {
@@ -183,6 +190,11 @@ public class EventStore extends UntypedActor {
                 leaderEventStore.tell(o, sender());
             }
         }
+    }
+
+    private void readAggregateEvents(RetreiveAggregateEvents retreiveAggregateEvents) {
+        final ActorRef sender = sender();
+        sender.tell(storage.loadEventsForAggregateId(retreiveAggregateEvents.getAggregateType(), retreiveAggregateEvents.getAggregateId(), retreiveAggregateEvents.getFromJournalId()),self());
     }
 
     private void tryToFillSubscription(final ActorRef sender, Subscription subscription) {

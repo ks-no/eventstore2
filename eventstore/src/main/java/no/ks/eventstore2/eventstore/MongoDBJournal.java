@@ -170,4 +170,22 @@ public class MongoDBJournal implements JournalStorage {
     public void doBackup(String backupDirectory, String backupfilename) {
 
     }
+
+    @Override
+    public EventBatch loadEventsForAggregateId(String aggregateType, String aggregateId, String fromJournalId) {
+        BasicDBObject query = new BasicDBObject("rid",  aggregateId);
+        if(fromJournalId != null)
+            query.append("jid", new BasicDBObject("$gt", Long.parseLong(fromJournalId)));
+        DBCursor dbObjects = db.getCollection(aggregateType).find(query).sort(new BasicDBObject("jid", 1)).limit(eventReadLimit);
+        List<Event> events = new ArrayList<>();
+        try {
+            while (dbObjects.hasNext()) {
+                DBObject next = dbObjects.next();
+                events.add(deSerialize((byte[]) next.get("d")));
+            }
+        } finally {
+            dbObjects.close();
+        }
+        return new EventBatch(aggregateType, aggregateId, events, events.size() != eventReadLimit);
+    }
 }

@@ -103,6 +103,11 @@ public class H2JournalStorage implements JournalStorage {
 
     }
 
+    @Override
+    public EventBatch loadEventsForAggregateId(String aggregateType, String aggregateId, String fromJournalId) {
+        return null;
+    }
+
     private void updateEventToKryo(final int id, final Event event) {
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
         Output kryodata = new Output(output);

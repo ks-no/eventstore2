@@ -194,6 +194,7 @@ public class EventStore extends UntypedActor {
 
     private void readAggregateEvents(RetreiveAggregateEvents retreiveAggregateEvents) {
         final ActorRef sender = sender();
+
         sender.tell(storage.loadEventsForAggregateId(retreiveAggregateEvents.getAggregateType(), retreiveAggregateEvents.getAggregateId(), retreiveAggregateEvents.getFromJournalId()),self());
     }
 

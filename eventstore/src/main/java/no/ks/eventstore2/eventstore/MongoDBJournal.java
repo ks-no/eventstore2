@@ -69,7 +69,12 @@ public class MongoDBJournal implements JournalStorage {
         BasicDBObject doc = new BasicDBObject("jid", Long.parseLong(event.getJournalid())).
                 append("rid", event.getAggregateRootId()).
                 append("d", serielize(event));
-        collection.insert(doc);
+        try {
+            collection.insert(doc);
+        } catch(Exception e){
+            // retry if connection failed
+            collection.insert(doc);
+        }
     }
 
     public void saveEvents(List<Event> events) {
@@ -88,11 +93,19 @@ public class MongoDBJournal implements JournalStorage {
             nextJournalId++;
             dbObjectArrayList.add(doc);
         }
+
         collection.insert(dbObjectArrayList);
     }
 
     private long getNextJournalId(DBCollection collection) {
-        return collection.getCount() + 1;
+        long count = 0L;
+        try {
+            count = collection.getCount();
+        } catch (Exception e) {
+            // retry if connection failed
+            count = collection.getCount();
+        }
+        return count + 1;
     }
 
     @Override

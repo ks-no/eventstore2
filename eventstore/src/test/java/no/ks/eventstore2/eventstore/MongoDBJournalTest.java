@@ -10,14 +10,15 @@ import java.util.List;
 
 import no.ks.eventstore2.Event;
 
+import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import com.esotericsoftware.kryo.Kryo;
-import com.github.fakemongo.Fongo;
 import com.mongodb.DB;
 
-public class MongoDBJournalTest {
+public class MongoDBJournalTest extends MongoDbEventstore2TestKit{
 
     private KryoClassRegistration kryoClassRegistration = new KryoClassRegistration() {
         @Override
@@ -29,10 +30,16 @@ public class MongoDBJournalTest {
 
     @Before
     public void setUp() throws Exception {
-
-        Fongo fongo = new Fongo("mongo server 1");
-        DB db = fongo.getDB("Journal");
+        super.setUp();
+        DB db = mongoClient.getDB("Journal");
         journal = new MongoDBJournal(db, kryoClassRegistration, Arrays.asList(new String[] {"agg1"}), 10);
+    }
+
+    @Override
+    @After
+    public void tearDown() throws Exception {
+        super.tearDown();
+
     }
 
     @Test
@@ -51,33 +58,33 @@ public class MongoDBJournalTest {
 
     @Test
     public void testSaveAndReceiveEventsFromKey() throws Exception {
-        journal.saveEvent(new AggEvent("agg1"));
-        journal.saveEvent(new AggEvent("agg1"));
+        journal.saveEvent(new AggEvent("agg3"));
+        journal.saveEvent(new AggEvent("agg3"));
         final List<Event> events = new ArrayList<Event>();
-        journal.loadEventsAndHandle("agg1", new HandleEvent() {
+        journal.loadEventsAndHandle("agg3", new HandleEvent() {
             @Override
             public void handleEvent(Event event) {
                 events.add(event);
             }
         }, "1");
         assertEquals(1,events.size());
-        assertEquals("agg1", events.get(0).getAggregateType());
+        assertEquals("agg3", events.get(0).getAggregateType());
     }
 
     @Test
     public void testEventReadLimit() throws Exception {
         for(int i = 0; i<15;i++){
-            journal.saveEvent(new AggEvent("agg1"));
+            journal.saveEvent(new AggEvent("agg2"));
         }
         final List<Event> events = new ArrayList<Event>();
-        journal.loadEventsAndHandle("agg1", new HandleEvent() {
+        journal.loadEventsAndHandle("agg2", new HandleEvent() {
             @Override
             public void handleEvent(Event event) {
                 events.add(event);
             }
         }, "0");
         assertEquals(10,events.size());
-        journal.loadEventsAndHandle("agg1", new HandleEvent() {
+        journal.loadEventsAndHandle("agg2", new HandleEvent() {
             @Override
             public void handleEvent(Event event) {
                 events.add(event);
@@ -88,17 +95,17 @@ public class MongoDBJournalTest {
 
     @Test
     public void testUpgradeIsOK() throws Exception {
-        MongoDBJournal journal1 = new MongoDBJournal(new Fongo("fongo1").getDB("test1"), kryoClassRegistration, Arrays.asList(new String[]{"agg1"}));
-        journal1.saveEvent(new AggEvent("agg1"));
+        MongoDBJournal journal1 = new MongoDBJournal(mongoClient.getDB("test1"), kryoClassRegistration, Arrays.asList(new String[]{"agg1"}));
+        journal1.saveEvent(new AggEvent("agg4"));
 
-        MongoDBJournal journal2 = new MongoDBJournal(new Fongo("fongo2").getDB("test1"), kryoClassRegistration, Arrays.asList(new String[]{"agg1"}));
-        journal2.upgradeFromOldStorage("agg1", journal1);
+        MongoDBJournal journal2 = new MongoDBJournal(mongoClient.getDB("test2"), kryoClassRegistration, Arrays.asList(new String[]{"agg1"}));
+        journal2.upgradeFromOldStorage("agg4", journal1);
 
-        ArrayList<Event> events = getEvents(journal2);
+        ArrayList<Event> events = getEvents(journal2, "agg4");
         assertEquals(1, events.size());
 
-        journal2.upgradeFromOldStorage("agg1", journal1);
-        events = getEvents(journal2);
+        journal2.upgradeFromOldStorage("agg4", journal1);
+        events = getEvents(journal2, "agg4");
         assertEquals(1, events.size());
     }
 
@@ -131,12 +138,12 @@ public class MongoDBJournalTest {
     @Test
     public void testUpgrade_25_events() throws Exception {
         for(int i = 0; i< 25; i++){
-            journal.saveEvent(new AggEvent("id"));
+            journal.saveEvent(new AggEvent("id2"));
         }
-        MongoDBJournal journal2 = new MongoDBJournal(new Fongo("2").getDB("events"), kryoClassRegistration, Arrays.asList(new String[]{"id"}));
-        journal2.upgradeFromOldStorage("id",journal);
+        MongoDBJournal journal2 = new MongoDBJournal(mongoClient.getDB("events"), kryoClassRegistration, Arrays.asList(new String[]{"id"}));
+        journal2.upgradeFromOldStorage("id2",journal);
         final ArrayList<Event> results = new ArrayList<Event>();
-        while(!journal2.loadEventsAndHandle("id", new HandleEvent() {
+        while(!journal2.loadEventsAndHandle("id2", new HandleEvent() {
             @Override
             public void handleEvent(Event event) {
                 results.add(event);
@@ -145,9 +152,9 @@ public class MongoDBJournalTest {
         assertEquals(25, results.size());
     }
 
-    private ArrayList<Event> getEvents(MongoDBJournal journal2) {
+    private ArrayList<Event> getEvents(MongoDBJournal journal2, String aggregateType) {
         final ArrayList<Event> events = new ArrayList<Event>();
-        journal2.loadEventsAndHandle("agg1", new HandleEvent() {
+        journal2.loadEventsAndHandle(aggregateType, new HandleEvent() {
             @Override
             public void handleEvent(Event event) {
               events.add(event);

@@ -1,36 +1,37 @@
 package no.ks.eventstore2.saga;
 
-import com.github.fakemongo.Fongo;
 import com.mongodb.DB;
-import com.mongodb.MongoClient;
 import no.ks.eventstore2.formProcessorProject.FormProcess;
+import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
 import org.junit.Before;
 import org.junit.Test;
 
 import static junit.framework.Assert.assertEquals;
 
-public class SagaMongoDBRepositoryTest {
+public class SagaMongoDBRepositoryTest extends MongoDbEventstore2TestKit {
 
     private SagaMongoDBRepository repo;
     private DB db;
 
     @Before
     public void setUp() throws Exception {
-        db = new Fongo("sagatest").getDB("sagastore");
+        super.setUp();
+        db = mongoClient.getDB("SagaStore");
         repo = new SagaMongoDBRepository(db);
-
     }
 
     @Test
     public void testSaveAndGetState() throws Exception {
-        repo.saveState(FormProcess.class, "id", (byte) 45);
-        assertEquals(45, repo.getState(FormProcess.class, "id"));
+        repo.saveState(FormProcess.class, "id2", (byte) 45);
+        assertEquals(45, repo.getState(FormProcess.class, "id2"));
     }
 
     @Test
     public void testStateUpdateGenerateOneDocument() throws Exception {
-        repo.saveState(FormProcess.class, "id", (byte) 45);
-        repo.saveState(FormProcess.class, "id", (byte) 45);
+        db = mongoClient.getDB("SagaStore2");
+        repo = new SagaMongoDBRepository(db);
+        repo.saveState(FormProcess.class, "id5", (byte) 45);
+        repo.saveState(FormProcess.class, "id5", (byte) 45);
         assertEquals(1, db.getCollection("states").count());
     }
 

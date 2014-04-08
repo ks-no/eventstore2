@@ -12,6 +12,7 @@ import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.MapSerializer;
 import com.mongodb.MongoClient;
 
+import com.mongodb.ServerAddress;
 import de.flapdoodle.embed.mongo.MongodExecutable;
 import de.flapdoodle.embed.mongo.MongodProcess;
 import de.flapdoodle.embed.mongo.MongodStarter;
@@ -26,9 +27,7 @@ import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.TakeSnapshot;
 import no.ks.eventstore2.eventstore.Subscription;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.*;
 
 import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
@@ -38,34 +37,10 @@ import java.util.UUID;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-public class ProjectionSnapshotTest extends Eventstore2TestKit {
+public class ProjectionSnapshotTest extends MongoDbEventstore2TestKit {
 
     private static Kryo kryo = new Kryo();
-    private MongoClient mongoClient;
-    private MongodExecutable mongodExecutable = null;
-    private MongodProcess mongod = null;
 
-    @Before
-    public void setUp() throws Exception {
-        MongodStarter runtime = MongodStarter.getDefaultInstance();
-        mongodExecutable = runtime.prepare(new MongodConfigBuilder()
-                .version(Version.Main.PRODUCTION)
-                .net(new Net(12345, Network.localhostIsIPv6()))
-                .build());
-        mongod = mongodExecutable.start();
-        mongoClient = new MongoClient("localhost", 12345);
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        if (mongod != null) {
-            mongod.stop();
-        }
-        if (mongodExecutable != null) {
-            mongodExecutable.stop();
-        }
-        mongoClient.close();
-    }
 
     @Test
     public void test_that_a_projection_can_save_and_load_snapshot() throws Exception {

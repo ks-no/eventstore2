@@ -7,7 +7,7 @@
 	<version>2.3.1-SNAPSHOT</version>
 	<name>Eventstore2 Parent</name>
 	<description>A framework for building event sourced Java applications</description>
-	<url>https://github.com/jansoren/eventstore2</url>
+	<url>https://github.com/ks-no/eventstore2</url>
 	<modules>
 		<module>eventstore</module>
   	</modules>
@@ -18,14 +18,14 @@
 		</license>
 	</licenses>
 	<scm>
-		<url>http://github.com/jansoren/eventstore2</url>
-		<connection>scm:git:https://github.com/jansoren/eventstore2.git</connection>
-		<developerConnection>scm:git:https://github.com/jansoren/eventstore2.git</developerConnection>
+		<url>http://github.com/ks-no/eventstore2</url>
+		<connection>scm:git:https://github.com/ks-no/eventstore2.git</connection>
+		<developerConnection>scm:git:https://github.com/ks-no/eventstore2.git</developerConnection>
 		<tag>HEAD</tag>
 	</scm>
 	<issueManagement>
 		<system>github</system>
-		<url>https://github.com/jansoren/eventstore2/issues</url>
+		<url>https://github.com/ks-no/eventstore2/issues</url>
 	</issueManagement>
 	<developers>
 		<developer>

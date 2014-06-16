@@ -7,6 +7,15 @@ EventStore2 is a framework for creating event sourced applications in Java. It f
 * Annotation driven configuration of Projections, CommandHandlers and Sagas
 * Json or binary (Kryo) serialization of persisted and networked events
 
+### Maven dependency
+```
+<dependency>
+  <groupId>no.ks</groupId>
+  <artifactId>eventstore2</artifactId>
+  <version>2.3.0</version>
+</dependency>
+```
+
 Event Sourcing concepts
 -----------------------
 

@@ -127,8 +127,9 @@ public abstract class Projection extends UntypedActor {
         if (callName.equals(candidateMethod.getName()) && (methodParams.length == callParams.length)){
             boolean assignable = true;
             for (int i = 0; i < callParams.length; i++) {
-                if (!methodParams[i].isAssignableFrom(callParams[i]))
-                    assignable = false;
+                if (!methodParams[i].isAssignableFrom(callParams[i])) {
+                	assignable = false;
+                }
             }
             return assignable;
         } else {

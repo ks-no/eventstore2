@@ -5,9 +5,9 @@
 	<groupId>no.ks</groupId>
 	<artifactId>eventstore2</artifactId>
 	<packaging>jar</packaging>
-	<name>eventstore2</name>
-	<version>2.4-SNAPSHOT</version>
-    <properties>
+	<name>Eventstore2</name>
+    <version>2.3.1-SNAPSHOT</version>
+	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <akka.version>2.2.3</akka.version>
 	</properties>

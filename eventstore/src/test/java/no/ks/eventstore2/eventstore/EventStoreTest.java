@@ -85,4 +85,20 @@ public class EventStoreTest extends TestKit {
         expectMsgClass(CompleteSubscriptionRegistered.class);
     }
 
+    @Test
+    public void testAsyncSubscription() throws Exception {
+        for(int i = 0; i<10;i++)
+            levelDbJournalStorage.saveEvent(new AggEvent("agg"));
+
+        TestActorRef<Actor> actorTestActorRef = TestActorRef.create(_system, EventStore.mkProps(levelDbJournalStorage));
+        actorTestActorRef.tell(new AsyncSubscription("agg",null),super.testActor());
+        for(int i = 0; i<10;i++)
+            expectMsgClass(AggEvent.class);
+        expectMsgClass(IncompleteSubscriptionPleaseSendNew.class);
+        actorTestActorRef.tell(new AsyncSubscription("agg","0000000000000000009"),super.testActor());
+        expectMsgClass(CompleteAsyncSubscriptionPleaseSendSyncSubscription.class);
+        actorTestActorRef.tell(new Subscription("agg","0000000000000000009"),super.testActor());
+        expectMsgClass(CompleteSubscriptionRegistered.class);
+    }
+
 }

@@ -142,7 +142,7 @@
 
 		<module name="IllegalThrows">
 			<property name="illegalClassNames"
-					  value="java.lang.Throwable, java.lang.Error, java.lang.RuntimeException"/>
+					  value="java.lang.Error, java.lang.RuntimeException"/>
 		</module>
 	</module>
 

@@ -30,4 +30,6 @@ public class RetreiveAggregateEvents implements Serializable{
     public String getAggregateType() {
         return aggregateType;
     }
+
+
 }

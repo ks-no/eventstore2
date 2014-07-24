@@ -1,35 +1,33 @@
 package no.ks.eventstore2.eventstore;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
-import no.ks.eventstore2.AkkaClusterInfo;
-import no.ks.eventstore2.Event;
-import no.ks.eventstore2.TakeBackup;
-import no.ks.eventstore2.TakeSnapshot;
-import no.ks.eventstore2.response.Success;
-
-import org.joda.time.DateTime;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import scala.concurrent.duration.Duration;
 import akka.ConfigurationException;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
 import akka.cluster.ClusterEvent;
-
+import akka.dispatch.OnFailure;
 import com.google.common.collect.HashMultimap;
+import no.ks.eventstore2.AkkaClusterInfo;
+import no.ks.eventstore2.Event;
+import no.ks.eventstore2.TakeBackup;
+import no.ks.eventstore2.TakeSnapshot;
+import no.ks.eventstore2.response.Success;
+import org.joda.time.DateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import scala.concurrent.Future;
+import scala.concurrent.duration.Duration;
+
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
+
+import static akka.dispatch.Futures.future;
 
 public class EventStore extends UntypedActor {
 
-	private static Logger log = LoggerFactory.getLogger(EventStore.class);
+	private static final Logger log = LoggerFactory.getLogger(EventStore.class);
 
 	private HashMultimap<String,ActorRef> aggregateSubscribers = HashMultimap.create();
 	private ActorRef leaderEventStore;
@@ -140,13 +138,7 @@ public class EventStore extends UntypedActor {
         } else if (o instanceof Subscription) {
 			Subscription subscription = (Subscription) o;
 			addSubscriber(subscription);
-			if (leaderInfo.isLeader()) {
-                log.info("Got subscription on {} from {}, filling subscriptions", subscription , sender().path());
-                tryToFillSubscription(sender(),subscription);
-            } else {
-                log.info("Sending subscription to leader {} from {}", leaderEventStore.path(), sender().path());
-				leaderEventStore.tell(subscription, sender());
-            }
+            tryToFillSubscription(sender(),subscription);
 		} else if (o instanceof SubscriptionRefresh) {
 			SubscriptionRefresh subscriptionRefresh = (SubscriptionRefresh) o;
 			log.info("Refreshing subscription for {}", subscriptionRefresh);
@@ -198,7 +190,49 @@ public class EventStore extends UntypedActor {
         sender.tell(storage.loadEventsForAggregateId(retreiveAggregateEvents.getAggregateType(), retreiveAggregateEvents.getAggregateId(), retreiveAggregateEvents.getFromJournalId()),self());
     }
 
-    private void tryToFillSubscription(final ActorRef sender, Subscription subscription) {
+    private void tryToFillSubscription(final ActorRef sender, final Subscription subscription) {
+        final ActorRef self = self();
+        if(subscription instanceof AsyncSubscription){
+            Future<Boolean> f = future(new Callable<Boolean>() {
+                public Boolean call() {
+                    log.info("Got asyncsubscription on {} from {}, filling subscriptions", subscription, sender.path());
+                    boolean finished = loadEvents(sender, subscription);
+                    if (!finished) {
+                        log.info("Subscription {} not Complete {} should ask for more", subscription, sender);
+                        sender.tell(new IncompleteSubscriptionPleaseSendNew(subscription.getAggregateType()), self);
+                    } else {
+                        log.info("Asyncsubscription {} from {} filled.", subscription, sender);
+                        sender.tell(new CompleteAsyncSubscriptionPleaseSendSyncSubscription(subscription.getAggregateType()), self);
+                    }
+                    return finished;
+                }
+            }, getContext().system().dispatcher());
+            f.onFailure(new OnFailure() {
+                public void onFailure(Throwable failure) {
+                    log.error("Error in AsyncSubscribe",failure);
+                }
+            }, getContext().system().dispatcher());
+        } else {
+            log.info("Got subscription on {} from {}, filling subscriptions", subscription, sender.path());
+            boolean finished = loadEvents(sender, subscription);
+            if (!finished) {
+                log.info("Subscription {} not Complete {} should ask for more", subscription, sender);
+                sender.tell(new IncompleteSubscriptionPleaseSendNew(subscription.getAggregateType()), self());
+                return;
+            } else {
+                if (leaderInfo.isLeader()) {
+                    log.info("Subscription {} from {} filled.", subscription, sender);
+                    sender.tell(new CompleteSubscriptionRegistered(subscription.getAggregateType()), self());
+                    addSubscriber(subscription);
+                } else {
+                    log.info("Sending subscription to leader {} from {}", leaderEventStore.path(), sender().path());
+                    leaderEventStore.tell(subscription, sender);
+                }
+            }
+        }
+    }
+
+    private boolean loadEvents(final ActorRef sender, Subscription subscription) {
         boolean finished = false;
         if(subscription.getFromJournalId() == null || "".equals(subscription.getFromJournalId().trim())){
             finished = storage.loadEventsAndHandle(subscription.getAggregateType(), new HandleEvent() {
@@ -216,14 +250,7 @@ public class EventStore extends UntypedActor {
             }, subscription.getFromJournalId());
 
         }
-        if(!finished){
-            log.info("Subscription {} not Complete {} should ask for more",subscription,sender );
-            sender.tell(new IncompleteSubscriptionPleaseSendNew(subscription.getAggregateType()),self());
-            return;
-        } else {
-            sender.tell(new CompleteSubscriptionRegistered(subscription.getAggregateType()),self());
-            addSubscriber(subscription);
-        }
+        return finished;
     }
 
     private Map<String,HashSet<ActorRef>> pendingSubscriptions = new HashMap<String, HashSet<ActorRef>>();

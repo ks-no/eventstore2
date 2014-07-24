@@ -18,9 +18,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MongoDBJournal implements JournalStorage {
-    private final Kryo kryo;
+    private final ThreadLocal<Kryo> tlkryo = new ThreadLocal<>();
     private final DBCollection metaCollection;
     private DB db;
+    private final KryoClassRegistration registration;
 
     private String dataversion = "01";
 
@@ -34,6 +35,7 @@ public class MongoDBJournal implements JournalStorage {
 
     public MongoDBJournal(DB db, KryoClassRegistration registration, List<String> aggregates) {
         this.db = db;
+        this.registration = registration;
         db.setWriteConcern(WriteConcern.SAFE);
         for (String aggregate : aggregates) {
             db.getCollection(aggregate).ensureIndex("jid");
@@ -42,24 +44,31 @@ public class MongoDBJournal implements JournalStorage {
         }
         metaCollection = db.getCollection("journalMetadata");
         metaCollection.setWriteConcern(WriteConcern.SAFE);
-        kryo = new Kryo();
-        kryo.setInstantiatorStrategy(new SerializingInstantiatorStrategy());
-        kryo.setDefaultSerializer(CompatibleFieldSerializer.class);
-        kryo.register(DateTime.class, new JodaDateTimeSerializer());
-        registration.registerClasses(kryo);
+    }
+
+    public Kryo getKryo(){
+        if(tlkryo.get() == null){
+            Kryo kryo = new Kryo();
+            kryo.setInstantiatorStrategy(new SerializingInstantiatorStrategy());
+            kryo.setDefaultSerializer(CompatibleFieldSerializer.class);
+            kryo.register(DateTime.class, new JodaDateTimeSerializer());
+            registration.registerClasses(kryo);
+            tlkryo.set(kryo);
+        }
+        return tlkryo.get();
     }
 
     private byte[] serielize(Event event) {
         final ByteArrayOutputStream outputs = new ByteArrayOutputStream();
         ByteBufferOutput output = new ByteBufferOutput(outputs);
-        kryo.writeClassAndObject(output, event);
+        getKryo().writeClassAndObject(output, event);
         output.close();
         return outputs.toByteArray();
     }
 
     private Event deSerialize(byte[] value) {
         Input input = new Input(new ByteArrayInputStream(value));
-        return (Event) kryo.readClassAndObject(input);
+        return (Event) getKryo().readClassAndObject(input);
     }
 
     @Override

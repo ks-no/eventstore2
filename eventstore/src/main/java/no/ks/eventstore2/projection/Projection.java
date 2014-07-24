@@ -3,9 +3,7 @@ package no.ks.eventstore2.projection;
 import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
 import no.ks.eventstore2.Event;
-import no.ks.eventstore2.eventstore.CompleteSubscriptionRegistered;
-import no.ks.eventstore2.eventstore.IncompleteSubscriptionPleaseSendNew;
-import no.ks.eventstore2.eventstore.Subscription;
+import no.ks.eventstore2.eventstore.*;
 import no.ks.eventstore2.reflection.HandlerFinder;
 import no.ks.eventstore2.response.NoResult;
 import org.slf4j.Logger;
@@ -50,14 +48,19 @@ public abstract class Projection extends UntypedActor {
                 if(latestJournalidReceived == null) {
                 	throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
                 }
-                eventStore.tell(new Subscription(((IncompleteSubscriptionPleaseSendNew) o).getAggregateType(),latestJournalidReceived),self());
+                eventStore.tell(new AsyncSubscription(((IncompleteSubscriptionPleaseSendNew) o).getAggregateType(),latestJournalidReceived),self());
             } else if(o instanceof CompleteSubscriptionRegistered){
-                log.info("Subscription on {} is complete", ((CompleteSubscriptionRegistered) o).getAggregateType());
-                subscribePhase = false;
-                for (PendingCall pendingCall : pendingCalls) {
-                    self().tell(pendingCall.getCall(), pendingCall.getSender());
+                if(o instanceof CompleteAsyncSubscriptionPleaseSendSyncSubscription){
+                    log.info("AsyncSubscription complete, sending sync subscription");
+                    eventStore.tell(new Subscription(((CompleteAsyncSubscriptionPleaseSendSyncSubscription)o).getAggregateType(),latestJournalidReceived),self());
+                } else {
+                    log.info("Subscription on {} is complete", ((CompleteSubscriptionRegistered) o).getAggregateType());
+                    subscribePhase = false;
+                    for (PendingCall pendingCall : pendingCalls) {
+                        self().tell(pendingCall.getCall(), pendingCall.getSender());
+                    }
+                    pendingCalls.clear();
                 }
-                pendingCalls.clear();
             } else if(o instanceof Call && subscribePhase){
                 log.debug("Adding call {} to pending calls", o);
                 pendingCalls.add(new PendingCall((Call) o,sender()));
@@ -158,13 +161,13 @@ public abstract class Projection extends UntypedActor {
         ListensTo annotation = getClass().getAnnotation(ListensTo.class);
         if (annotation != null) {
             for (String aggregate : annotation.aggregates()) {
-                return new Subscription(aggregate);
+                return new AsyncSubscription(aggregate);
             }
         }
         Subscriber subscriberAnnotation = getClass().getAnnotation(Subscriber.class);
 
         if (subscriberAnnotation != null) {
-        	return new Subscription(subscriberAnnotation.value());
+        	return new AsyncSubscription(subscriberAnnotation.value());
         }
         throw new RuntimeException("No subscribe annotation");
     }

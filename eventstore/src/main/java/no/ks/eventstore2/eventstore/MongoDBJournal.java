@@ -16,6 +16,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 public class MongoDBJournal implements JournalStorage {
     private final ThreadLocal<Kryo> tlkryo = new ThreadLocal<>();
@@ -73,17 +74,19 @@ public class MongoDBJournal implements JournalStorage {
 
     @Override
     public void saveEvent(Event event) {
-        DBCollection collection = db.getCollection(event.getAggregateType());
+        final DBCollection collection = db.getCollection(event.getAggregateType());
         event.setJournalid(String.valueOf(getNextJournalId(collection)));
-        BasicDBObject doc = new BasicDBObject("jid", Long.parseLong(event.getJournalid())).
+        final BasicDBObject doc = new BasicDBObject("jid", Long.parseLong(event.getJournalid())).
                 append("rid", event.getAggregateRootId()).
                 append("d", serielize(event));
-        try {
-            collection.insert(doc);
-        } catch(Exception e){
-            // retry if connection failed
-            collection.insert(doc);
-        }
+
+        MongoDbOperations.doDbOperation(new Callable<Object>() {
+            @Override
+            public Object call() throws Exception {
+                collection.insert(doc);
+                return null;
+            }
+        });
     }
 
     public void saveEvents(List<Event> events) {
@@ -91,9 +94,9 @@ public class MongoDBJournal implements JournalStorage {
         	return;
         }
         String agg = events.get(0).getAggregateType();
-        DBCollection collection = db.getCollection(agg);
+        final DBCollection collection = db.getCollection(agg);
         long nextJournalId = getNextJournalId(collection);
-        List<DBObject> dbObjectArrayList = new ArrayList<DBObject>();
+        final List<DBObject> dbObjectArrayList = new ArrayList<DBObject>();
         for (Event event : events) {
             event.setJournalid(String.valueOf(nextJournalId));
             BasicDBObject doc = new BasicDBObject("jid", nextJournalId).
@@ -103,17 +106,26 @@ public class MongoDBJournal implements JournalStorage {
             dbObjectArrayList.add(doc);
         }
 
-        collection.insert(dbObjectArrayList);
+        MongoDbOperations.doDbOperation(new Callable<Object>() {
+            @Override
+            public Object call() throws Exception {
+                collection.insert(dbObjectArrayList);
+                return null;
+            }
+        });
+
     }
 
-    private long getNextJournalId(DBCollection collection) {
+    private long getNextJournalId(final DBCollection collection) {
         long count = 0L;
-        try {
-            count = collection.getCount();
-        } catch (Exception e) {
-            // retry if connection failed
-            count = collection.getCount();
-        }
+
+        count = MongoDbOperations.doDbOperation(new Callable<Long>() {
+            @Override
+            public Long call() throws Exception {
+                return collection.getCount();
+            }
+        });
+
         return count + 1;
     }
 
@@ -127,13 +139,30 @@ public class MongoDBJournal implements JournalStorage {
         return loadEventsAndHandle(aggregateType, handleEvent, fromKey, eventReadLimit);
     }
 
-    private boolean loadEventsAndHandle(String aggregateType, HandleEvent handleEvent, String fromKey, int readlimit) {
-        BasicDBObject query = new BasicDBObject("jid", new BasicDBObject("$gt", Long.parseLong(fromKey)));
-        DBCursor dbObjects = db.getCollection(aggregateType).find(query).sort(new BasicDBObject("jid", 1)).limit(readlimit);
+    private boolean loadEventsAndHandle(final String aggregateType, HandleEvent handleEvent, String fromKey, final int readlimit) {
+        final BasicDBObject query = new BasicDBObject("jid", new BasicDBObject("$gt", Long.parseLong(fromKey)));
+        final DBCursor dbObjects = MongoDbOperations.doDbOperation(new Callable<DBCursor>() {
+            @Override
+            public DBCursor call() throws Exception {
+                return db.getCollection(aggregateType).find(query).sort(new BasicDBObject("jid", 1)).limit(readlimit);
+            }
+        });
         int i = 0;
         try {
-            while (dbObjects.hasNext()) {
-                DBObject next = dbObjects.next();
+            while (MongoDbOperations.doDbOperation(new Callable<Boolean>() {
+                @Override
+                public Boolean call() throws Exception {
+                    return dbObjects.hasNext();
+                }
+            })) {
+                DBObject next;
+
+                next = MongoDbOperations.doDbOperation(new Callable<DBObject>() {
+                    @Override
+                    public DBObject call() throws Exception {
+                        return dbObjects.next();
+                    }
+                });
                 handleEvent.handleEvent(deSerialize((byte[]) next.get("d")));
                 i++;
             }
@@ -194,15 +223,26 @@ public class MongoDBJournal implements JournalStorage {
     }
 
     @Override
-    public EventBatch loadEventsForAggregateId(String aggregateType, String aggregateId, String fromJournalId) {
-        BasicDBObject query = new BasicDBObject("rid",  aggregateId);
+    public EventBatch loadEventsForAggregateId(final String aggregateType, String aggregateId, String fromJournalId) {
+        final BasicDBObject query = new BasicDBObject("rid",  aggregateId);
         if(fromJournalId != null)
             query.append("jid", new BasicDBObject("$gt", Long.parseLong(fromJournalId)));
-        DBCursor dbObjects = db.getCollection(aggregateType).find(query).sort(new BasicDBObject("jid", 1)).limit(eventReadLimit);
+
+        final DBCursor dbObjects = MongoDbOperations.doDbOperation(new Callable<DBCursor>() {
+            @Override
+            public DBCursor call() throws Exception {
+                return db.getCollection(aggregateType).find(query).sort(new BasicDBObject("jid", 1)).limit(eventReadLimit);
+            }
+        });
         List<Event> events = new ArrayList<>();
         try {
             while (dbObjects.hasNext()) {
-                DBObject next = dbObjects.next();
+                DBObject next = MongoDbOperations.doDbOperation(new Callable<DBObject>() {
+                    @Override
+                    public DBObject call() throws Exception {
+                        return dbObjects.next();
+                    }
+                });
                 events.add(deSerialize((byte[]) next.get("d")));
             }
         } finally {

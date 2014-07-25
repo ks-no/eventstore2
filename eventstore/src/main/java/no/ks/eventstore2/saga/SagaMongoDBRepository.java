@@ -1,8 +1,10 @@
 package no.ks.eventstore2.saga;
 
 import com.mongodb.*;
+import no.ks.eventstore2.eventstore.MongoDbOperations;
 
 import java.util.List;
+import java.util.concurrent.Callable;
 
 public class SagaMongoDBRepository extends SagaRepository{
     private final DBCollection states;
@@ -17,18 +19,39 @@ public class SagaMongoDBRepository extends SagaRepository{
     }
 
     @Override
-    public void saveState(Class<? extends Saga> clz, String sagaid, byte state) {
-        states.update(new BasicDBObject("clz", clz.getName()).append("sid", sagaid), new BasicDBObject("clz", clz.getName()).append("sid", sagaid).append("s", state), true, false);
+    public void saveState(final Class<? extends Saga> clz, final String sagaid, final byte state) {
+        MongoDbOperations.doDbOperation(new Callable<Object>() {
+            @Override
+            public Object call() throws Exception {
+                states.update(new BasicDBObject("clz", clz.getName()).append("sid", sagaid), new BasicDBObject("clz", clz.getName()).append("sid", sagaid).append("s", state), true, false);
+                return null;
+            }
+        });
     }
 
     @Override
-    public byte getState(Class<? extends Saga> clz, String sagaid) {
-        DBCursor cursor = states.find(new BasicDBObject("clz", clz.getName()).append("sid", sagaid)).limit(1);
-        if(!cursor.hasNext()){
+    public byte getState(final Class<? extends Saga> clz, final String sagaid) {
+        final DBCursor cursor = MongoDbOperations.doDbOperation(new Callable<DBCursor>() {
+            @Override
+            public DBCursor call() throws Exception {
+                return states.find(new BasicDBObject("clz", clz.getName()).append("sid", sagaid)).limit(1);
+            }
+        });
+        if(MongoDbOperations.doDbOperation(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                return !cursor.hasNext();
+            }
+        })){
         	return 0;
         }
 
-        Object s = cursor.next().get("s");
+        Object s = MongoDbOperations.doDbOperation(new Callable<DBObject>() {
+            @Override
+            public DBObject call() throws Exception {
+                return cursor.next();
+            }
+        }).get("s");
         if(s instanceof Integer) {
         	return ((Integer) s).byteValue();
         } else {
@@ -57,17 +80,38 @@ public class SagaMongoDBRepository extends SagaRepository{
     }
 
     @Override
-    public String loadLatestJournalID(String aggregate) {
-        DBCursor limit = journalid.find(new BasicDBObject("_id", aggregate)).limit(1);
-        if(!limit.hasNext()) {
+    public String loadLatestJournalID(final String aggregate) {
+        final DBCursor limit = MongoDbOperations.doDbOperation(new Callable<DBCursor>() {
+            @Override
+            public DBCursor call() throws Exception {
+                return journalid.find(new BasicDBObject("_id", aggregate)).limit(1);
+            }
+        });
+        if(!MongoDbOperations.doDbOperation(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                return limit.hasNext();
+            }
+        })) {
         	return null;
         }
-        return (String) limit.next().get("latestJournalID");
+        return (String) MongoDbOperations.doDbOperation(new Callable<DBObject>() {
+            @Override
+            public DBObject call() throws Exception {
+                return limit.next();
+            }
+        }).get("latestJournalID");
     }
 
     @Override
-    public void saveLatestJournalId(String aggregate, String latestJournalId) {
-        journalid.save(new BasicDBObject("_id", aggregate).append("latestJournalID", latestJournalId));
+    public void saveLatestJournalId(final String aggregate, final String latestJournalId) {
+        MongoDbOperations.doDbOperation(new Callable<Object>() {
+            @Override
+            public Object call() throws Exception {
+                journalid.save(new BasicDBObject("_id", aggregate).append("latestJournalID", latestJournalId));
+                return null;
+            }
+        });
     }
 
     @Override

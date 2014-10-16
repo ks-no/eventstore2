@@ -1,15 +1,12 @@
 package no.ks.eventstore2.eventstore;
 
-import java.io.ByteArrayOutputStream;
-import java.sql.Blob;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-
-import javax.sql.DataSource;
-
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+import com.esotericsoftware.kryo.serializers.CompatibleFieldSerializer;
+import com.esotericsoftware.shaded.org.objenesis.strategy.SerializingInstantiatorStrategy;
+import de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer;
 import no.ks.eventstore2.Event;
-
 import org.joda.time.DateTime;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowCallbackHandler;
@@ -17,14 +14,15 @@ import org.springframework.jdbc.core.support.AbstractLobCreatingPreparedStatemen
 import org.springframework.jdbc.support.lob.DefaultLobHandler;
 import org.springframework.jdbc.support.lob.LobCreator;
 import org.springframework.jdbc.support.lob.LobHandler;
+import org.springframework.transaction.annotation.Transactional;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-import com.esotericsoftware.kryo.serializers.CompatibleFieldSerializer;
-import com.esotericsoftware.shaded.org.objenesis.strategy.SerializingInstantiatorStrategy;
-
-import de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer;
+import javax.sql.DataSource;
+import java.io.ByteArrayOutputStream;
+import java.sql.Blob;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
 
 public class MysqlJournalStorage implements JournalStorage {
 
@@ -39,7 +37,15 @@ public class MysqlJournalStorage implements JournalStorage {
 		kryov2.register(DateTime.class, new JodaDateTimeSerializer());
 	}
 
-	@Override
+    @Transactional
+    @Override
+    public void saveEvents(List<? extends Event> events) {
+        for (Event event : events) {
+            saveEvent(event);
+        }
+    }
+
+    @Override
 	public void saveEvent(final Event event) {
 		final ByteArrayOutputStream output = createByteArrayOutputStream(event);
 		LobHandler lobHandler = new DefaultLobHandler();

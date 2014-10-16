@@ -24,6 +24,7 @@ import java.sql.Blob;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 
 public class H2JournalStorage implements JournalStorage {
 
@@ -37,6 +38,11 @@ public class H2JournalStorage implements JournalStorage {
         kryov2.setInstantiatorStrategy(new SerializingInstantiatorStrategy());
         kryov2.setDefaultSerializer(CompatibleFieldSerializer.class);
         kryov2.register(DateTime.class, new JodaDateTimeSerializer());
+    }
+
+    @Override
+    public void saveEvents(List<? extends Event> events) {
+        throw new UnsupportedOperationException();
     }
 
     public void saveEvent(final Event event) {

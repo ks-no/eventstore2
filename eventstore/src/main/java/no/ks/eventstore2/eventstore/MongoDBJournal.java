@@ -89,7 +89,8 @@ public class MongoDBJournal implements JournalStorage {
         });
     }
 
-    public void saveEvents(List<Event> events) {
+    @Override
+    public void saveEvents(List<? extends Event> events) {
         if(events == null || events.size() == 0) {
         	return;
         }
@@ -250,4 +251,6 @@ public class MongoDBJournal implements JournalStorage {
         }
         return new EventBatch(aggregateType, aggregateId, events, events.size() != eventReadLimit);
     }
+
+
 }

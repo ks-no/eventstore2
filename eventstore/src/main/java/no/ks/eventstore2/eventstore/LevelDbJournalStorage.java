@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 import static org.fusesource.leveldbjni.JniDBFactory.asString;
@@ -74,6 +75,11 @@ public class LevelDbJournalStorage implements JournalStorage {
 
     public void open() {
         levelDbStore.open();
+    }
+
+    @Override
+    public void saveEvents(List<? extends Event> events) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

@@ -119,7 +119,18 @@ public class EventStore extends UntypedActor {
         if( o instanceof ClusterEvent.LeaderChanged){
             log.info("Recieved LeaderChanged event: {}", o);
 			updateLeaderState((ClusterEvent.LeaderChanged)o);
-		} else if (o instanceof Event) {
+		} else if (o instanceof StoreEvents) {
+            if (leaderInfo.isLeader()) {
+                storeEvents((StoreEvents) o);
+                publishEvents((StoreEvents) o);
+                for (Event event : ((StoreEvents) o).getEvents()) {
+                    log.info("Published event {}: {}", event, ((Event) event).getLogMessage());
+                }
+            } else {
+                log.info("Sending to leader {} events {}", sender(), o);
+                leaderEventStore.tell(o, sender());
+            }
+        } else if (o instanceof Event) {
 			if (leaderInfo.isLeader()) {
 				storeEvent((Event) o);
 				publishEvent((Event) o);
@@ -138,7 +149,7 @@ public class EventStore extends UntypedActor {
         } else if (o instanceof Subscription) {
 			Subscription subscription = (Subscription) o;
 			addSubscriber(subscription);
-            tryToFillSubscription(sender(),subscription);
+            tryToFillSubscription(sender(), subscription);
 		} else if (o instanceof SubscriptionRefresh) {
 			SubscriptionRefresh subscriptionRefresh = (SubscriptionRefresh) o;
 			log.info("Refreshing subscription for {}", subscriptionRefresh);
@@ -286,6 +297,11 @@ public class EventStore extends UntypedActor {
         aggregateSubscribers.putAll(refresh.getAggregateType(), refresh.getSubscribers());
 	}
 
+    private void publishEvents(StoreEvents events){
+        for (Event event : events.getEvents()) {
+            publishEvent(event);
+        }
+    }
 	private void publishEvent(Event event) {
 		Set<ActorRef> actorRefs = aggregateSubscribers.get(event.getAggregateType());
 		if (actorRefs == null) {
@@ -302,6 +318,14 @@ public class EventStore extends UntypedActor {
 		event.setCreated(new DateTime());
         storage.saveEvent(event);
 	}
+
+    private void storeEvents(StoreEvents o) {
+        for (Event event : o.getEvents()) {
+            event.setCreated(new DateTime());
+        }
+        storage.saveEvents(o.getEvents());
+    }
+
 
     private void sendEvent(Event event, ActorRef subscriber) {
         Event upgadedEvent = upgradeEvent(event);

@@ -2,6 +2,8 @@ package no.ks.eventstore2.eventstore;
 
 import no.ks.eventstore2.Event;
 
+import java.util.List;
+
 public interface JournalStorage {
 
     void saveEvent(Event event);
@@ -43,4 +45,6 @@ public interface JournalStorage {
      * @return
      */
     EventBatch loadEventsForAggregateId(String aggregateType, String aggregateId, String fromJournalId);
+
+    void saveEvents(List<? extends Event> events);
 }

@@ -43,4 +43,13 @@ public class ProjectionFailedError implements Serializable {
     public void setMessage(Object message) {
         this.message = message;
     }
+
+    @Override
+    public String toString() {
+        return "ProjectionFailedError{" +
+                "projection=" + projection +
+                ", reason=" + reason +
+                ", message=" + message +
+                '}';
+    }
 }

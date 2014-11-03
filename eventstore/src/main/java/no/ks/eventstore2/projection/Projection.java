@@ -99,7 +99,7 @@ public abstract class Projection extends UntypedActor {
                 }
             }
         } catch (Exception e) {
-            throw new RuntimeException("Error handling projection call!", e);
+            throw new RuntimeException("Error handling projection call! " + call, e);
         }
     }
 

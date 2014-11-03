@@ -14,6 +14,7 @@ public class MongoDbOperations {
         T result = null;
         boolean finished = false;
         int retrycount = 0;
+        Exception exception = null;
         while (!finished && retrycount < retries) {
             try {
                 retrycount++;
@@ -23,16 +24,19 @@ public class MongoDbOperations {
                 finished = true;
             } catch (Exception e) {
                 log.info("failed db operation", e);
+                exception = e;
                 try {
                     Thread.sleep(sleepms);
                 } catch (InterruptedException e1) {
                 }
             }
         }
+        if(exception != null) throw new RuntimeException(exception);
         return result;
     }
 
     public static <T> T doDbOperation(Callable<T> callable) {
         return doDbOperation(callable, 50, 500);
     }
+
 }

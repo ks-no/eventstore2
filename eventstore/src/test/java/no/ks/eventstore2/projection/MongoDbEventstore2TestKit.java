@@ -42,6 +42,9 @@ public class MongoDbEventstore2TestKit extends Eventstore2TestKit {
 
     @After
     public void tearDown() throws Exception {
+        for (String dbname : mongoClient.getDatabaseNames()) {
+            mongoClient.dropDatabase(dbname);
+        }
         mongoClient.close();
     }
 

@@ -9,6 +9,7 @@ public class AggEvent extends Event {
 	private String aggregateType;
 
 	public AggEvent(String aggregateType) {
+        this.aggregateRootId = "aggregaterootid";
 		this.aggregateType = aggregateType;
 	}
 

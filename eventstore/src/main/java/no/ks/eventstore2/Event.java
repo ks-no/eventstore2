@@ -9,8 +9,9 @@ public abstract class Event implements Serializable{
 
 	private String journalid;
 	protected DateTime created;
+    private int version = -1;
 
-	public abstract String getAggregateType();
+    public abstract String getAggregateType();
 
 	public DateTime getCreated() {
 		return created;
@@ -43,4 +44,12 @@ public abstract class Event implements Serializable{
 				+ ", created=" + created
 				+ '}';
 	}
+
+    public int getVersion() {
+        return version;
+    }
+
+    public void setVersion(int version) {
+        this.version = version;
+    }
 }

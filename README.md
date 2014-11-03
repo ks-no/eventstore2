@@ -12,7 +12,7 @@ EventStore2 is a framework for creating event sourced applications in Java. It f
 <dependency>
   <groupId>no.ks</groupId>
   <artifactId>eventstore2</artifactId>
-  <version>2.3.0</version>
+  <version>2.3.1</version>
 </dependency>
 ```
 

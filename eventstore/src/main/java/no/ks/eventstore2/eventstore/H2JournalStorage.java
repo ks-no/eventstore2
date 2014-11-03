@@ -1,13 +1,8 @@
 package no.ks.eventstore2.eventstore;
 
-import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import com.esotericsoftware.kryo.serializers.CompatibleFieldSerializer;
-import com.esotericsoftware.shaded.org.objenesis.strategy.SerializingInstantiatorStrategy;
-import de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer;
 import no.ks.eventstore2.Event;
-import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -25,24 +20,21 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class H2JournalStorage implements JournalStorage {
+public class H2JournalStorage extends AbstractJournalStorage {
 
     private static Logger log = LoggerFactory.getLogger(H2JournalStorage.class);
+
     private JdbcTemplate template;
 
-    private Kryo kryov2 = new Kryo();
-
     public H2JournalStorage(DataSource dataSource) {
+        super();
         template = new JdbcTemplate(dataSource);
-        kryov2.setInstantiatorStrategy(new SerializingInstantiatorStrategy());
-        kryov2.setDefaultSerializer(CompatibleFieldSerializer.class);
-        kryov2.register(DateTime.class, new JodaDateTimeSerializer());
     }
 
     public void saveEvent(final Event event) {
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
         Output kryodata = new Output(output);
-        kryov2.writeClassAndObject(kryodata, event);
+        kryo.writeClassAndObject(kryodata, event);
         kryodata.close();
 
         LobHandler lobHandler = new DefaultLobHandler();
@@ -68,7 +60,7 @@ public class H2JournalStorage implements JournalStorage {
                 if (resultSet.getInt("dataversion") == 2) {
                     Blob blob = resultSet.getBlob("kryoeventdata");
                     Input input = new Input(blob.getBinaryStream());
-                    Event event = (Event) kryov2.readClassAndObject(input);
+                    Event event = (Event) kryo.readClassAndObject(input);
                     input.close();
                     event.setJournalid(resultSet.getBigDecimal("id").toPlainString());
                     handleEvent.handleEvent(event);
@@ -111,7 +103,7 @@ public class H2JournalStorage implements JournalStorage {
     private void updateEventToKryo(final int id, final Event event) {
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
         Output kryodata = new Output(output);
-        kryov2.writeClassAndObject(kryodata, event);
+        kryo.writeClassAndObject(kryodata, event);
         kryodata.close();
         log.info("Updating {} to kryo data {}", id, event);
         LobHandler lobHandler = new DefaultLobHandler();

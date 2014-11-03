@@ -1,16 +1,8 @@
 package no.ks.eventstore2.eventstore;
 
-import java.io.ByteArrayOutputStream;
-import java.sql.Blob;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-
-import javax.sql.DataSource;
-
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 import no.ks.eventstore2.Event;
-
-import org.joda.time.DateTime;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.support.AbstractLobCreatingPreparedStatementCallback;
@@ -18,26 +10,21 @@ import org.springframework.jdbc.support.lob.DefaultLobHandler;
 import org.springframework.jdbc.support.lob.LobCreator;
 import org.springframework.jdbc.support.lob.LobHandler;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-import com.esotericsoftware.kryo.serializers.CompatibleFieldSerializer;
-import com.esotericsoftware.shaded.org.objenesis.strategy.SerializingInstantiatorStrategy;
+import javax.sql.DataSource;
+import java.io.ByteArrayOutputStream;
+import java.sql.Blob;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
-import de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer;
+public class MysqlJournalStorage extends AbstractJournalStorage {
 
-public class MysqlJournalStorage implements JournalStorage {
-
-	private JdbcTemplate template;
-	private Kryo kryov2;
+    private JdbcTemplate template;
 
 	public MysqlJournalStorage(DataSource dataSource) {
-		template = new JdbcTemplate(dataSource);
-		kryov2 = new Kryo();
-		kryov2.setInstantiatorStrategy(new SerializingInstantiatorStrategy());
-		kryov2.setDefaultSerializer(CompatibleFieldSerializer.class);
-		kryov2.register(DateTime.class, new JodaDateTimeSerializer());
-	}
+	    super();
+        template = new JdbcTemplate(dataSource);
+    }
 
 	@Override
 	public void saveEvent(final Event event) {
@@ -61,7 +48,7 @@ public class MysqlJournalStorage implements JournalStorage {
 				if (resultSet.getInt("dataversion") == 2) {
 					Blob blob = resultSet.getBlob("kryoeventdata");
 					Input input = new Input(blob.getBinaryStream());
-					Event event = (Event) kryov2.readClassAndObject(input);
+					Event event = (Event) kryo.readClassAndObject(input);
 					input.close();
 					event.setJournalid(resultSet.getBigDecimal("id").toPlainString());
 					handleEvent.handleEvent(event);
@@ -104,7 +91,7 @@ public class MysqlJournalStorage implements JournalStorage {
     protected ByteArrayOutputStream createByteArrayOutputStream(final Event event) {
 		final ByteArrayOutputStream output = new ByteArrayOutputStream();
 		Output kryodata = new Output(output);
-		kryov2.writeClassAndObject(kryodata, event);
+		kryo.writeClassAndObject(kryodata, event);
 		kryodata.close();
 		return output;
 	}

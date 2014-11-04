@@ -1,8 +1,9 @@
 package no.ks.eventstore2.eventstore;
 
 import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
 import no.ks.eventstore2.Event;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.support.AbstractLobCreatingPreparedStatementCallback;
@@ -19,10 +20,12 @@ import java.sql.SQLException;
 
 public class MysqlJournalStorage extends AbstractJournalStorage {
 
+    private static Logger log = LoggerFactory.getLogger(MysqlJournalStorage.class);
+
     private JdbcTemplate template;
 
-	public MysqlJournalStorage(DataSource dataSource) {
-	    super();
+	public MysqlJournalStorage(DataSource dataSource, KryoClassRegistration kryoClassRegistration) {
+	    super(kryoClassRegistration);
         template = new JdbcTemplate(dataSource);
     }
 
@@ -41,26 +44,27 @@ public class MysqlJournalStorage extends AbstractJournalStorage {
 		});
 	}
 
-	public boolean loadEventsAndHandle(String aggregate, final HandleEvent handleEvent) {
-		template.query("SELECT * FROM event WHERE aggregatetype = ? ORDER BY ID", new Object[]{aggregate}, new RowCallbackHandler() {
-			@Override
-			public void processRow(ResultSet resultSet) throws SQLException {
-				if (resultSet.getInt("dataversion") == 2) {
-					Blob blob = resultSet.getBlob("kryoeventdata");
-					Input input = new Input(blob.getBinaryStream());
-					Event event = (Event) kryo.readClassAndObject(input);
-					input.close();
-					event.setJournalid(resultSet.getBigDecimal("id").toPlainString());
-					handleEvent.handleEvent(event);
-				}
-			}
-		});
-		return true;
+	public boolean loadEventsAndHandle(String aggregateType, final HandleEvent handleEvent) {
+        return loadEventsAndHandle(aggregateType, handleEvent, "0");
 	}
 
 	@Override
-	public boolean loadEventsAndHandle(String aggregateType, HandleEvent handleEvent, String fromKey) {
-		return false;
+	public boolean loadEventsAndHandle(String aggregateType, final HandleEvent handleEvent, String fromKey) {
+        template.query("SELECT * FROM event WHERE aggregatetype = ? AND id >= ? ORDER BY id", new Object[]{aggregateType, Long.parseLong(fromKey)}, new RowCallbackHandler() {
+            @Override
+            public void processRow(ResultSet resultSet) throws SQLException {
+                log.info("resultset "+ resultSet);
+                if (resultSet.getInt("dataversion") == 2) {
+                    Blob blob = resultSet.getBlob("kryoeventdata");
+                    Input input = new Input(blob.getBinaryStream());
+                    Event event = (Event) getKryo().readClassAndObject(input);
+                    input.close();
+                    event.setJournalid(resultSet.getBigDecimal("id").toPlainString());
+                    handleEvent.handleEvent(event);
+                }
+            }
+        });
+        return true;
 	}
 
 	@Override
@@ -87,12 +91,4 @@ public class MysqlJournalStorage extends AbstractJournalStorage {
     public EventBatch loadEventsForAggregateId(String aggregateType, String aggregateId, String fromJournalId) {
         return null;
     }
-
-    protected ByteArrayOutputStream createByteArrayOutputStream(final Event event) {
-		final ByteArrayOutputStream output = new ByteArrayOutputStream();
-		Output kryodata = new Output(output);
-		kryo.writeClassAndObject(kryodata, event);
-		kryodata.close();
-		return output;
-	}
 }

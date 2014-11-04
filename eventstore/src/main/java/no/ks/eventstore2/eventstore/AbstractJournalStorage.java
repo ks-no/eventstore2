@@ -1,20 +1,18 @@
 package no.ks.eventstore2.eventstore;
 
 import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.serializers.CompatibleFieldSerializer;
-import com.esotericsoftware.shaded.org.objenesis.strategy.SerializingInstantiatorStrategy;
-import de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer;
+import com.esotericsoftware.kryo.io.Output;
 import no.ks.eventstore2.Event;
-import org.joda.time.DateTime;
+
+import java.io.ByteArrayOutputStream;
 
 public abstract class AbstractJournalStorage implements JournalStorage {
 
-    protected Kryo kryo = new Kryo();
+    private final ThreadLocal<Kryo> kryoThread = new ThreadLocal<>();
+    private KryoClassRegistration kryoClassRegistration;
 
-    public AbstractJournalStorage() {
-        kryo.setInstantiatorStrategy(new SerializingInstantiatorStrategy());
-        kryo.setDefaultSerializer(CompatibleFieldSerializer.class);
-        kryo.register(DateTime.class, new JodaDateTimeSerializer());
+    public AbstractJournalStorage(KryoClassRegistration kryoClassRegistration) {
+        this.kryoClassRegistration = kryoClassRegistration;
     }
 
     public abstract void saveEvent(Event event);
@@ -32,4 +30,21 @@ public abstract class AbstractJournalStorage implements JournalStorage {
     public abstract void doBackup(String backupDirectory, String backupfilename);
 
     public abstract EventBatch loadEventsForAggregateId(String aggregateType, String aggregateId, String fromJournalId);
+
+    protected ByteArrayOutputStream createByteArrayOutputStream(final Event event) {
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Output kryodata = new Output(output);
+        getKryo().writeClassAndObject(kryodata, event);
+        kryodata.close();
+        return output;
+    }
+
+    public Kryo getKryo(){
+        if(kryoThread.get() == null){
+            EventStoreKryo kryo = new EventStoreKryo();
+            kryoClassRegistration.registerClasses(kryo);
+            kryoThread.set(kryo);
+        }
+        return kryoThread.get();
+    }
 }

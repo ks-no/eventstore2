@@ -54,7 +54,7 @@ public class H2JournalStorage extends AbstractJournalStorage {
 
     @Override
     public boolean loadEventsAndHandle(String aggregateType, final HandleEvent handleEvent, String fromKey) {
-        template.query("SELECT * FROM event WHERE aggregatetype = ? and id >= ? ORDER BY id", new Object[]{aggregateType, Long.parseLong(fromKey)}, new RowCallbackHandler() {
+        template.query("SELECT * FROM event WHERE aggregatetype = ? AND id >= ? ORDER BY id", new Object[]{aggregateType, Long.parseLong(fromKey)}, new RowCallbackHandler() {
             @Override
             public void processRow(ResultSet resultSet) throws SQLException {
                 if (resultSet.getInt("dataversion") == 2) {

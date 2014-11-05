@@ -53,7 +53,6 @@ public class MysqlJournalStorage extends AbstractJournalStorage {
         template.query("SELECT * FROM event WHERE aggregatetype = ? AND id >= ? ORDER BY id", new Object[]{aggregateType, Long.parseLong(fromKey)}, new RowCallbackHandler() {
             @Override
             public void processRow(ResultSet resultSet) throws SQLException {
-                log.info("resultset "+ resultSet);
                 if (resultSet.getInt("dataversion") == 2) {
                     Blob blob = resultSet.getBlob("kryoeventdata");
                     Input input = new Input(blob.getBinaryStream());

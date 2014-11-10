@@ -1,13 +1,9 @@
 package no.ks.eventstore2.eventstore;
 
-import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-import com.esotericsoftware.kryo.serializers.CompatibleFieldSerializer;
-import com.esotericsoftware.shaded.org.objenesis.strategy.SerializingInstantiatorStrategy;
-import de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer;
 import no.ks.eventstore2.Event;
-import org.joda.time.DateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.support.AbstractLobCreatingPreparedStatementCallback;
@@ -24,18 +20,16 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
-public class MysqlJournalStorage implements JournalStorage {
+public class MysqlJournalStorage extends AbstractJournalStorage {
 
-	private JdbcTemplate template;
-	private Kryo kryov2;
+    private static Logger log = LoggerFactory.getLogger(MysqlJournalStorage.class);
 
-	public MysqlJournalStorage(DataSource dataSource) {
-		template = new JdbcTemplate(dataSource);
-		kryov2 = new Kryo();
-		kryov2.setInstantiatorStrategy(new SerializingInstantiatorStrategy());
-		kryov2.setDefaultSerializer(CompatibleFieldSerializer.class);
-		kryov2.register(DateTime.class, new JodaDateTimeSerializer());
-	}
+    private JdbcTemplate template;
+
+	public MysqlJournalStorage(DataSource dataSource, KryoClassRegistration kryoClassRegistration) {
+	    super(kryoClassRegistration);
+        template = new JdbcTemplate(dataSource);
+    }
 
     @Transactional
     @Override
@@ -45,7 +39,7 @@ public class MysqlJournalStorage implements JournalStorage {
         }
     }
 
-    @Override
+	@Override
 	public void saveEvent(final Event event) {
 		final ByteArrayOutputStream output = createByteArrayOutputStream(event);
 		LobHandler lobHandler = new DefaultLobHandler();
@@ -60,26 +54,26 @@ public class MysqlJournalStorage implements JournalStorage {
 		});
 	}
 
-	public boolean loadEventsAndHandle(String aggregate, final HandleEvent handleEvent) {
-		template.query("SELECT * FROM event WHERE aggregatetype = ? ORDER BY ID", new Object[]{aggregate}, new RowCallbackHandler() {
-			@Override
-			public void processRow(ResultSet resultSet) throws SQLException {
-				if (resultSet.getInt("dataversion") == 2) {
-					Blob blob = resultSet.getBlob("kryoeventdata");
-					Input input = new Input(blob.getBinaryStream());
-					Event event = (Event) kryov2.readClassAndObject(input);
-					input.close();
-					event.setJournalid(resultSet.getBigDecimal("id").toPlainString());
-					handleEvent.handleEvent(event);
-				}
-			}
-		});
-		return true;
+	public boolean loadEventsAndHandle(String aggregateType, final HandleEvent handleEvent) {
+        return loadEventsAndHandle(aggregateType, handleEvent, "0");
 	}
 
 	@Override
-	public boolean loadEventsAndHandle(String aggregateType, HandleEvent handleEvent, String fromKey) {
-		return false;
+	public boolean loadEventsAndHandle(String aggregateType, final HandleEvent handleEvent, String fromKey) {
+        template.query("SELECT * FROM event WHERE aggregatetype = ? AND id >= ? ORDER BY id", new Object[]{aggregateType, Long.parseLong(fromKey)}, new RowCallbackHandler() {
+            @Override
+            public void processRow(ResultSet resultSet) throws SQLException {
+                if (resultSet.getInt("dataversion") == 2) {
+                    Blob blob = resultSet.getBlob("kryoeventdata");
+                    Input input = new Input(blob.getBinaryStream());
+                    Event event = (Event) getKryo().readClassAndObject(input);
+                    input.close();
+                    event.setJournalid(resultSet.getBigDecimal("id").toPlainString());
+                    handleEvent.handleEvent(event);
+                }
+            }
+        });
+        return true;
 	}
 
 	@Override
@@ -106,12 +100,4 @@ public class MysqlJournalStorage implements JournalStorage {
     public EventBatch loadEventsForAggregateId(String aggregateType, String aggregateId, String fromJournalId) {
         return null;
     }
-
-    protected ByteArrayOutputStream createByteArrayOutputStream(final Event event) {
-		final ByteArrayOutputStream output = new ByteArrayOutputStream();
-		Output kryodata = new Output(output);
-		kryov2.writeClassAndObject(kryodata, event);
-		kryodata.close();
-		return output;
-	}
 }

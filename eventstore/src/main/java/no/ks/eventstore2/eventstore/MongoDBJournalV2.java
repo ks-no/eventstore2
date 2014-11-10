@@ -149,7 +149,7 @@ public class MongoDBJournalV2 implements JournalStorage {
                 collection.insert(dbObjectArrayList);
                 return null;
             }
-        }, 3, 500);
+        }, 0, 500);
 
     }
 

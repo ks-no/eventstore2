@@ -15,7 +15,7 @@ public class MongoDbOperations {
         boolean finished = false;
         int retrycount = 0;
         Exception exception = null;
-        while (!finished && retrycount < retries) {
+        while (!finished && retrycount <= retries) {
             try {
                 retrycount++;
                 if (retrycount > 1)

@@ -1,5 +1,10 @@
 package no.ks.eventstore2.eventstore;
 
+import akka.actor.Actor;
+import akka.actor.ActorRef;
+import akka.actor.PoisonPill;
+import akka.actor.Props;
+import akka.testkit.TestActorRef;
 import com.esotericsoftware.kryo.Kryo;
 import com.mongodb.*;
 import no.ks.eventstore2.Event;
@@ -7,6 +12,8 @@ import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import scala.concurrent.Await;
+import scala.concurrent.duration.Duration;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,6 +22,7 @@ import java.util.UUID;
 import java.util.concurrent.*;
 
 import static org.junit.Assert.*;
+import static akka.pattern.Patterns.ask;
 
 public class MongoDBJournalv2Test extends MongoDbEventstore2TestKit {
 
@@ -56,6 +64,26 @@ public class MongoDBJournalv2Test extends MongoDbEventstore2TestKit {
     }
 
     @Test
+    public void testTwoEventsWithoutVersion() throws Exception {
+        final ArrayList<Event> events = new ArrayList<>();
+        final AggEvent agg1 = new AggEvent("1", "agg1");
+        agg1.setVersion(-1);
+        final AggEvent agg2 = new AggEvent("1", "agg1");
+        agg2.setVersion(-1);
+        events.add(agg1);
+        events.add(agg2);
+        journal.saveEvents(events);
+        events.clear();
+        final AggEvent agg3 = new AggEvent("1", "agg1");
+        agg3.setVersion(-1);
+        final AggEvent agg4 = new AggEvent("1", "agg1");
+        agg4.setVersion(-1);
+        events.add(agg3);
+        events.add(agg4);
+        journal.saveEvents(events);
+    }
+
+    @Test
     public void testSaveAndReceiveEventsFromKey() throws Exception {
         journal.saveEvent(new AggEvent("agg3"));
         journal.saveEvent(new AggEvent("agg3"));
@@ -93,22 +121,6 @@ public class MongoDBJournalv2Test extends MongoDbEventstore2TestKit {
     }
 
     @Test
-    public void testUpgradeIsOK() throws Exception {
-        MongoDBJournal journal1 = new MongoDBJournal(mongoClient.getDB("test1"), kryoClassRegistration, Arrays.asList(new String[]{"agg1"}));
-        journal1.saveEvent(new AggEvent("agg4"));
-
-        MongoDBJournal journal2 = new MongoDBJournal(mongoClient.getDB("test2"), kryoClassRegistration, Arrays.asList(new String[]{"agg1"}));
-        journal2.upgradeFromOldStorage("agg4", journal1);
-
-        ArrayList<Event> events = getEvents(journal2, "agg4");
-        assertEquals(1, events.size());
-
-        journal2.upgradeFromOldStorage("agg4", journal1);
-        events = getEvents(journal2, "agg4");
-        assertEquals(1, events.size());
-    }
-
-    @Test
     public void testPartialRead() throws Exception {
         String aggregateType = "agg2";
         for (int i = 0; i < 11; i++) {
@@ -135,24 +147,6 @@ public class MongoDBJournalv2Test extends MongoDbEventstore2TestKit {
 
     }
 
-    @Test
-    public void testUpgrade_25_events() throws Exception {
-        for (int i = 0; i < 25; i++) {
-            journal.saveEvent(new AggEvent("agg2"));
-        }
-        MongoDBJournal journal2 = new MongoDBJournal(mongoClient.getDB("events"), kryoClassRegistration, Arrays.asList(new String[]{"id"}));
-        journal2.upgradeFromOldStorage("agg2", journal);
-        final ArrayList<Event> results = new ArrayList<Event>();
-        while (!journal2.loadEventsAndHandle("agg2", new HandleEvent() {
-            @Override
-            public void handleEvent(Event event) {
-                results.add(event);
-            }
-        })) {
-        }
-        ;
-        assertEquals(25, results.size());
-    }
 
     @Test
     public void testWritingSameVersionShouldFail() throws Exception {
@@ -246,5 +240,69 @@ public class MongoDBJournalv2Test extends MongoDbEventstore2TestKit {
         eventBatch = journal.loadEventsForAggregateId("agg1", "1_id1", null);
         assertEquals(2, eventBatch.getEvents().size());
         assertEquals(1, eventBatch.getEvents().get(1).getVersion());
+    }
+
+    @Test
+    public void testUpgrade() throws Exception {
+        final MongoDBJournal journalv1 = new MongoDBJournal(mongoClient.getDB("Journalv1"), kryoClassRegistration, Arrays.asList(new String[]{"agg1", "agg3", "agg2"}), 10);
+
+        for(int i = 0; i<100; i++){
+            journalv1.saveEvent(new AggEvent("" + i, "agg1"));
+        }
+        journal.upgradeFromOldStorage("agg1", journalv1);
+
+        for(int i = 100; i<200; i++){
+            journal.saveEvent(new AggEvent("" + i, "agg1"));
+        }
+        assertEquals(1,journalv1.loadEventsForAggregateId("agg1", "99", "0").getEvents().size());
+        assertEquals(0,journalv1.loadEventsForAggregateId("agg1", "100", "0").getEvents().size());
+        assertEquals(1,journal.loadEventsForAggregateId("agg1", "100", "0").getEvents().size());
+
+
+    }
+
+    @Test
+    public void testUpgradeAsyncWithEventStore() throws Exception {
+        final MongoDBJournal journalv1 = new MongoDBJournal(mongoClient.getDB("Journalv1"), kryoClassRegistration, Arrays.asList(new String[]{"agg1", "agg3", "agg2"}), 10);
+
+        ActorRef eventStore = _system.actorOf(EventStore.mkProps(journal));
+        for(int i = 0; i<20; i++){
+            eventStore.tell(new AggEvent("" + i, "agg1"), super.testActor());
+        }
+        Await.result(ask(eventStore, new AcknowledgePreviousEventsProcessed(), 3000), Duration.create("3 seconds"));
+
+
+        eventStore = _system.actorOf(EventStore.mkProps(journal));
+        eventStore.tell(new UpgradeAggregate(journalv1,"agg1"), super.testActor());
+
+        for(int i = 20; i<40; i++){
+            eventStore.tell(new AggEvent("" + i, "agg1"), super.testActor());
+        }
+        Await.result(ask(eventStore, new AcknowledgePreviousEventsProcessed(), 3000), Duration.create("3 seconds"));
+
+        journal.loadEventsAndHandle("agg1", new HandleEvent() {
+            @Override
+            public void handleEvent(Event event) {
+                System.out.println(event);
+            }
+        }, "-1", 1000);
+
+
+        for (int i = 0; i < 40; i++) {
+            assertEvent("" + i);
+        }
+
+    }
+
+    private void assertEvent(String aggregateId) {
+        final List<Event> events = journal.loadEventsForAggregateId("agg1", aggregateId, "0").getEvents();
+        try {
+            assertEquals(1, events.size());
+            assertEquals("" + (Integer.parseInt(aggregateId) +1), events.get(0).getJournalid());
+        } catch (AssertionError e){
+            System.out.println("failed on " + aggregateId);
+            throw e;
+        }
+
     }
 }

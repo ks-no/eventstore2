@@ -33,6 +33,7 @@ public class MongoDBJournalV2 implements JournalStorage {
     private int eventReadLimit = 5000;
     private Logger log = LoggerFactory.getLogger(MongoDBJournalV2.class);
 
+
     public MongoDBJournalV2(DB db, KryoClassRegistration registration, List<String> aggregates, int eventReadLimit) {
         this(db, registration, aggregates);
         this.eventReadLimit = eventReadLimit;
@@ -42,6 +43,8 @@ public class MongoDBJournalV2 implements JournalStorage {
         this.db = db;
         this.registration = registration;
         this.aggregates = new HashSet<>(aggregates);
+        metaCollection = db.getCollection("journalMetadata");
+        metaCollection.setWriteConcern(WriteConcern.SAFE);
         db.setWriteConcern(WriteConcern.SAFE);
         for (String aggregate : aggregates) {
             db.getCollection(aggregate).createIndex(new BasicDBObject("jid",1),new BasicDBObject("unique",true));
@@ -49,8 +52,7 @@ public class MongoDBJournalV2 implements JournalStorage {
             db.getCollection(aggregate).createIndex(new BasicDBObject("rid",1).append("v",1),new BasicDBObject("unique",true));
             db.getCollection(aggregate).setWriteConcern(WriteConcern.SAFE);
         }
-        metaCollection = db.getCollection("journalMetadata");
-        metaCollection.setWriteConcern(WriteConcern.SAFE);
+
         counters = db.getCollection("counters");
 
     }
@@ -123,7 +125,7 @@ public class MongoDBJournalV2 implements JournalStorage {
 
         final List<DBObject> dbObjectArrayList = new ArrayList<DBObject>();
         int maxJournalId = getNextValueInSeq("journalid", events.size());
-        int jid = maxJournalId - events.size();
+        int jid = (maxJournalId - events.size())+1;
         final HashMap<String, Integer> versions_for_aggregates = new HashMap<String, Integer>();
         for (Event event : events) {
             event.setJournalid(String.valueOf(jid));
@@ -137,7 +139,7 @@ public class MongoDBJournalV2 implements JournalStorage {
                     event.setVersion(getNextVersion(collection, event));
                     versions_for_aggregates.put(event.getAggregateRootId(), event.getVersion());
                 }
-
+            log.debug("Saving event " + event);
             }
             dbObjectArrayList.add(getEventDBObject(event, jid));
             jid++;
@@ -146,12 +148,14 @@ public class MongoDBJournalV2 implements JournalStorage {
         MongoDbOperations.doDbOperation(new Callable<Object>() {
             @Override
             public Object call() throws Exception {
+                log.debug("Saving " + dbObjectArrayList);
                 collection.insert(dbObjectArrayList);
                 return null;
             }
         }, 0, 500);
 
     }
+
 
     private int getNextValueInSeq(final String counterName, final int numbers) {
         return MongoDbOperations.doDbOperation(new Callable<Integer>() {
@@ -173,7 +177,7 @@ public class MongoDBJournalV2 implements JournalStorage {
         return loadEventsAndHandle(aggregateType, handleEvent, fromKey, eventReadLimit);
     }
 
-    private boolean loadEventsAndHandle(final String aggregateType, HandleEvent handleEvent, String fromKey, final int readlimit) {
+    boolean loadEventsAndHandle(final String aggregateType, HandleEvent handleEvent, String fromKey, final int readlimit) {
         final BasicDBObject query = new BasicDBObject("jid", new BasicDBObject("$gt", Long.parseLong(fromKey)));
         final DBCursor dbObjects = MongoDbOperations.doDbOperation(new Callable<DBCursor>() {
             @Override
@@ -230,25 +234,22 @@ public class MongoDBJournalV2 implements JournalStorage {
             @Override
             public void handleEvent(Event event) {
                 events.add(event);
-                if (events.size() > eventReadLimit) {
-                    log.info("Events reached {}, saving away", eventReadLimit);
-                    saveEvents(events);
-                    events.clear();
-                }
             }
         };
-        done = oldStorage.loadEventsAndHandle(aggregateType, handleEvent);
-        while (!done) {
-            String lastJournalID = events.get(events.size() - 1).getJournalid();
-            log.info("saving to lastJournalId {}", lastJournalID);
-            saveEvents(events);
+        String lastJournalID = "0";
+        do  {
             events.clear();
             done = oldStorage.loadEventsAndHandle(aggregateType, handleEvent, lastJournalID);
+            if(events.size()> 0) {
+                lastJournalID = events.get(events.size() - 1).getJournalid();
+                log.info("saving to lastJournalId {}", lastJournalID);
+                saveEvents(events);
+            }
 
-        }
-        saveEvents(events);
-        events.clear();
+        } while(!done);
+
         metaCollection.save(new BasicDBObject("_id", "upgrade_" + aggregateType).append("version", dataversion));
+        events.clear();
     }
 
     @Override

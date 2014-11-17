@@ -166,7 +166,9 @@ public class MongoDBJournal implements JournalStorage {
                         return dbObjects.next();
                     }
                 });
-                handleEvent.handleEvent(deSerialize((byte[]) next.get("d")));
+                final Event event = deSerialize((byte[]) next.get("d"));
+                event.setVersion(-1);
+                handleEvent.handleEvent(event);
                 i++;
             }
         } finally {

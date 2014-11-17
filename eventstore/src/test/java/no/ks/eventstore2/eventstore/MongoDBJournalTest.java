@@ -141,7 +141,7 @@ public class MongoDBJournalTest extends MongoDbEventstore2TestKit{
             journal.saveEvent(new AggEvent("id2"));
         }
         MongoDBJournal journal2 = new MongoDBJournal(mongoClient.getDB("events"), kryoClassRegistration, Arrays.asList(new String[]{"id"}));
-        journal2.upgradeFromOldStorage("id2",journal);
+        journal2.upgradeFromOldStorage("id2", journal);
         final ArrayList<Event> results = new ArrayList<Event>();
         while(!journal2.loadEventsAndHandle("id2", new HandleEvent() {
             @Override

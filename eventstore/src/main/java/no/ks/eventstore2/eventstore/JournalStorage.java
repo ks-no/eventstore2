@@ -28,7 +28,7 @@ public interface JournalStorage {
     void open();
     void close();
 
-    void upgradeFromOldStorage(String aggregateType, JournalStorage oldStorage);
+    void upgradeFromOldStorage(String aggregateType, JournalStorage storage);
 
     /**
      *

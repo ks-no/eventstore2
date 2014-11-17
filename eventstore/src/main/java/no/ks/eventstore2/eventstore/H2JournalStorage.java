@@ -87,8 +87,13 @@ public class H2JournalStorage extends AbstractJournalStorage {
     }
 
     @Override
-    public void upgradeFromOldStorage(String aggregateType, JournalStorage oldStorage) {
+    public void upgradeFromOldStorage(String aggregateType) {
         throw new RuntimeException("NotImplemented");
+    }
+
+    @Override
+    public void upgradeFromOldStorage(String aggregateType, JournalStorage storage) {
+
     }
 
     @Override

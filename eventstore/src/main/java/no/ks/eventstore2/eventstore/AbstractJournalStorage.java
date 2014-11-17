@@ -25,7 +25,7 @@ public abstract class AbstractJournalStorage implements JournalStorage {
 
     public abstract void close();
 
-    public abstract void upgradeFromOldStorage(String aggregateType, JournalStorage oldStorage);
+    public abstract void upgradeFromOldStorage(String aggregateType);
 
     public abstract void doBackup(String backupDirectory, String backupfilename);
 

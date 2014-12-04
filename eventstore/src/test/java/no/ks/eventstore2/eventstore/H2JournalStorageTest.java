@@ -11,6 +11,8 @@ import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 import javax.sql.DataSource;
 import java.io.File;
 
+import static org.junit.Assert.assertTrue;
+
 public class H2JournalStorageTest {
 
     private H2JournalStorage h2JournalStorage;
@@ -37,6 +39,7 @@ public class H2JournalStorageTest {
             }
             finished = h2JournalStorage.loadEventsAndHandle(aggregateType, createHandleEvent(), fromKey);
         }
+        assertTrue(finished);
     }
 
     private HandleEvent createHandleEvent() {

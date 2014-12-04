@@ -37,7 +37,7 @@ public abstract class AbstractJournalStorage implements JournalStorage {
 
     @Override
     public boolean loadEventsAndHandle(String aggregateType, final HandleEvent handleEvent, String fromKey) {
-        Integer count = template.query("SELECT * FROM event WHERE aggregatetype = ? AND id >= ? ORDER BY id LIMIT ?", new Object[]{aggregateType, Long.parseLong(fromKey), READ_LIMIT}, new ResultSetExtractor<Integer>() {
+        Integer count = template.query("SELECT * FROM event WHERE aggregatetype = ? AND id >= ? ORDER BY id LIMIT ?", new Object[]{aggregateType, Long.parseLong(fromKey)+1, READ_LIMIT}, new ResultSetExtractor<Integer>() {
             @Override
             public Integer extractData(ResultSet resultSet) throws SQLException {
                 int count = 0;

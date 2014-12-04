@@ -2,14 +2,12 @@ package no.ks.eventstore2.eventstore;
 
 import com.esotericsoftware.kryo.Kryo;
 import no.ks.eventstore2.Event;
-import org.apache.commons.io.FileUtils;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
-
-import javax.sql.DataSource;
-import java.io.File;
 
 import static org.junit.Assert.assertTrue;
 
@@ -17,16 +15,21 @@ public class H2JournalStorageTest {
 
     private H2JournalStorage h2JournalStorage;
     private String aggregateType = "aggregateType";
+    private EmbeddedDatabase dataSource;
     private Event lastEvent;
 
     @Before
     public void setUp() throws Exception {
-        FileUtils.deleteDirectory(new File("target/h2journal"));
-        DataSource dataSource = new EmbeddedDatabaseBuilder().setType(EmbeddedDatabaseType.H2).addScript("schema.sql").build();
+        dataSource = new EmbeddedDatabaseBuilder().setType(EmbeddedDatabaseType.H2).addScript("schema.sql").build();
         h2JournalStorage = new H2JournalStorage(dataSource, createKryoClassRegistration());
         for(int i=0; i < 2035; i++) {
             h2JournalStorage.saveEvent(new AggEvent("id_" + i, aggregateType));
         }
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        dataSource.shutdown();
     }
 
     @Test

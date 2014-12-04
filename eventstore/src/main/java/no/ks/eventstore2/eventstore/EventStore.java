@@ -195,13 +195,13 @@ public class EventStore extends UntypedActor {
         if(subscription instanceof AsyncSubscription){
             Future<Boolean> f = future(new Callable<Boolean>() {
                 public Boolean call() {
-                    log.info("Got asyncsubscription on {} from {}, filling subscriptions", subscription, sender.path());
+                    log.info("Got async subscription on {} from {}, filling subscriptions", subscription, sender);
                     boolean finished = loadEvents(sender, subscription);
                     if (!finished) {
-                        log.info("Subscription {} not Complete {} should ask for more", subscription, sender);
+                        log.info("Async IncompleteSubscriptionPleaseSendNew");
                         sender.tell(new IncompleteSubscriptionPleaseSendNew(subscription.getAggregateType()), self);
                     } else {
-                        log.info("Asyncsubscription {} from {} filled.", subscription, sender);
+                        log.info("Async CompleteAsyncSubscriptionPleaseSendSyncSubscription");
                         sender.tell(new CompleteAsyncSubscriptionPleaseSendSyncSubscription(subscription.getAggregateType()), self);
                     }
                     return finished;
@@ -213,15 +213,14 @@ public class EventStore extends UntypedActor {
                 }
             }, getContext().system().dispatcher());
         } else {
-            log.info("Got subscription on {} from {}, filling subscriptions", subscription, sender.path());
+            log.info("Got subscription on {} from {}, filling subscriptions", subscription, sender);
             boolean finished = loadEvents(sender, subscription);
             if (!finished) {
-                log.info("Subscription {} not Complete {} should ask for more", subscription, sender);
+                log.info("IncompleteSubscriptionPleaseSendNew");
                 sender.tell(new IncompleteSubscriptionPleaseSendNew(subscription.getAggregateType()), self());
-                return;
             } else {
                 if (leaderInfo.isLeader()) {
-                    log.info("Subscription {} from {} filled.", subscription, sender);
+                    log.info("CompleteSubscriptionRegistered");
                     sender.tell(new CompleteSubscriptionRegistered(subscription.getAggregateType()), self());
                     addSubscriber(subscription);
                 } else {

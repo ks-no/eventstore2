@@ -1,11 +1,8 @@
 package no.ks.eventstore2.eventstore;
 
-import com.esotericsoftware.kryo.io.Input;
 import no.ks.eventstore2.Event;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.support.AbstractLobCreatingPreparedStatementCallback;
 import org.springframework.jdbc.support.lob.DefaultLobHandler;
 import org.springframework.jdbc.support.lob.LobCreator;
@@ -14,20 +11,15 @@ import org.springframework.jdbc.support.lob.LobHandler;
 import javax.sql.DataSource;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
-import java.sql.Blob;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public class H2JournalStorage extends AbstractJournalStorage {
 
     private static Logger log = LoggerFactory.getLogger(H2JournalStorage.class);
 
-    private JdbcTemplate template;
-
     public H2JournalStorage(DataSource dataSource, KryoClassRegistration kryoClassRegistration) {
-        super(kryoClassRegistration);
-        template = new JdbcTemplate(dataSource);
+        super(dataSource, kryoClassRegistration);
     }
 
     public void saveEvent(final Event event) {
@@ -46,28 +38,6 @@ public class H2JournalStorage extends AbstractJournalStorage {
                     }
                 }
         );
-    }
-
-    public boolean loadEventsAndHandle(String aggregateType, final HandleEvent handleEvent) {
-        return loadEventsAndHandle(aggregateType, handleEvent, "0");
-    }
-
-    @Override
-    public boolean loadEventsAndHandle(String aggregateType, final HandleEvent handleEvent, String fromKey) {
-        template.query("SELECT * FROM event WHERE aggregatetype = ? AND id >= ? ORDER BY id", new Object[]{aggregateType, Long.parseLong(fromKey)}, new RowCallbackHandler() {
-            @Override
-            public void processRow(ResultSet resultSet) throws SQLException {
-                if (resultSet.getInt("dataversion") == 2) {
-                    Blob blob = resultSet.getBlob("kryoeventdata");
-                    Input input = new Input(blob.getBinaryStream());
-                    Event event = (Event) getKryo().readClassAndObject(input);
-                    input.close();
-                    event.setJournalid(resultSet.getBigDecimal("id").toPlainString());
-                    handleEvent.handleEvent(event);
-                }
-            }
-        });
-        return true;
     }
 
     @Override

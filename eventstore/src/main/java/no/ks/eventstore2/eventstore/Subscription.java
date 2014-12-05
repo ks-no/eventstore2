@@ -36,7 +36,10 @@ public class Subscription implements Serializable{
 
     @Override
     public String toString() {
-        return "Subscription on aggregate '" + aggregateType + "' from journal '" + fromJournalId + "'";
+        return "Subscription{" +
+                "aggregateType='" + aggregateType + '\'' +
+                ", fromJournalId='" + fromJournalId + '\'' +
+                '}';
     }
 
     @Override

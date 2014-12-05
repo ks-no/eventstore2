@@ -1,14 +1,13 @@
 package no.ks.eventstore2.projection;
 
+import no.ks.eventstore2.Event;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.lang.Exception;import java.lang.StackTraceElement;import java.lang.String;import java.lang.Throwable;import java.text.SimpleDateFormat;
-
-import no.ks.eventstore2.Event;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.text.SimpleDateFormat;
 
 public class ProjectionError {
 
@@ -27,7 +26,7 @@ public class ProjectionError {
             try {
                 this.date = format.format(((Event) error.getMessage()).getCreated().toDate());
             } catch (Exception e) {
-                log.warn("Kunne ikke formatere created dato", e);
+                log.warn("Could not format created date", e);
             }
         }
         reason = joinStackTrace(error.getReason());
@@ -76,7 +75,7 @@ public class ProjectionError {
                 try {
                     writer.close();
                 } catch (IOException e1) {
-                    log.warn("Kunne ikke close writer", e);
+                    log.warn("Could not close close writer", e);
                 }
             }
         }
@@ -97,7 +96,7 @@ public class ProjectionError {
 
                 e = e.getCause();
                 if (e != null) {
-                    printer.println("\r\n Caused by:");
+                    printer.println("\r\n Caused by:" + e);
                 }
             }
         } finally {

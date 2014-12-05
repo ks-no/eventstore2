@@ -3,11 +3,8 @@ package no.ks.eventstore2.projection;
 import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
 import no.ks.eventstore2.ask.Asker;
-import no.ks.eventstore2.projection.Call;
-import no.ks.eventstore2.projection.ProjectionFailedError;
-import no.nb.mksystem.common.utils.Timeout;import no.nb.mksystem.config.ProjectionError;
 
-import java.lang.Exception;import java.lang.Object;import java.lang.Override;import java.lang.RuntimeException;import java.util.ArrayList;
+import java.util.ArrayList;
 import java.util.List;
 
 public class ProjectionErrorListener extends UntypedActor {
@@ -34,7 +31,7 @@ public class ProjectionErrorListener extends UntypedActor {
 
     public static List<ProjectionError> askErrors(ActorRef projectionErrorListener) {
         try {
-            return Asker.askProjection(projectionErrorListener, "getErrors", Timeout.THREE_SECONDS).list(ProjectionError.class);
+            return Asker.askProjection(projectionErrorListener, "getErrors").list(ProjectionError.class);
         } catch (Exception e) {
             throw new RuntimeException("Kunne ikke hente feil fra projectionErrorListener", e);
         }

@@ -22,7 +22,7 @@ public class H2JournalStorageTest {
     public void setUp() throws Exception {
         dataSource = new EmbeddedDatabaseBuilder().setType(EmbeddedDatabaseType.H2).addScript("schema.sql").build();
         h2JournalStorage = new H2JournalStorage(dataSource, createKryoClassRegistration());
-        for(int i=0; i < 2035; i++) {
+        for(int i=0; i < 20350; i++) {
             h2JournalStorage.saveEvent(new AggEvent("id_" + i, aggregateType));
         }
     }

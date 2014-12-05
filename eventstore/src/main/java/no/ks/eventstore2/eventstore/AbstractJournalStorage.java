@@ -22,7 +22,7 @@ public abstract class AbstractJournalStorage implements JournalStorage {
     private final ThreadLocal<Kryo> kryoThread = new ThreadLocal<>();
     private KryoClassRegistration kryoClassRegistration;
     protected JdbcTemplate template;
-    private static final int READ_LIMIT = 1000;
+    private static final int READ_LIMIT = 5000;
 
     public AbstractJournalStorage(DataSource dataSource, KryoClassRegistration kryoClassRegistration) {
         this.kryoClassRegistration = kryoClassRegistration;
@@ -37,7 +37,7 @@ public abstract class AbstractJournalStorage implements JournalStorage {
 
     @Override
     public boolean loadEventsAndHandle(String aggregateType, final HandleEvent handleEvent, String fromKey) {
-        Integer count = template.query("SELECT * FROM event WHERE aggregatetype = ? AND id >= ? ORDER BY id LIMIT ?", new Object[]{aggregateType, Long.parseLong(fromKey)+1, READ_LIMIT}, new ResultSetExtractor<Integer>() {
+        Integer count = template.query("SELECT * FROM event WHERE aggregatetype = ? AND id > ? ORDER BY id LIMIT ?", new Object[]{aggregateType, Long.parseLong(fromKey), READ_LIMIT}, new ResultSetExtractor<Integer>() {
             @Override
             public Integer extractData(ResultSet resultSet) throws SQLException {
                 int count = 0;

@@ -1,12 +1,12 @@
 package no.ks.eventstore2.testkit;
 
-import java.lang.Exception;import java.lang.Object;import java.lang.Override;import java.util.ArrayList;
-import java.util.List;
-
+import akka.actor.UntypedActor;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.eventstore.AcknowledgePreviousEventsProcessed;
 import no.ks.eventstore2.response.Success;
-import akka.actor.UntypedActor;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class EventReceiver extends UntypedActor {
     public List<Event> receivedEvents = new ArrayList<Event>();

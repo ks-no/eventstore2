@@ -86,7 +86,7 @@ public class MongoDBJournalV2 implements JournalStorage {
     public void saveEvent(final Event event) {
         if(!aggregates.contains(event.getAggregateType())) throw new RuntimeException("Aggregate " + event.getAggregateType() + " not registered");
         final DBCollection collection = db.getCollection(event.getAggregateType());
-        final int journalid = getNextValueInSeq("journalid", 1);
+        final int journalid = getNextValueInSeq("journalid_" + event.getAggregateType(), 1);
         event.setJournalid(String.valueOf(journalid));
         // if version is not set, find the next one
         if(event.getVersion()  == -1){
@@ -124,7 +124,7 @@ public class MongoDBJournalV2 implements JournalStorage {
         final DBCollection collection = db.getCollection(agg);
 
         final List<DBObject> dbObjectArrayList = new ArrayList<DBObject>();
-        int maxJournalId = getNextValueInSeq("journalid", events.size());
+        int maxJournalId = getNextValueInSeq("journalid_" + agg, events.size());
         int jid = (maxJournalId - events.size())+1;
         final HashMap<String, Integer> versions_for_aggregates = new HashMap<String, Integer>();
         for (Event event : events) {

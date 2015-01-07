@@ -10,7 +10,6 @@ import org.springframework.jdbc.core.support.AbstractLobCreatingPreparedStatemen
 import org.springframework.jdbc.support.lob.DefaultLobHandler;
 import org.springframework.jdbc.support.lob.LobCreator;
 import org.springframework.jdbc.support.lob.LobHandler;
-import org.springframework.transaction.annotation.Transactional;
 
 import javax.sql.DataSource;
 import java.io.ByteArrayOutputStream;
@@ -18,7 +17,6 @@ import java.sql.Blob;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.List;
 
 public class MysqlJournalStorage extends AbstractJournalStorage {
 
@@ -29,14 +27,6 @@ public class MysqlJournalStorage extends AbstractJournalStorage {
 	public MysqlJournalStorage(DataSource dataSource, KryoClassRegistration kryoClassRegistration) {
 	    super(kryoClassRegistration);
         template = new JdbcTemplate(dataSource);
-    }
-
-    @Transactional
-    @Override
-    public void saveEvents(List<? extends Event> events) {
-        for (Event event : events) {
-            saveEvent(event);
-        }
     }
 
 	@Override

@@ -12,7 +12,7 @@ EventStore2 is a framework for creating event sourced applications in Java. It f
 <dependency>
   <groupId>no.ks</groupId>
   <artifactId>eventstore2</artifactId>
-  <version>2.3.2</version>
+  <version>2.3.3</version>
 </dependency>
 ```
 You can easily get started implementing your own event sourced application using [maven-archetype-eventsourcing](https://github.com/bouvet-openlab/maven-archetype-eventsourcing/).

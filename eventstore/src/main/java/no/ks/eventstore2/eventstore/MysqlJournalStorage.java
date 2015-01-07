@@ -4,7 +4,6 @@ import com.esotericsoftware.kryo.io.Input;
 import no.ks.eventstore2.Event;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.support.AbstractLobCreatingPreparedStatementCallback;
 import org.springframework.jdbc.support.lob.DefaultLobHandler;
@@ -17,16 +16,14 @@ import java.sql.Blob;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 
 public class MysqlJournalStorage extends AbstractJournalStorage {
 
     private static Logger log = LoggerFactory.getLogger(MysqlJournalStorage.class);
 
-    private JdbcTemplate template;
-
 	public MysqlJournalStorage(DataSource dataSource, KryoClassRegistration kryoClassRegistration) {
-	    super(kryoClassRegistration);
-        template = new JdbcTemplate(dataSource);
+	    super(dataSource,kryoClassRegistration);
     }
 
 	@Override
@@ -91,8 +88,15 @@ public class MysqlJournalStorage extends AbstractJournalStorage {
 
 	}
 
-    @Override
-    public EventBatch loadEventsForAggregateId(String aggregateType, String aggregateId, String fromJournalId) {
-        return null;
-    }
+	@Override
+	public EventBatch loadEventsForAggregateId(String aggregateType, String aggregateId, String fromJournalId) {
+		return null;
+	}
+
+	@Override
+	public void saveEvents(List<? extends Event> events) {
+
+	}
+
+
 }

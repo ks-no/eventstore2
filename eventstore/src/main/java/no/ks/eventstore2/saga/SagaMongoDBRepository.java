@@ -12,29 +12,31 @@ public class SagaMongoDBRepository extends SagaRepository{
 
     public SagaMongoDBRepository(DB db) {
         states = db.getCollection("states");
-        states.ensureIndex(new BasicDBObject("clz",1).append("sid",1));
+        states.createIndex(new BasicDBObject("clz", 1).append("sid", 1));
         states.setWriteConcern(WriteConcern.JOURNAL_SAFE);
         journalid = db.getCollection("journalid");
         journalid.setWriteConcern(WriteConcern.JOURNAL_SAFE);
     }
 
     @Override
-    public void saveState(final Class<? extends Saga> clz, final String sagaid, final byte state) {
+    public void saveState(final String sagaStateId, final String sagaid, final byte state) {
         MongoDbOperations.doDbOperation(new Callable<Object>() {
             @Override
             public Object call() throws Exception {
-                states.update(new BasicDBObject("clz", clz.getName()).append("sid", sagaid), new BasicDBObject("clz", clz.getName()).append("sid", sagaid).append("s", state), true, false);
+                states.update(new BasicDBObject("clz", sagaStateId).append("sid", sagaid), new BasicDBObject("clz", sagaStateId).append("sid", sagaid).append("s", state), true, false);
                 return null;
             }
         });
     }
 
     @Override
-    public byte getState(final Class<? extends Saga> clz, final String sagaid) {
+    public byte getState(final String sagaStateId, final String sagaid) {
+
         final DBCursor cursor = MongoDbOperations.doDbOperation(new Callable<DBCursor>() {
             @Override
             public DBCursor call() throws Exception {
-                return states.find(new BasicDBObject("clz", clz.getName()).append("sid", sagaid)).limit(1);
+
+                return states.find(new BasicDBObject("clz", sagaStateId).append("sid", sagaid)).limit(1);
             }
         });
         if(MongoDbOperations.doDbOperation(new Callable<Boolean>() {
@@ -118,7 +120,7 @@ public class SagaMongoDBRepository extends SagaRepository{
     public void saveStates(List<State> list) {
         states.setWriteConcern(WriteConcern.UNACKNOWLEDGED);
         for (State state : list) {
-            saveState(state.getClazz(), state.getId(), state.getState());
+            saveState(state.getSagaStateId(), state.getId(), state.getState());
         }
         states.setWriteConcern(WriteConcern.JOURNAL_SAFE);
 

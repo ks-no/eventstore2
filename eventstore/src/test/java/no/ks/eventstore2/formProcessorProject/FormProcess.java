@@ -16,6 +16,11 @@ public class FormProcess extends Saga {
         super(id, commandDispatcher, repository);
     }
 
+    @Override
+    protected String getSagaStateId() {
+        return "FormProcess";
+    }
+
     public void handleEvent(FormReceived event){
         if (getState() == STATE_INITIAL){
             commandDispatcher.tell(new ParseForm(event.getFormId()), self());

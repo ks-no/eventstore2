@@ -45,13 +45,13 @@ public class SagaTest extends TestKit {
         final Props props = getNotificationSagaProps();
         final TestActorRef<FormProcess> ref = TestActorRef.create(_system, props, "not_saga_c");
         ref.tell(new FormReceived("1"), super.testActor());
-        assertEquals(2, sagaInMemoryRepository.getState(FormProcess.class, "123"));
+        assertEquals(2, sagaInMemoryRepository.getState("FormProcess", "123"));
     }
 
     @Test
     public void testSagaRestoresStateFromRepository() throws Exception {
         final Props props = getNotificationSagaProps("123123");
-        sagaInMemoryRepository.saveState(FormProcess.class, "123123", (byte) 5);
+        sagaInMemoryRepository.saveState("FormProcess", "123123", (byte) 5);
         final TestActorRef<FormProcess> ref = TestActorRef.create(_system, props, "not_saga_d");
         final FormProcess saga = ref.underlyingActor();
         assertEquals(5, saga.getState());

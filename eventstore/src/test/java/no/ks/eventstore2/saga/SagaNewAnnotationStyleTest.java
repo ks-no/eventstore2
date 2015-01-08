@@ -34,6 +34,11 @@ public class SagaNewAnnotationStyleTest extends Eventstore2TestKit{
 			super(id, commandDispatcher, repository);
 		}
 
+		@Override
+		protected String getSagaStateId() {
+			return "SagaWithNewAnotation";
+		}
+
 		@Handler
 		public void handleEvent(TestEvent event){
 			transitionState(STATE_FINISHED);

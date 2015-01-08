@@ -63,6 +63,11 @@ public class SagaPolymorphismEventTest extends Eventstore2TestKit{
 			super(id, commandDispatcher, repository);
 		}
 
+		@Override
+		protected String getSagaStateId() {
+			return "SagaWithNewAnotation";
+		}
+
 		@Handler
 		public void handleEvent(TestEvent event){
 			a_event_handled = true;

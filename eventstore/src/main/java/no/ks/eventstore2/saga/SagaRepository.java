@@ -4,9 +4,9 @@ import java.util.List;
 
 public abstract class SagaRepository {
 
-	public abstract void saveState(Class<? extends Saga> clz, String sagaid, byte state);
+	public abstract void saveState(String sagaStateId, String sagaid, byte state);
 
-    public abstract byte getState(Class<? extends Saga> clz, String sagaid);
+    public abstract byte getState(String sagaStateId, String sagaid);
 
     public abstract void close();
 

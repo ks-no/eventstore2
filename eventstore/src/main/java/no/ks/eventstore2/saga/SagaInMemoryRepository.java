@@ -6,16 +6,16 @@ import java.util.Map;
 
 public class SagaInMemoryRepository extends SagaRepository{
 
-	private Map<SagaCompositeId, Byte> map = new HashMap<SagaCompositeId, Byte>();
+	private Map<String, Byte> map = new HashMap<>();
 
     @Override
-    public void saveState(Class<? extends Saga> clz, String sagaid, byte state) {
-        map.put(new SagaCompositeId(clz, sagaid), state);
+    public void saveState(String sagaStateId, String sagaid, byte state) {
+        map.put(sagaStateId + "_" +  sagaid, state);
     }
 
     @Override
-    public byte getState(Class<? extends Saga> clz, String sagaid) {
-        return  (map.containsKey(new SagaCompositeId(clz, sagaid)) ? map.get(new SagaCompositeId(clz, sagaid)) : Saga.STATE_INITIAL);
+    public byte getState(String sagaStateId, String sagaid) {
+        return  (map.containsKey(sagaStateId + "_" +  sagaid) ? map.get(sagaStateId + "_" +  sagaid) : Saga.STATE_INITIAL);
     }
 
     @Override
@@ -51,7 +51,7 @@ public class SagaInMemoryRepository extends SagaRepository{
     @Override
     public void saveStates(List<State> list) {
         for (State state : list) {
-            saveState(state.getClazz(), state.getId(), state.getState());
+            saveState(state.getSagaStateId(), state.getId(), state.getState());
         }
     }
 }

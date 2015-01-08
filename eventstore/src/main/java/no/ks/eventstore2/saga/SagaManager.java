@@ -105,10 +105,10 @@ public class SagaManager extends UntypedActor {
 			updateLeaderState((ClusterEvent.LeaderChanged)o);
 		} else if(o instanceof UpgradeSagaRepoStore && akkaClusterInfo.isLeader()){
             repository.open();
-            if(repository.getState(Saga.class, "upgradedH2Db") != (byte)1){
+            if(repository.getState("Saga", "upgradedH2Db") != (byte)1){
                 log.info("Upgrading sagaRepository");
                 ((UpgradeSagaRepoStore) o).getSagaRepository().readAllStatesToNewRepository(repository);
-                repository.saveState(Saga.class, "upgradedH2Db", (byte)1);
+                repository.saveState("Saga", "upgradedH2Db", (byte)1);
             }
         }else if(o instanceof IncompleteSubscriptionPleaseSendNew){
             String aggregateType = ((IncompleteSubscriptionPleaseSendNew) o).getAggregateType();

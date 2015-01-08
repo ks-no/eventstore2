@@ -29,7 +29,7 @@ public class SagaManagerNewAnnotationStyleTest extends Eventstore2TestKit{
         expectMsgClass(Subscription.class);
         expectMsgClass(Subscription.class);
         expectMsgClass(TestEvent.class);
-        assertEquals(Saga.STATE_FINISHED, sagaInMemoryRepository.getState(SagaWithNewAnotation.class, "a test id"));
+        assertEquals(Saga.STATE_FINISHED, sagaInMemoryRepository.getState("SagaWithNewAnotation", "a test id"));
     }
 
     @SagaEventIdProperty("testId")
@@ -38,6 +38,11 @@ public class SagaManagerNewAnnotationStyleTest extends Eventstore2TestKit{
 
         public SagaWithNewAnotation(String id, ActorRef commandDispatcher, SagaRepository repository) {
             super(id, commandDispatcher, repository);
+        }
+
+        @Override
+        protected String getSagaStateId() {
+            return "SagaWithNewAnotation";
         }
 
         @Handler

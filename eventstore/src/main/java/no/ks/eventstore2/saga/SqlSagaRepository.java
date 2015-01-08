@@ -23,28 +23,28 @@ public abstract class SqlSagaRepository extends SagaRepository {
 	}
 
 	@Override
-	public void saveState(Class<? extends Saga> clz, String sagaid, byte state) {
-		log.debug("Saving state {} sagaid {} state "+ state, clz, sagaid);
-		int i = template.queryForInt("select count(0) from saga where id = ? and clazz = ?", sagaid, clz.getName());
+	public void saveState(String sagaStateId, String sagaid, byte state) {
+		log.debug("Saving state {} sagaid {} state "+ state, sagaStateId, sagaid);
+		int i = template.queryForInt("select count(0) from saga where id = ? and clazz = ?", sagaid, sagaStateId);
 		if(i > 0) {
-			template.update(getUpdateSagaSql(), state, sagaid, clz.getName());
+			template.update(getUpdateSagaSql(), state, sagaid, sagaStateId);
 		} else {
-			template.update(getInsertSagaSql(), new Object[]{sagaid, clz.getName(), state});
+			template.update(getInsertSagaSql(), new Object[]{sagaid, sagaStateId, state});
 		}
 	}
 
 	@Override
-	public byte getState(Class<? extends Saga> clz, String sagaid) {
+	public byte getState(String sagaStateId, String sagaid) {
 		int result = 0;
 		try{
-			result = template.queryForInt(getSelectStateSql(),new Object[]{sagaid, clz.getName()});
+			result = template.queryForInt(getSelectStateSql(),new Object[]{sagaid, sagaStateId});
 		} catch (EmptyResultDataAccessException e){
 
 		}
 		if(result > Byte.MAX_VALUE) {
 			throw new RuntimeException("Failed to convert to byte " + result);
 		}
-		log.debug("Loading state from repository for clz " + clz + " sagaid " + sagaid + " state " + result);
+		log.debug("Loading state from repository for clz " + sagaStateId + " sagaid " + sagaid + " state " + result);
 		return (byte) result;
 	}
 
@@ -53,11 +53,7 @@ public abstract class SqlSagaRepository extends SagaRepository {
 		template.query("select state,id,clazz from Saga",new RowCallbackHandler() {
 			@Override
 			public void processRow(ResultSet resultSet) throws SQLException {
-				try {
-					list.add(new State((Class<? extends Saga>)Class.forName(resultSet.getString("clazz")),resultSet.getString("id"),(byte)resultSet.getInt("state")));
-				} catch (ClassNotFoundException e) {
-					log.info(e.getMessage());
-				}
+				list.add(new State(resultSet.getString("clazz"),resultSet.getString("id"),(byte)resultSet.getInt("state")));
 			}
 		});
 		repository.saveStates(list);
@@ -81,7 +77,7 @@ public abstract class SqlSagaRepository extends SagaRepository {
 	@Override
 	public void saveStates(List<State> list) {
 		for (State state : list) {
-			saveState(state.getClazz(), state.getId(), state.getState());
+			saveState(state.getSagaStateId(), state.getId(), state.getState());
 		}
 	}
 

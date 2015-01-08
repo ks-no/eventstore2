@@ -29,7 +29,7 @@ public class SagaManagerPolymorphismEventTest extends Eventstore2TestKit{
         expectMsgClass(Subscription.class);
         expectMsgClass(Subscription.class);
         expectMsgClass(Success.class);
-        assertEquals(Saga.STATE_FINISHED, sagaInMemoryRepository.getState(SagaHandlingASuperclassOfEvent.class, "a test id"));
+        assertEquals(Saga.STATE_FINISHED, sagaInMemoryRepository.getState("SagaHandlingASuperclassOfEvent", "a test id"));
     }
 
     @SagaEventIdProperty("testId")
@@ -38,6 +38,11 @@ public class SagaManagerPolymorphismEventTest extends Eventstore2TestKit{
 
         public SagaHandlingASuperclassOfEvent(String id, ActorRef commandDispatcher, SagaRepository repository) {
             super(id, commandDispatcher, repository);
+        }
+
+        @Override
+        protected String getSagaStateId() {
+            return "SagaHandlingASuperclassOfEvent";
         }
 
         @Handler

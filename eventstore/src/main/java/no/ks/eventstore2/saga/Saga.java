@@ -33,6 +33,13 @@ public abstract class Saga extends UntypedActor {
         this.repository = repository;
 	}
 
+	/**
+	 * Get a unique id identifying this saga
+	 * SagaStateId and id identifies state in saga repository.
+	 * @return unique id
+	 */
+	protected abstract String getSagaStateId();
+
     @Override
     public void preStart() throws Exception {
         super.preStart();
@@ -55,7 +62,7 @@ public abstract class Saga extends UntypedActor {
 	}
 
 	private void loadPersistedState() {
-        state = repository.getState(this.getClass(),id);
+		state = repository.getState(getSagaStateId(), id);
     }
 
     public String getId() {
@@ -72,7 +79,7 @@ public abstract class Saga extends UntypedActor {
         }
 		this.state = state;
 		try {
-	        repository.saveState(this.getClass(), id, state);
+			repository.saveState(getSagaStateId(), id, state);
 		} catch(Exception e){
 			log.error("Failed to save state for class " + this.getClass() + " id "  + id + " state " + state);
 			throw new RuntimeException(e);

@@ -1,6 +1,8 @@
 package no.ks.eventstore2.saga;
 
-import akka.actor.*;
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
@@ -62,11 +64,7 @@ public class SagaManagerTest extends TestKit {
 
     private Props getSagaManagerProps() {
         final ActorRef testActor = super.testActor();
-        return new Props(new UntypedActorFactory(){
-			public Actor create() throws Exception {
-                return new SagaManager(testActor, sagaInMemoryRepository, _system.actorOf(new Props(DummyActor.class)), "no");
-            }
-        });
+        return SagaManager.mkProps(testActor, sagaInMemoryRepository, _system.actorOf(Props.create(DummyActor.class)), "no");
     }
 
     @Test

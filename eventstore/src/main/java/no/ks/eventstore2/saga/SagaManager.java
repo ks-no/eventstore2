@@ -46,6 +46,10 @@ public class SagaManager extends UntypedActor {
             Duration.create(2, TimeUnit.HOURS),
             getSelf(), new TakeSnapshot(), getContext().dispatcher(), null);
 
+    public static Props mkProps(ActorRef commandDispatcher, SagaInMemoryRepository repository, ActorRef eventStore) {
+        return mkProps(commandDispatcher, repository, eventStore, "no");
+    }
+
     public static Props mkProps(ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore, String packageScanPath){
         return Props.create(SagaManager.class,commandDispatcher, repository, eventstore, packageScanPath);
     }
@@ -143,13 +147,13 @@ public class SagaManager extends UntypedActor {
     private ActorRef getOrCreateSaga(Class<? extends Saga> clz, String sagaId) {
         SagaCompositeId compositeId = new SagaCompositeId(clz, sagaId);
         if (!sagas.containsKey(compositeId)){
-            ActorRef sagaRef = getContext().actorOf(new Props(new SagaFactory(clz, commandDispatcher, repository, sagaId)));
+            ActorRef sagaRef = getContext().actorOf(Props.create(clz, sagaId, commandDispatcher, repository));
             sagas.put(compositeId, sagaRef);
         }
         return sagas.get(compositeId);
     }
-
     private static Set<String> aggregates = new HashSet<String>();
+
     private static Map<Class<? extends Event>, ArrayList<SagaEventMapping>> eventToSagaMap = new HashMap<Class<? extends Event>, ArrayList<SagaEventMapping>>();
 
     private void registerSagas(){

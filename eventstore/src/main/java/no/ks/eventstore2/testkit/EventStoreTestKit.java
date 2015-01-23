@@ -7,7 +7,6 @@ import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
 import no.ks.eventstore2.eventstore.CompleteSubscriptionRegistered;
 import no.ks.eventstore2.saga.Saga;
-import no.ks.eventstore2.saga.SagaFactory;
 import no.ks.eventstore2.saga.SagaInMemoryRepository;
 import no.ks.eventstore2.util.IdUtil;
 
@@ -30,8 +29,8 @@ public class EventStoreTestKit extends TestKit {
     }
 
     protected <T extends Saga> T createSaga(Class<T> clz) {
-        SagaFactory sagaFactory = new SagaFactory(clz, testActor(), new SagaInMemoryRepository(), IdUtil.createUUID());
-        return (T) TestActorRef.create(actorSystem, Props.create(sagaFactory), IdUtil.createUUID()).underlyingActor();
+        Props sagaProps = Props.create(clz, testActor(), new SagaInMemoryRepository(), IdUtil.createUUID());
+        return (T) TestActorRef.create(actorSystem, sagaProps, IdUtil.createUUID()).underlyingActor();
     }
 
     protected EventReceiver createEventReceiver() {

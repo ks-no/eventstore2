@@ -35,17 +35,9 @@ public class CommandDispatcherTest extends TestKit {
     @Test
     public void testSendsCommandToNotificationCommandHandler() throws Exception {
         log.debug("Test started");
-        CommandDispatcherFactory factory = new CommandDispatcherFactory();
-        List<CommandHandlerFactory> factories = new ArrayList<CommandHandlerFactory>();
-        factories.add(new CommandHandlerFactory() {
-            public Actor create() throws Exception {
-                return new FormParser(eventStore);
-            }
-        });
-        factory.setCommandHandlerFactories(factories);
-        factory.setEventStore(super.testActor());
-
-        TestActorRef commandDispatcherRef = TestActorRef.create(_system, new Props(factory), "commandDispatcherKing");
+        List<Props> props = new ArrayList<>();
+        props.add(Props.create(FormParser.class, super.testActor()));
+        TestActorRef commandDispatcherRef = TestActorRef.create(_system, CommandDispatcher.mkProps(props), "commandDispatcherKing");
         Thread.sleep(2000);
         commandDispatcherRef.tell(new ParseForm("1"), super.testActor());
         expectMsgClass(duration("300 seconds"), FormParsed.class);

@@ -1,25 +1,15 @@
 package no.ks.eventstore2;
 
-import akka.actor.Actor;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.JavaTestKit;
 import com.esotericsoftware.kryo.Kryo;
-import no.ks.eventstore2.command.CommandDispatcherFactory;
-import no.ks.eventstore2.command.CommandHandlerFactory;
-import no.ks.eventstore2.eventstore.CompleteSubscriptionRegistered;
-import no.ks.eventstore2.eventstore.EventStore;
-import no.ks.eventstore2.eventstore.H2JournalStorage;
-import no.ks.eventstore2.eventstore.KryoClassRegistration;
-import no.ks.eventstore2.eventstore.Subscription;
-import no.ks.eventstore2.formProcessorProject.FormDelivered;
-import no.ks.eventstore2.formProcessorProject.FormDeliverer;
-import no.ks.eventstore2.formProcessorProject.FormParsed;
-import no.ks.eventstore2.formProcessorProject.FormParser;
-import no.ks.eventstore2.formProcessorProject.FormReceived;
+import no.ks.eventstore2.command.CommandDispatcher;
+import no.ks.eventstore2.eventstore.*;
+import no.ks.eventstore2.formProcessorProject.*;
 import no.ks.eventstore2.saga.SagaInMemoryRepository;
-import no.ks.eventstore2.saga.SagaManagerFactory;
+import no.ks.eventstore2.saga.SagaManager;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -58,23 +48,15 @@ public class FormProcessorIntegrationTest extends EmbeddedDatabaseTest {
             final Props eventStoreProps = EventStore.mkProps(new H2JournalStorage(db, kryoClassRegistration));
             final ActorRef eventStore = system.actorOf(eventStoreProps, "eventStore");
 
-            ArrayList<CommandHandlerFactory> commandHandlerFactories = new ArrayList<CommandHandlerFactory>();
+            ArrayList<Props> commandHandlerProps = new ArrayList<>();
 
-            commandHandlerFactories.add(new CommandHandlerFactory() {
-                public Actor create() throws Exception {
-                    return new FormParser(eventStore);
-                }
-            });
+            commandHandlerProps.add(Props.create(FormParser.class, eventStore));
 
-            commandHandlerFactories.add(new CommandHandlerFactory() {
-                public Actor create() throws Exception {
-                    return new FormDeliverer(eventStore);
-                }
-            });
+            commandHandlerProps.add(Props.create(FormDeliverer.class, eventStore));
 
-            CommandDispatcherFactory commandDispatcherFactory = new CommandDispatcherFactory(commandHandlerFactories, eventStore);
-            final ActorRef commandDispatcher = system.actorOf(new Props(commandDispatcherFactory), "commandDispatcher");
-            final ActorRef sagaManager = system.actorOf(new Props(new SagaManagerFactory(new SagaInMemoryRepository(), commandDispatcher, eventStore)), "sagaManager");
+
+            final ActorRef commandDispatcher = system.actorOf(CommandDispatcher.mkProps(commandHandlerProps), "commandDispatcher");
+            final ActorRef sagaManager = system.actorOf(SagaManager.mkProps(commandDispatcher, new SagaInMemoryRepository(), eventStore), "sagaManager");
 
             eventStore.tell(new FormReceived("form_id_1"), getRef());
             eventStore.tell(new Subscription("FORM"), getRef());

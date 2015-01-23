@@ -1,6 +1,9 @@
 package no.ks.eventstore2.projection;
 
-import akka.actor.*;
+import akka.actor.ActorRef;
+import akka.actor.ActorSelection;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
@@ -32,23 +35,10 @@ public class ProjectionManagerTest extends TestKit {
     @Test
     public void testProjectionManagerCreatesProjections() throws Exception {
 
-        final ActorRef eventstore = super.testActor();
+        List<Props> factories = new ArrayList<>();
+        factories.add(Props.create(FormStatuses.class, super.testActor()));
 
-        ProjectionFactory projectionFactory = new ProjectionFactory(eventstore) {
-            @Override
-            public Class<? extends Projection> getProjectionClass() {
-                return FormStatuses.class;
-            }
-
-            public Actor create() throws Exception {
-                return new FormStatuses(eventstore);
-            }
-        };
-
-        List<ProjectionFactory> factories = new ArrayList<ProjectionFactory>();
-        factories.add(projectionFactory);
-
-        final TestActorRef<ProjectionManager> ref = TestActorRef.create(_system, new Props(new ProjectionManagerFactory(factories,super.testActor())), "projectionManager");
+        final TestActorRef<ProjectionManager> ref = TestActorRef.create(_system, ProjectionManager.mkProps(super.testActor(), factories), "projectionManager");
 
         Future<Object> getProjectionref = ask(ref, call("getProjectionRef", FormStatuses.class), 3000);
 
@@ -60,23 +50,10 @@ public class ProjectionManagerTest extends TestKit {
     @Test
     public void testProjectionsInSubscribePhase () throws Exception {
 
-        final ActorRef eventstore = super.testActor();
+        List<Props> factories = new ArrayList<>();
+        factories.add(Props.create(FormStatuses.class, super.testActor()));
 
-        ProjectionFactory projectionFactory = new ProjectionFactory(eventstore) {
-            @Override
-            public Class<? extends Projection> getProjectionClass() {
-                return FormStatuses.class;
-            }
-
-            public Actor create() throws Exception {
-                return new FormStatuses(eventstore);
-            }
-        };
-
-        List<ProjectionFactory> factories = new ArrayList<ProjectionFactory>();
-        factories.add(projectionFactory);
-
-        final TestActorRef<ProjectionManager> actorRef = TestActorRef.create(_system, new Props(new ProjectionManagerFactory(factories, super.testActor())), "projectionManager2");
+        final TestActorRef<ProjectionManager> actorRef = TestActorRef.create(_system, ProjectionManager.mkProps(super.testActor(), factories), "projectionManager2");
 
         Future<Object> getProjectionref = ask(actorRef, call("isAnyoneInSubscribePhase", FormStatuses.class), 3000 );
 

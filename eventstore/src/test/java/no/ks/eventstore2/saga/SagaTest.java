@@ -59,13 +59,8 @@ public class SagaTest extends TestKit {
 
     private Props getNotificationSagaProps(final String sagaId) {
         final ActorRef commandDispatcher = super.testActor();
-        return new Props(new UntypedActorFactory(){
-			public Actor create() throws Exception {
-                return new FormProcess(sagaId, commandDispatcher, sagaInMemoryRepository);
-            }
-        });
+        return Props.create(FormProcess.class,sagaId, commandDispatcher, sagaInMemoryRepository);
     }
-
 
     private Props getNotificationSagaProps() {
         return getNotificationSagaProps("123");

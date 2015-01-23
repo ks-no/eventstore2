@@ -26,11 +26,7 @@ public class CommandHandlerTest extends TestKit {
 
     @Test
     public void testCommandHandlerReceivesCommandAndDispatchesCorrespondingEvent() throws Exception {
-        final TestActorRef<FormParser> ref = TestActorRef.create(_system, new Props(new CommandHandlerFactory() {
-            public Actor create() throws Exception {
-                return new FormParser(eventStore);
-            }
-        }), "notification_handler");
+        final TestActorRef<FormParser> ref = TestActorRef.create(_system, Props.create(FormParser.class, super.testActor()) ,"notification_handler");
         ReflectionTestUtils.setField(ref.underlyingActor(), "eventStore", super.testActor());
         ref.tell(new ParseForm("formId"), super.testActor());
         expectMsgClass(FormParsed.class);

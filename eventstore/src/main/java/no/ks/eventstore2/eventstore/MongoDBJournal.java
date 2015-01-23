@@ -4,11 +4,11 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.ByteBufferOutput;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.serializers.CompatibleFieldSerializer;
-import com.esotericsoftware.shaded.org.objenesis.strategy.SerializingInstantiatorStrategy;
 import com.mongodb.*;
 import de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer;
 import no.ks.eventstore2.Event;
 import org.joda.time.DateTime;
+import org.objenesis.strategy.StdInstantiatorStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,7 +52,7 @@ public class MongoDBJournal implements JournalStorage {
     public Kryo getKryo(){
         if(tlkryo.get() == null){
             Kryo kryo = new Kryo();
-            kryo.setInstantiatorStrategy(new SerializingInstantiatorStrategy());
+            ((Kryo.DefaultInstantiatorStrategy) kryo.getInstantiatorStrategy()).setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
             kryo.setDefaultSerializer(CompatibleFieldSerializer.class);
             kryo.register(DateTime.class, new JodaDateTimeSerializer());
             registration.registerClasses(kryo);

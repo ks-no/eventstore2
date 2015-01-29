@@ -3,11 +3,11 @@ package no.ks.eventstore2.eventstore;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.serializers.CompatibleFieldSerializer;
 import com.esotericsoftware.kryo.serializers.MapSerializer;
+import com.esotericsoftware.shaded.org.objenesis.strategy.SerializingInstantiatorStrategy;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer;
 import org.joda.time.DateTime;
-import org.objenesis.strategy.SerializingInstantiatorStrategy;
 
 import java.util.*;
 

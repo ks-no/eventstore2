@@ -29,7 +29,7 @@ public class EventStoreTestKit extends TestKit {
     }
 
     protected <T extends Saga> T createSaga(Class<T> clz) {
-        Props sagaProps = Props.create(clz, testActor(), new SagaInMemoryRepository(), IdUtil.createUUID());
+        Props sagaProps = Props.create(clz, IdUtil.createUUID(), testActor(), new SagaInMemoryRepository());
         return (T) TestActorRef.create(actorSystem, sagaProps, IdUtil.createUUID()).underlyingActor();
     }
 

@@ -16,9 +16,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public abstract class AbstractJournalStorage implements JournalStorage {
-
     private static Logger log = LoggerFactory.getLogger(AbstractJournalStorage.class);
-
     private final ThreadLocal<Kryo> kryoThread = new ThreadLocal<>();
     private KryoClassRegistration kryoClassRegistration;
     protected JdbcTemplate template;
@@ -63,7 +61,7 @@ public abstract class AbstractJournalStorage implements JournalStorage {
 
     public abstract void close();
 
-    public abstract void upgradeFromOldStorage(String aggregateType);
+    public abstract void upgradeFromOldStorage(String aggregateType, JournalStorage storage);
 
     public abstract void doBackup(String backupDirectory, String backupfilename);
 
@@ -77,8 +75,8 @@ public abstract class AbstractJournalStorage implements JournalStorage {
         return output;
     }
 
-    public Kryo getKryo(){
-        if(kryoThread.get() == null){
+    public Kryo getKryo() {
+        if (kryoThread.get() == null) {
             EventStoreKryo kryo = new EventStoreKryo();
             kryoClassRegistration.registerClasses(kryo);
             kryoThread.set(kryo);

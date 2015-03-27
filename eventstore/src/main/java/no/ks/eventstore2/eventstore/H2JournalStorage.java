@@ -16,7 +16,6 @@ import java.sql.SQLException;
 import java.util.List;
 
 public class H2JournalStorage extends AbstractJournalStorage {
-
     private static Logger log = LoggerFactory.getLogger(H2JournalStorage.class);
 
     public H2JournalStorage(DataSource dataSource, KryoClassRegistration kryoClassRegistration) {
@@ -25,7 +24,7 @@ public class H2JournalStorage extends AbstractJournalStorage {
 
     @Override
     public void saveEvents(List<? extends Event> events) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("Please implement save events on H2JournalStorage");
     }
 
     public void saveEvent(final Event event) {
@@ -48,32 +47,23 @@ public class H2JournalStorage extends AbstractJournalStorage {
 
     @Override
     public void open() {
-
     }
 
     @Override
     public void close() {
-
-    }
-
-    @Override
-    public void upgradeFromOldStorage(String aggregateType) {
-        throw new RuntimeException("NotImplemented");
     }
 
     @Override
     public void upgradeFromOldStorage(String aggregateType, JournalStorage storage) {
-
+        throw new RuntimeException("NotImplemented");
     }
 
     @Override
     public void doBackup(String backupDirectory, String backupfilename) {
-
     }
 
     @Override
     public EventBatch loadEventsForAggregateId(String aggregateType, String aggregateId, String fromJournalId) {
         return null;
     }
-
 }

@@ -44,14 +44,12 @@ public class AkkaClusterInfo {
                     } catch (InterruptedException e) {}
                 }
                 leader = cluster.readView().isLeader();
+                leaderAdress = cluster.readView().leader().get();
             } else {
                 leaderAdress = leaderChanged.getLeader();
                 leader = cluster.readView().selfAddress().equals(leaderAdress);
             }
             log.info("{} leader changed from {} to {}",subscriber, oldLeader, leader);
-            if(cluster.readView().leader().isDefined()) {
-            	leaderAdress = cluster.readView().leader().get();
-            }
             log.debug("leader adress {}", leaderAdress);
 
         } catch (ConfigurationException e) {

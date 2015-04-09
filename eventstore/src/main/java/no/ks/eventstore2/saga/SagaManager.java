@@ -29,7 +29,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 public class SagaManager extends UntypedActor {
-	private static Logger log = LoggerFactory.getLogger(SagaManager.class);
+    private static Logger log = LoggerFactory.getLogger(SagaManager.class);
 
     private final ActorRef commandDispatcher;
     private final SagaRepository repository;
@@ -40,7 +40,7 @@ public class SagaManager extends UntypedActor {
 
     private Map<SagaCompositeId, ActorRef> sagas = new HashMap<SagaCompositeId, ActorRef>();
     private AkkaClusterInfo akkaClusterInfo;
-    private Map<String,String> latestJournalidReceived = new HashMap<String,String>();
+    private Map<String, String> latestJournalidReceived = new HashMap<String, String>();
 
     private final Cancellable snapshotSchedule = getContext().system().scheduler().schedule(
             Duration.create(1, TimeUnit.HOURS),
@@ -51,8 +51,8 @@ public class SagaManager extends UntypedActor {
         return mkProps(commandDispatcher, repository, eventStore, "no");
     }
 
-    public static Props mkProps(ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore, String packageScanPath){
-        return Props.create(SagaManager.class,commandDispatcher, repository, eventstore, packageScanPath);
+    public static Props mkProps(ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore, String packageScanPath) {
+        return Props.create(SagaManager.class, commandDispatcher, repository, eventstore, packageScanPath);
     }
 
     public SagaManager(ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore, String packageScanPath) {
@@ -82,21 +82,24 @@ public class SagaManager extends UntypedActor {
         super.postRestart(reason);
         log.warn("Restarted sagamanager, restarting storage");
         repository.close();
-        if(akkaClusterInfo.isLeader()){
+        if (akkaClusterInfo.isLeader()) {
             // sleep so we are reasonably sure the other node has closed the storage
-            try { Thread.sleep(500); } catch (InterruptedException e) {}
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+            }
             repository.open();
         }
     }
 
     @Override
     public void onReceive(Object o) throws Exception {
-		if(log.isDebugEnabled() && o instanceof  Event) {
-			log.debug("SagaManager received event {} is leader {}", o, akkaClusterInfo.isLeader());
-		}
-		if(o instanceof Event) {
-			latestJournalidReceived.put(((Event) o).getAggregateType(), ((Event) o).getJournalid());
-		}
+        if (log.isDebugEnabled() && o instanceof Event) {
+            log.debug("SagaManager received event {} is leader {}", o, akkaClusterInfo.isLeader());
+        }
+        if (o instanceof Event) {
+            latestJournalidReceived.put(((Event) o).getAggregateType(), ((Event) o).getJournalid());
+        }
         if (o instanceof Event && akkaClusterInfo.isLeader()) {
             log.debug("SagaManager processing event {}", o);
             Event event = (Event) o;
@@ -106,36 +109,36 @@ public class SagaManager extends UntypedActor {
                 ActorRef sagaRef = getOrCreateSaga(mapping.getSagaClass(), sagaId);
                 sagaRef.tell(event, self());
             }
-        } else if( o instanceof EventstoreRestarting){
+        } else if (o instanceof EventstoreRestarting) {
             updateLeaderState(null);
-        } else if( o instanceof ClusterEvent.LeaderChanged){
-			updateLeaderState((ClusterEvent.LeaderChanged)o);
-		} else if(o instanceof UpgradeSagaRepoStore && akkaClusterInfo.isLeader()){
+        } else if (o instanceof ClusterEvent.LeaderChanged) {
+            updateLeaderState((ClusterEvent.LeaderChanged) o);
+        } else if (o instanceof UpgradeSagaRepoStore && akkaClusterInfo.isLeader()) {
             repository.open();
-            if(repository.getState("Saga", "upgradedH2Db") != (byte)1){
+            if (repository.getState("Saga", "upgradedH2Db") != (byte) 1) {
                 log.info("Upgrading sagaRepository");
                 ((UpgradeSagaRepoStore) o).getSagaRepository().readAllStatesToNewRepository(repository);
-                repository.saveState("Saga", "upgradedH2Db", (byte)1);
+                repository.saveState("Saga", "upgradedH2Db", (byte) 1);
             }
-        }else if(o instanceof IncompleteSubscriptionPleaseSendNew){
+        } else if (o instanceof IncompleteSubscriptionPleaseSendNew) {
             String aggregateType = ((IncompleteSubscriptionPleaseSendNew) o).getAggregateType();
-            log.debug("Sending new subscription on '{}' from latest journalid '{}'", aggregateType,latestJournalidReceived);
-            if(latestJournalidReceived.get(aggregateType) == null) {
-            	throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
+            log.debug("Sending new subscription on '{}' from latest journalid '{}'", aggregateType, latestJournalidReceived);
+            if (latestJournalidReceived.get(aggregateType) == null) {
+                throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
             }
             Subscription subscription = new Subscription(aggregateType, latestJournalidReceived.get(aggregateType));
-            eventstore.tell(subscription,self());
-        } else if(o instanceof TakeBackup){
-            if(akkaClusterInfo.isLeader()) {
-            	repository.doBackup(((TakeBackup) o).getBackupdir(), "backupSagaRepo" + format.format(new Date()));
+            eventstore.tell(subscription, self());
+        } else if (o instanceof TakeBackup) {
+            if (akkaClusterInfo.isLeader()) {
+                repository.doBackup(((TakeBackup) o).getBackupdir(), "backupSagaRepo" + format.format(new Date()));
             }
-        } else if(o instanceof AcknowledgePreviousEventsProcessed){
-            if(akkaClusterInfo.isLeader()) {
-            	sender().tell(new Success(),self());
+        } else if (o instanceof AcknowledgePreviousEventsProcessed) {
+            if (akkaClusterInfo.isLeader()) {
+                sender().tell(new Success(), self());
             } else {
-            	getLeaderSagaManager().tell(o,sender());
+                getLeaderSagaManager().tell(o, sender());
             }
-        } else if(o instanceof TakeSnapshot && akkaClusterInfo.isLeader()){
+        } else if (o instanceof TakeSnapshot && akkaClusterInfo.isLeader()) {
             for (String aggregate : latestJournalidReceived.keySet()) {
                 log.info("Saving latestJournalId {} for sagaManager aggregate {}", latestJournalidReceived.get(aggregate), aggregate);
                 repository.saveLatestJournalId(aggregate, latestJournalidReceived.get(aggregate));
@@ -149,23 +152,24 @@ public class SagaManager extends UntypedActor {
 
     private ActorRef getOrCreateSaga(Class<? extends Saga> clz, String sagaId) {
         SagaCompositeId compositeId = new SagaCompositeId(clz, sagaId);
-        if (!sagas.containsKey(compositeId)){
+        if (!sagas.containsKey(compositeId)) {
             ActorRef sagaRef = getContext().actorOf(Props.create(clz, sagaId, commandDispatcher, repository));
             sagas.put(compositeId, sagaRef);
         }
         return sagas.get(compositeId);
     }
+
     private static Set<String> aggregates = new HashSet<String>();
 
     private static Map<Class<? extends Event>, ArrayList<SagaEventMapping>> eventToSagaMap = new HashMap<Class<? extends Event>, ArrayList<SagaEventMapping>>();
 
-    private void registerSagas(){
+    private void registerSagas() {
         ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
         scanner.addIncludeFilter(new AnnotationTypeFilter(ListensTo.class));
         scanner.addIncludeFilter(new AnnotationTypeFilter(SagaEventIdProperty.class));
         for (BeanDefinition bd : scanner.findCandidateComponents(packageScanPath)) {
             if (!bd.isAbstract()) {
-            	register(bd.getBeanClassName());
+                register(bd.getBeanClassName());
             }
         }
     }
@@ -178,7 +182,7 @@ public class SagaManager extends UntypedActor {
             boolean oldStyle = handleOldStyleAnnotations(sagaClass);
 
             if (!oldStyle) {
-            	handleNewStyleAnnotations(sagaClass);
+                handleNewStyleAnnotations(sagaClass);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -188,7 +192,7 @@ public class SagaManager extends UntypedActor {
     private void handleNewStyleAnnotations(Class<? extends Saga> sagaClass) {
         Subscriber subscriberAnnotation = sagaClass.getAnnotation(Subscriber.class);
         if (subscriberAnnotation == null) {
-        	throw new InvalidSagaConfigurationException("Missing aggregate annotation, please annotate " + sagaClass + " with @Aggregate to specify subscribed aggregate");
+            throw new InvalidSagaConfigurationException("Missing aggregate annotation, please annotate " + sagaClass + " with @Aggregate to specify subscribed aggregate");
         }
 
         registerAggregate(subscriberAnnotation.value());
@@ -196,7 +200,7 @@ public class SagaManager extends UntypedActor {
         SagaEventIdProperty sagaEventIdProperty = sagaClass.getAnnotation(SagaEventIdProperty.class);
 
         if (sagaEventIdProperty == null) {
-        	throw new InvalidSagaConfigurationException("Missing @SagaEventIdProperty annotation, please annotate " + sagaClass + " with @SagaEventIdProperty to specify id-properties");
+            throw new InvalidSagaConfigurationException("Missing @SagaEventIdProperty annotation, please annotate " + sagaClass + " with @SagaEventIdProperty to specify id-properties");
         }
 
         String eventPropertyMethodName = sagaEventIdProperty.value();
@@ -205,7 +209,7 @@ public class SagaManager extends UntypedActor {
             try {
                 Method eventPropertyMethod = eventClass.getMethod(propertyfy(eventPropertyMethodName));
                 if (!String.class.equals(eventPropertyMethod.getReturnType())) {
-                	throw new InvalidSagaConfigurationException("Event " + eventClass.getName() + "s " + eventPropertyMethodName + " eventPropertyMethod does not return String, which is required for saga " + sagaClass);
+                    throw new InvalidSagaConfigurationException("Event " + eventClass.getName() + "s " + eventPropertyMethodName + " eventPropertyMethod does not return String, which is required for saga " + sagaClass);
                 }
                 registerEventToSaga(eventClass, sagaClass, eventPropertyMethod);
             } catch (NoSuchMethodException e) {
@@ -215,7 +219,7 @@ public class SagaManager extends UntypedActor {
     }
 
     private String propertyfy(String propName) {
-        return propName == null || propName.length() < 1 ? null : "get" + propName.substring(0,1).toUpperCase() + propName.substring(1);
+        return propName == null || propName.length() < 1 ? null : "get" + propName.substring(0, 1).toUpperCase() + propName.substring(1);
 
     }
 
@@ -246,9 +250,9 @@ public class SagaManager extends UntypedActor {
 
         Class<?> clazz = eventClass;
 
-        while(clazz != Object.class){
+        while (clazz != Object.class) {
             if (eventToSagaMap.containsKey(clazz)) {
-            	handlingSagas.addAll(eventToSagaMap.get(clazz));
+                handlingSagas.addAll(eventToSagaMap.get(clazz));
             }
             clazz = clazz.getSuperclass();
         }
@@ -258,44 +262,47 @@ public class SagaManager extends UntypedActor {
 
     private void registerEventToSaga(Class<? extends Event> eventClass, Class<? extends Saga> sagaClass, Method propertyMethod) {
         if (eventToSagaMap.get(eventClass) == null) {
-        	eventToSagaMap.put(eventClass, new ArrayList<SagaEventMapping>());
+            eventToSagaMap.put(eventClass, new ArrayList<SagaEventMapping>());
         }
         eventToSagaMap.get(eventClass).add(new SagaEventMapping(sagaClass, propertyMethod));
     }
 
-	private void updateLeaderState(ClusterEvent.LeaderChanged leaderChanged) {
-		try {
+    private void updateLeaderState(ClusterEvent.LeaderChanged leaderChanged) {
+        try {
             boolean oldLeader = akkaClusterInfo.isLeader();
             akkaClusterInfo.updateLeaderState(leaderChanged);
-			if(oldLeader && !akkaClusterInfo.isLeader()){
-				removeOldActorsWithWrongState();
-			}
-            if(akkaClusterInfo.isLeader()){
+            if (oldLeader && !akkaClusterInfo.isLeader()) {
+                removeOldActorsWithWrongState();
+            }
+            if (akkaClusterInfo.isLeader()) {
                 log.info("Opening repository for sagaManager");
                 // sleep so we are reasonably sure the other node has closed the storage
-                try { Thread.sleep(500); } catch (InterruptedException e) {}
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                }
                 repository.open();
                 for (String aggregate : aggregates) {
                     latestJournalidReceived.put(aggregate, repository.loadLatestJournalID(aggregate));
                     log.info("SagaManager loaded aggregate {} latestJournalid {}", aggregate, latestJournalidReceived.get(aggregate));
                 }
                 for (String aggregate : aggregates) {
-                    eventstore.tell(new Subscription(aggregate,latestJournalidReceived.get(aggregate)), self());
+                    eventstore.tell(new Subscription(aggregate, latestJournalidReceived.get(aggregate)), self());
                 }
             } else {
                 log.info("Closing repository for sagaManager");
                 repository.close();
             }
-		} catch (ConfigurationException e) {
-			log.debug("Not cluster system");
-		}
-	}
+        } catch (ConfigurationException e) {
+            log.debug("Not cluster system");
+        }
+    }
 
-	private void removeOldActorsWithWrongState() {
-		for (SagaCompositeId sagaCompositeId : sagas.keySet()) {
-			log.debug("Removing actor {}", sagas.get(sagaCompositeId).path());
-			sagas.get(sagaCompositeId).tell(PoisonPill.getInstance(), null);
-		}
-		sagas = new HashMap<SagaCompositeId, ActorRef>();
-	}
+    private void removeOldActorsWithWrongState() {
+        for (SagaCompositeId sagaCompositeId : sagas.keySet()) {
+            log.debug("Removing actor {}", sagas.get(sagaCompositeId).path());
+            sagas.get(sagaCompositeId).tell(PoisonPill.getInstance(), null);
+        }
+        sagas = new HashMap<SagaCompositeId, ActorRef>();
+    }
 }

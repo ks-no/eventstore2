@@ -4,46 +4,48 @@ import org.joda.time.DateTime;
 
 import java.io.Serializable;
 
-public abstract class Event implements Serializable{
-	private static final long serialVersionUID = 1L;
+public abstract class Event implements Serializable {
+    private static final long serialVersionUID = 1L;
 
-	private String journalid;
-	protected DateTime created;
+    private String journalid;
+    protected DateTime created;
     private int version = -1;
 
     public abstract String getAggregateType();
 
-	public DateTime getCreated() {
-		return created;
-	}
+    public DateTime getCreated() {
+        return created;
+    }
 
-	public void setCreated(DateTime created) {
-		this.created = created;
-	}
+    public void setCreated(DateTime created) {
+        this.created = created;
+    }
 
-	public abstract String getLogMessage();
+    public abstract String getLogMessage();
 
-	public Event upgrade(){return this;}
+    public Event upgrade() {
+        return this;
+    }
 
-	public String getJournalid() {
-		return journalid;
-	}
+    public String getJournalid() {
+        return journalid;
+    }
 
-	public void setJournalid(String journalid) {
-		this.journalid = journalid;
-	}
+    public void setJournalid(String journalid) {
+        this.journalid = journalid;
+    }
 
-	public abstract String getAggregateRootId();
+    public abstract String getAggregateRootId();
 
-	@Override
-	public String toString() {
-		return "Event{"
-				+ "aggregateType='" + getAggregateType() + '\''
-				+ "aggregateRootId='" + getAggregateRootId() + '\''
-				+ ", journalid='" + getJournalid() + '\''
-				+ ", created=" + created
-				+ '}';
-	}
+    @Override
+    public String toString() {
+        return "Event{"
+                + "aggregateType='" + getAggregateType() + '\''
+                + "aggregateRootId='" + getAggregateRootId() + '\''
+                + ", journalid='" + getJournalid() + '\''
+                + ", created=" + created
+                + '}';
+    }
 
     public int getVersion() {
         return version;

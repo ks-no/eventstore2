@@ -96,102 +96,107 @@ public class EventStore extends UntypedActor {
 	}
 
 	public void onReceive(Object o) throws Exception {
-        if(!(o instanceof Subscription)){
-            fillPendingSubscriptions();
-        }
-        if (o instanceof ClusterEvent.MemberRemoved) {
-            ClusterEvent.MemberRemoved removed = (ClusterEvent.MemberRemoved) o;
-            log.info("Member removed: {} status {}", removed.member(), removed.previousStatus());
-            for (String aggregate : aggregateSubscribers.keySet()) {
-                HashSet<ActorRef> remove = new HashSet<ActorRef>();
-                for (ActorRef actorRef : aggregateSubscribers.get(aggregate)) {
-                    if (actorRef.path().address().equals(removed.member().address())) {
-                        remove.add(actorRef);
-                        log.debug("removeing actorref {}", actorRef);
+        try {
+            if (!(o instanceof Subscription)) {
+                fillPendingSubscriptions();
+            }
+            if (o instanceof ClusterEvent.MemberRemoved) {
+                ClusterEvent.MemberRemoved removed = (ClusterEvent.MemberRemoved) o;
+                log.info("Member removed: {} status {}", removed.member(), removed.previousStatus());
+                for (String aggregate : aggregateSubscribers.keySet()) {
+                    HashSet<ActorRef> remove = new HashSet<ActorRef>();
+                    for (ActorRef actorRef : aggregateSubscribers.get(aggregate)) {
+                        if (actorRef.path().address().equals(removed.member().address())) {
+                            remove.add(actorRef);
+                            log.debug("removeing actorref {}", actorRef);
+                        }
+                    }
+                    for (ActorRef actorRef : remove) {
+                        aggregateSubscribers.get(aggregate).remove(actorRef);
+                        log.info("Aggregate {} removeed subscriber {}", aggregate, actorRef);
                     }
                 }
-                for (ActorRef actorRef : remove) {
-                    aggregateSubscribers.get(aggregate).remove(actorRef);
-                    log.info("Aggregate {} removeed subscriber {}", aggregate, actorRef);
+            }
+            if (o instanceof ClusterEvent.LeaderChanged) {
+                log.info("Recieved LeaderChanged event: {}", o);
+                updateLeaderState((ClusterEvent.LeaderChanged) o);
+            } else if (o instanceof StoreEvents) {
+                if (leaderInfo.isLeader()) {
+                    storeEvents((StoreEvents) o);
+                    publishEvents((StoreEvents) o);
+                    for (Event event : ((StoreEvents) o).getEvents()) {
+                        log.info("Published event {}: {}", event, ((Event) event).getLogMessage());
+                    }
+                } else {
+                    log.info("Sending to leader {} events {}", sender(), o);
+                    leaderEventStore.tell(o, sender());
+                }
+            } else if (o instanceof Event) {
+                if (leaderInfo.isLeader()) {
+                    storeEvent((Event) o);
+                    publishEvent((Event) o);
+                    log.info("Published event {}: {}", o, ((Event) o).getLogMessage());
+                } else {
+                    log.info("Sending to leader {} event {}", sender(), o);
+                    leaderEventStore.tell(o, sender());
+                }
+            } else if (o instanceof RetreiveAggregateEvents) {
+                if (leaderInfo.isLeader()) {
+                    readAggregateEvents((RetreiveAggregateEvents) o);
+                } else {
+                    log.info("Sending to leader {} retrieveAggregateEvents {}", sender(), o);
+                    leaderEventStore.tell(o, sender());
+                }
+            } else if (o instanceof Subscription) {
+                Subscription subscription = (Subscription) o;
+                addSubscriber(subscription);
+                tryToFillSubscription(sender(), subscription);
+            } else if (o instanceof SubscriptionRefresh) {
+                SubscriptionRefresh subscriptionRefresh = (SubscriptionRefresh) o;
+                log.info("Refreshing subscription for {}", subscriptionRefresh);
+                addSubscriber(subscriptionRefresh);
+            } else if ("ping".equals(o)) {
+                log.debug("Ping reveiced from {}", sender());
+                sender().tell("pong", self());
+            } else if ("pong".equals(o)) {
+                log.debug("Pong received from {}", sender());
+            } else if ("startping".equals(o)) {
+                log.debug("starting ping sending to {} from {}", leaderEventStore, self());
+                if (leaderEventStore != null) {
+                    leaderEventStore.tell("ping", self());
+                }
+            } else if (o instanceof AcknowledgePreviousEventsProcessed) {
+                if (leaderInfo.isLeader()) {
+                    sender().tell(new Success(), self());
+                } else {
+                    leaderEventStore.tell(o, sender());
+                }
+            } else if (o instanceof UpgradeAggregate && leaderInfo.isLeader()) {
+                UpgradeAggregate upgrade = (UpgradeAggregate) o;
+                log.info("Upgrading aggregate " + upgrade.getAggregateType());
+                storage.upgradeFromOldStorage(upgrade.getAggregateType(), upgrade.getOldStorage());
+                log.info("Upgraded aggregate " + upgrade.getAggregateType());
+            } else if (o instanceof TakeBackup) {
+                if (leaderInfo.isLeader()) {
+                    for (ActorRef actorRef : aggregateSubscribers.values()) {
+                        actorRef.tell(o, self());
+                    }
+                    storage.doBackup(((TakeBackup) o).getBackupdir(), "backupEventStore" + format.format(new Date()));
+                } else {
+                    leaderEventStore.tell(o, sender());
+                }
+            } else if (o instanceof TakeSnapshot) {
+                if (leaderInfo.isLeader()) {
+                    for (ActorRef actorRef : aggregateSubscribers.values()) {
+                        actorRef.tell(o, self());
+                    }
+                } else {
+                    leaderEventStore.tell(o, sender());
                 }
             }
-        }
-        if( o instanceof ClusterEvent.LeaderChanged){
-            log.info("Recieved LeaderChanged event: {}", o);
-			updateLeaderState((ClusterEvent.LeaderChanged)o);
-		} else if (o instanceof StoreEvents) {
-            if (leaderInfo.isLeader()) {
-                storeEvents((StoreEvents) o);
-                publishEvents((StoreEvents) o);
-                for (Event event : ((StoreEvents) o).getEvents()) {
-                    log.info("Published event {}: {}", event, ((Event) event).getLogMessage());
-                }
-            } else {
-                log.info("Sending to leader {} events {}", sender(), o);
-                leaderEventStore.tell(o, sender());
-            }
-        } else if (o instanceof Event) {
-			if (leaderInfo.isLeader()) {
-				storeEvent((Event) o);
-				publishEvent((Event) o);
-                log.info("Published event {}: {}", o, ((Event) o).getLogMessage());
-			} else {
-				log.info("Sending to leader {} event {}", sender(), o);
-				leaderEventStore.tell(o, sender());
-			}
-		} else if(o instanceof RetreiveAggregateEvents){
-            if (leaderInfo.isLeader()) {
-                readAggregateEvents((RetreiveAggregateEvents)o);
-            } else {
-                log.info("Sending to leader {} retrieveAggregateEvents {}", sender(), o);
-                leaderEventStore.tell(o, sender());
-            }
-        } else if (o instanceof Subscription) {
-			Subscription subscription = (Subscription) o;
-			addSubscriber(subscription);
-            tryToFillSubscription(sender(), subscription);
-		} else if (o instanceof SubscriptionRefresh) {
-			SubscriptionRefresh subscriptionRefresh = (SubscriptionRefresh) o;
-			log.info("Refreshing subscription for {}", subscriptionRefresh);
-			addSubscriber(subscriptionRefresh);
-		} else if ("ping".equals(o)) {
-			log.debug("Ping reveiced from {}", sender());
-			sender().tell("pong", self());
-		} else if("pong".equals(o)){
-			log.debug("Pong received from {}", sender());
-		} else if("startping".equals(o)){
-			log.debug("starting ping sending to {} from {}",leaderEventStore, self() );
-			if(leaderEventStore != null) {
-				leaderEventStore.tell("ping",self());
-			}
-		} else if(o instanceof AcknowledgePreviousEventsProcessed){
-            if(leaderInfo.isLeader()) {
-            	sender().tell(new Success(),self());
-            } else {
-            	leaderEventStore.tell(o,sender());
-            }
-        } else if(o instanceof UpgradeAggregate && leaderInfo.isLeader()){
-            UpgradeAggregate upgrade = (UpgradeAggregate) o;
-            log.info("Upgrading aggregate " + upgrade.getAggregateType());
-            storage.upgradeFromOldStorage(upgrade.getAggregateType(), upgrade.getOldStorage());
-            log.info("Upgraded aggregate " + upgrade.getAggregateType());
-        } else if (o instanceof TakeBackup) {
-            if (leaderInfo.isLeader()) {
-                for (ActorRef actorRef : aggregateSubscribers.values()) {
-                    actorRef.tell(o, self());
-                }
-                storage.doBackup(((TakeBackup) o).getBackupdir(), "backupEventStore"+ format.format(new Date()));
-            } else {
-                leaderEventStore.tell(o, sender());
-            }
-        } else if (o instanceof TakeSnapshot) {
-            if (leaderInfo.isLeader()) {
-                for (ActorRef actorRef : aggregateSubscribers.values()) {
-                    actorRef.tell(o, self());
-                }
-            } else {
-                leaderEventStore.tell(o, sender());
-            }
+        } catch (Exception e) {
+            log.error("Eventstore got an error: ", e);
+            throw e;
         }
     }
 

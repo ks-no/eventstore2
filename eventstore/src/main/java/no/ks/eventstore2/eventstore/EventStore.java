@@ -15,6 +15,7 @@ import no.ks.eventstore2.response.Success;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
 
@@ -49,7 +50,15 @@ public class EventStore extends UntypedActor {
         storage.close();
     }
 
-	@Override
+    @Override
+    public void preRestart(Throwable reason, Option<Object> message) throws Exception {
+        for(ActorRef subscriber: aggregateSubscribers.values()){
+            subscriber.tell(new EventstoreRestarting(), self());
+        }
+        super.preRestart(reason, message);
+    }
+
+    @Override
 	public void preStart() {
         leaderInfo = new AkkaClusterInfo(getContext().system());
         leaderInfo.subscribeToClusterEvents(self());
@@ -66,7 +75,9 @@ public class EventStore extends UntypedActor {
             // sleep so we are reasonably sure the other node has closed the storage
             try { Thread.sleep(500); } catch (InterruptedException e) {}
             storage.open();
+
         }
+
     }
 
     private void updateLeaderState(ClusterEvent.LeaderChanged leaderChanged) {
@@ -97,6 +108,9 @@ public class EventStore extends UntypedActor {
 
 	public void onReceive(Object o) throws Exception {
         try {
+            if(o instanceof String &&  "fail".equals(o)){
+                throw new RuntimeException("Failing by force");
+            }
             if (!(o instanceof Subscription)) {
                 fillPendingSubscriptions();
             }
@@ -194,6 +208,7 @@ public class EventStore extends UntypedActor {
                     leaderEventStore.tell(o, sender());
                 }
             }
+
         } catch (Exception e) {
             log.error("Eventstore got an error: ", e);
             throw e;

@@ -8,6 +8,7 @@ import no.ks.eventstore2.Event;
 import no.ks.eventstore2.TakeBackup;
 import no.ks.eventstore2.TakeSnapshot;
 import no.ks.eventstore2.eventstore.AcknowledgePreviousEventsProcessed;
+import no.ks.eventstore2.eventstore.EventstoreRestarting;
 import no.ks.eventstore2.eventstore.IncompleteSubscriptionPleaseSendNew;
 import no.ks.eventstore2.eventstore.Subscription;
 import no.ks.eventstore2.projection.Subscriber;
@@ -96,8 +97,8 @@ public class SagaManager extends UntypedActor {
 		if(o instanceof Event) {
 			latestJournalidReceived.put(((Event) o).getAggregateType(), ((Event) o).getJournalid());
 		}
-        if (o instanceof Event && akkaClusterInfo.isLeader()){
-			log.debug("SagaManager processing event {}", o);
+        if (o instanceof Event && akkaClusterInfo.isLeader()) {
+            log.debug("SagaManager processing event {}", o);
             Event event = (Event) o;
             Set<SagaEventMapping> sagaClassesForEvent = getSagaClassesForEvent(event.getClass());
             for (SagaEventMapping mapping : sagaClassesForEvent) {
@@ -105,6 +106,8 @@ public class SagaManager extends UntypedActor {
                 ActorRef sagaRef = getOrCreateSaga(mapping.getSagaClass(), sagaId);
                 sagaRef.tell(event, self());
             }
+        } else if( o instanceof EventstoreRestarting){
+            updateLeaderState(null);
         } else if( o instanceof ClusterEvent.LeaderChanged){
 			updateLeaderState((ClusterEvent.LeaderChanged)o);
 		} else if(o instanceof UpgradeSagaRepoStore && akkaClusterInfo.isLeader()){

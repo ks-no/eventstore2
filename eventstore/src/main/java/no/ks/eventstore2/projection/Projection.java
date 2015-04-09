@@ -41,6 +41,9 @@ public abstract class Projection extends UntypedActor {
             if (o instanceof Event) {
                 latestJournalidReceived = ((Event) o).getJournalid();
                 dispatchToCorrectEventHandler((Event) o);
+            } else if (o instanceof EventstoreRestarting){
+                subscribePhase = true;
+                preStart();
             } else if (o instanceof Call && !subscribePhase) {
             	handleCall((Call) o);
             } else if(o instanceof IncompleteSubscriptionPleaseSendNew){

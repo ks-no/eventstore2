@@ -14,7 +14,7 @@ import java.util.*;
 
 public abstract class Projection extends UntypedActor {
 
-	protected final Logger log = LoggerFactory.getLogger(this.getClass());
+    protected final Logger log = LoggerFactory.getLogger(this.getClass());
     protected ActorRef eventStore;
     private Map<Class<? extends Event>, Method> handleEventMap = null;
 
@@ -23,6 +23,7 @@ public abstract class Projection extends UntypedActor {
     private boolean subscribePhase = true;
 
     private List<PendingCall> pendingCalls = new ArrayList<PendingCall>();
+
     //TODO; constructor vs preStart, and how do we handle faling actor creations? Pass exception to parent and shutdown actor system?
     public Projection(ActorRef eventStore) {
         this.eventStore = eventStore;
@@ -30,32 +31,32 @@ public abstract class Projection extends UntypedActor {
     }
 
     @Override
-    public void preStart(){
-    	log.debug(getSelf().path().toString());
-        eventStore.tell(getSubscribe(), self());
+    public void preStart() {
+        log.debug(getSelf().path().toString());
+        subscribe();
     }
 
     @Override
     public void onReceive(Object o) {
-        try{
+        try {
             if (o instanceof Event) {
                 latestJournalidReceived = ((Event) o).getJournalid();
                 dispatchToCorrectEventHandler((Event) o);
-            } else if (o instanceof EventstoreRestarting){
+            } else if (o instanceof EventstoreRestarting) {
                 subscribePhase = true;
                 preStart();
             } else if (o instanceof Call && !subscribePhase) {
-            	handleCall((Call) o);
-            } else if(o instanceof IncompleteSubscriptionPleaseSendNew){
-                log.debug("Sending new subscription on {} from {}",((IncompleteSubscriptionPleaseSendNew) o).getAggregateType(),latestJournalidReceived);
-                if(latestJournalidReceived == null) {
-                	throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
+                handleCall((Call) o);
+            } else if (o instanceof IncompleteSubscriptionPleaseSendNew) {
+                log.debug("Sending new subscription on {} from {}", ((IncompleteSubscriptionPleaseSendNew) o).getAggregateType(), latestJournalidReceived);
+                if (latestJournalidReceived == null) {
+                    throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
                 }
-                eventStore.tell(new AsyncSubscription(((IncompleteSubscriptionPleaseSendNew) o).getAggregateType(),latestJournalidReceived),self());
-            } else if(o instanceof CompleteSubscriptionRegistered){
-                if(o instanceof CompleteAsyncSubscriptionPleaseSendSyncSubscription){
+                eventStore.tell(new AsyncSubscription(((IncompleteSubscriptionPleaseSendNew) o).getAggregateType(), latestJournalidReceived), self());
+            } else if (o instanceof CompleteSubscriptionRegistered) {
+                if (o instanceof CompleteAsyncSubscriptionPleaseSendSyncSubscription) {
                     log.info("AsyncSubscription complete, sending sync subscription");
-                    eventStore.tell(new Subscription(((CompleteAsyncSubscriptionPleaseSendSyncSubscription)o).getAggregateType(),latestJournalidReceived),self());
+                    eventStore.tell(new Subscription(((CompleteAsyncSubscriptionPleaseSendSyncSubscription) o).getAggregateType(), latestJournalidReceived), self());
                 } else {
                     log.info("Subscription on {} is complete", ((CompleteSubscriptionRegistered) o).getAggregateType());
                     subscribePhase = false;
@@ -64,11 +65,11 @@ public abstract class Projection extends UntypedActor {
                     }
                     pendingCalls.clear();
                 }
-            } else if(o instanceof Call && subscribePhase){
+            } else if (o instanceof Call && subscribePhase) {
                 log.debug("Adding call {} to pending calls", o);
-                pendingCalls.add(new PendingCall((Call) o,sender()));
+                pendingCalls.add(new PendingCall((Call) o, sender()));
             }
-        } catch (Exception e){
+        } catch (Exception e) {
             getContext().parent().tell(new ProjectionFailedError(self(), e, o), self());
             log.error("Projection threw exception while handling message: ", e);
             throw new RuntimeException("Projection threw exception while handling message: ", e);
@@ -82,7 +83,7 @@ public abstract class Projection extends UntypedActor {
             try {
                 method.invoke(this, event);
             } catch (Exception e) {
-                log.error("Failed to call method " + method + " with event " + event,e);
+                log.error("Failed to call method " + method + " with event " + event, e);
                 throw new RuntimeException(e);
             }
         }
@@ -92,10 +93,10 @@ public abstract class Projection extends UntypedActor {
         log.debug("handling call: {}", call);
         try {
             Method method = getCallMethod(call);
-        	Object result = method.invoke(this, call.getArgs());
+            Object result = method.invoke(this, call.getArgs());
 
             if (!method.getReturnType().equals(Void.TYPE)) {
-                if(result != null){
+                if (result != null) {
                     sender().tell(result, self());
                 } else {
                     sender().tell(new NoResult(), self());
@@ -107,8 +108,8 @@ public abstract class Projection extends UntypedActor {
     }
 
     private Method getCallMethod(Call call) throws NoSuchMethodException {
-        if(call == null) {
-        	throw new IllegalArgumentException("Call can't be null");
+        if (call == null) {
+            throw new IllegalArgumentException("Call can't be null");
         }
 
         Class<?>[] classes = new Class<?>[call.getArgs().length];
@@ -118,20 +119,20 @@ public abstract class Projection extends UntypedActor {
         Method[] allMethods = this.getClass().getMethods();
         for (Method m : allMethods) {
             if (methodAssignable(call.getMethodName(), classes, m)) {
-            	return m;
+                return m;
             }
         }
-        throw new NoSuchMethodException("method " + call.getMethodName() + "(" + Arrays.toString(classes) +") not found in " + this.getClass().getSimpleName());
+        throw new NoSuchMethodException("method " + call.getMethodName() + "(" + Arrays.toString(classes) + ") not found in " + this.getClass().getSimpleName());
     }
 
     private boolean methodAssignable(String callName, Class<?>[] callParams, Method candidateMethod) {
         Class[] methodParams = candidateMethod.getParameterTypes();
 
-        if (callName.equals(candidateMethod.getName()) && (methodParams.length == callParams.length)){
+        if (callName.equals(candidateMethod.getName()) && (methodParams.length == callParams.length)) {
             boolean assignable = true;
             for (int i = 0; i < callParams.length; i++) {
                 if (!methodParams[i].isAssignableFrom(callParams[i])) {
-                	assignable = false;
+                    assignable = false;
                 }
             }
             return assignable;
@@ -161,7 +162,7 @@ public abstract class Projection extends UntypedActor {
         }
     }
 
-    protected Subscription getSubscribe(){
+    protected Subscription getSubscribe() {
         ListensTo annotation = getClass().getAnnotation(ListensTo.class);
         if (annotation != null) {
             for (String aggregate : annotation.aggregates()) {
@@ -171,12 +172,12 @@ public abstract class Projection extends UntypedActor {
         Subscriber subscriberAnnotation = getClass().getAnnotation(Subscriber.class);
 
         if (subscriberAnnotation != null) {
-        	return new AsyncSubscription(subscriberAnnotation.value());
+            return new AsyncSubscription(subscriberAnnotation.value());
         }
         throw new RuntimeException("No subscribe annotation");
     }
 
-    public boolean isSubscribePhase(){
+    public boolean isSubscribePhase() {
         return subscribePhase;
     }
 
@@ -204,5 +205,9 @@ public abstract class Projection extends UntypedActor {
         public void setSender(ActorRef sender) {
             this.sender = sender;
         }
+    }
+
+    protected void subscribe() {
+        eventStore.tell(new AsyncSubscription(getSubscribe().getAggregateType(), latestJournalidReceived), self());
     }
 }

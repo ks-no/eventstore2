@@ -3,8 +3,6 @@ package no.ks.eventstore2.projection;
 
 import akka.actor.ActorRef;
 import no.ks.eventstore2.TakeSnapshot;
-import no.ks.eventstore2.eventstore.AsyncSubscription;
-import no.ks.eventstore2.eventstore.Subscription;
 
 public abstract class ProjectionSnapshot extends Projection {
     public ProjectionSnapshot(ActorRef eventStore) {
@@ -12,17 +10,15 @@ public abstract class ProjectionSnapshot extends Projection {
     }
 
     @Override
-    public void preStart(){
+    public void preStart() {
         loadSnapshot();
-        Subscription subscribe = getSubscribe();
-        eventStore.tell(new AsyncSubscription(subscribe.getAggregateType(), latestJournalidReceived), self());
+        subscribe();
     }
-
 
     @Override
     public void onReceive(Object o) {
         super.onReceive(o);
-        if(o instanceof TakeSnapshot){
+        if (o instanceof TakeSnapshot) {
             saveSnapshot();
         }
     }

@@ -1,6 +1,7 @@
 package no.ks.eventstore2.projection;
 
 import akka.actor.ActorRef;
+import akka.actor.Status;
 import akka.actor.UntypedActor;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.eventstore.*;
@@ -103,7 +104,10 @@ public abstract class Projection extends UntypedActor {
                 }
             }
         } catch (Exception e) {
-            throw new RuntimeException("Error handling projection call! " + call, e);
+            RuntimeException runtimeException = new RuntimeException("Error handling projection call! " + call, e);
+            sender().tell(new Status.Failure(runtimeException), self());
+            throw runtimeException;
+
         }
     }
 

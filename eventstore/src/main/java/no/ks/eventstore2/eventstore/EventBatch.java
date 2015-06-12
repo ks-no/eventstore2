@@ -23,6 +23,25 @@ public class EventBatch implements Serializable{
     private void setEvents(List<Event> events){
         if(events == null) this.events = new ArrayList<>();
         else this.events = events;
+        upgradeEvents();
+    }
+
+    private void upgradeEvents() {
+        List<Event> result = new ArrayList<>();
+        for (Event event : events) {
+            result.add(upgradeEvent(event));
+        }
+        events = result;
+    }
+
+    private Event upgradeEvent(Event event) {
+        Event currentEvent = event;
+        Event upgraded = currentEvent.upgrade();
+        while (upgraded != currentEvent) {
+            currentEvent = upgraded;
+            upgraded = currentEvent.upgrade();
+        }
+        return upgraded;
     }
 
     public String getAggregateId() {

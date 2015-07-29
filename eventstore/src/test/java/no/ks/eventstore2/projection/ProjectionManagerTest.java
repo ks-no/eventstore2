@@ -55,10 +55,9 @@ public class ProjectionManagerTest extends TestKit {
 
         final TestActorRef<ProjectionManager> actorRef = TestActorRef.create(_system, ProjectionManager.mkProps(super.testActor(), factories), "projectionManager2");
 
-        Future<Object> getProjectionref = ask(actorRef, call("isAnyoneInSubscribePhase", FormStatuses.class), 3000 );
-
         completeSubscription(actorRef);
 
+        Future<Object> getProjectionref = ask(actorRef, call("isAnyoneInSubscribePhase", FormStatuses.class), 3000 );
         Boolean isInSubscribePhase = (Boolean) Await.result(getProjectionref, Duration.create("3 seconds"));
 
         assertTrue(!isInSubscribePhase.booleanValue());
@@ -68,5 +67,12 @@ public class ProjectionManagerTest extends TestKit {
     private void completeSubscription(TestActorRef<ProjectionManager> actorRef) {
         ActorSelection sel = _system.actorSelection("/user/projectionManager2/FormStatuses");
         sel.tell(new CompleteSubscriptionRegistered("agg"), actorRef);
+        final Future<Object> getNumberOfForms = ask(sel, call("getNumberOfForms"), 3000);
+        try {
+            Await.result(getNumberOfForms, Duration.create("3 seconds"));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
     }
 }

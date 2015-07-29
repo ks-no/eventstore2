@@ -44,7 +44,7 @@ public abstract class Projection extends UntypedActor {
                 latestJournalidReceived = ((Event) o).getJournalid();
                 dispatchToCorrectEventHandler((Event) o);
             } else if (o instanceof EventstoreRestarting) {
-                subscribePhase = true;
+                setInSubscribe();
                 preStart();
             } else if (o instanceof Call && !subscribePhase) {
                 handleCall((Call) o);
@@ -60,7 +60,7 @@ public abstract class Projection extends UntypedActor {
                     eventStore.tell(new Subscription(((CompleteAsyncSubscriptionPleaseSendSyncSubscription) o).getAggregateType(), latestJournalidReceived), self());
                 } else {
                     log.info("Subscription on {} is complete", ((CompleteSubscriptionRegistered) o).getAggregateType());
-                    subscribePhase = false;
+                    setSubscribeFinished();
                     for (PendingCall pendingCall : pendingCalls) {
                         self().tell(pendingCall.getCall(), pendingCall.getSender());
                     }
@@ -75,6 +75,16 @@ public abstract class Projection extends UntypedActor {
             log.error("Projection threw exception while handling message: ", e);
             throw new RuntimeException("Projection threw exception while handling message: ", e);
         }
+    }
+
+    private void setSubscribeFinished() {
+        subscribePhase = false;
+        context().parent().tell(ProjectionManager.SUBSCRIBE_FINISHED, self());
+    }
+
+    private void setInSubscribe() {
+        subscribePhase = true;
+        context().parent().tell(ProjectionManager.IN_SUBSCRIBE, self());
     }
 
     public final void dispatchToCorrectEventHandler(Event event) {
@@ -212,6 +222,7 @@ public abstract class Projection extends UntypedActor {
     }
 
     protected void subscribe() {
+        setInSubscribe();
         eventStore.tell(new AsyncSubscription(getSubscribe().getAggregateType(), latestJournalidReceived), self());
     }
 }

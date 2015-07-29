@@ -36,7 +36,7 @@ public abstract class MongoDbProjection extends ProjectionSnapshot {
         log.info("{} Saving snapshot for event {}", simpleName, latestJournalidReceived);
 
         final byte[] data = serializeData();
-
+        log.info("{} serialized data, storing to db", simpleName);
         context().dispatcher().execute(new Runnable() {
             @Override
             public void run() {

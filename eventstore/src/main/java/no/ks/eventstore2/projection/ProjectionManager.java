@@ -1,26 +1,26 @@
 package no.ks.eventstore2.projection;
 
 import akka.actor.*;
-import akka.dispatch.OnSuccess;
+import akka.event.Logging;
+import akka.event.LoggingAdapter;
 import akka.japi.Function;
-import akka.japi.Function2;
 import no.ks.eventstore2.TakeSnapshot;
-import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static akka.actor.SupervisorStrategy.restart;
 import static akka.actor.SupervisorStrategy.resume;
-import static akka.dispatch.Futures.fold;
-import static akka.pattern.Patterns.ask;
-import static no.ks.eventstore2.projection.CallProjection.call;
 
 public class ProjectionManager extends UntypedActor {
+
+    private LoggingAdapter log = Logging.getLogger(getContext().system(), this);
+
+    public static final String IN_SUBSCRIBE = "insubscribe";
+    public static final String SUBSCRIBE_FINISHED = "subscribe_finished";
+
     private Map<Class<? extends Projection>, ActorRef> projections = new HashMap<Class<? extends Projection>, ActorRef>();
+    private Set<ActorRef> inSubscribePhase = new HashSet<>();
     private ActorRef errorListener;
 
     public static Props mkProps(ActorRef errorListener, List<Props> props){
@@ -33,7 +33,9 @@ public class ProjectionManager extends UntypedActor {
         for (Props prop : props) {
             ActorRef projectionRef = getContext().actorOf(prop, prop.actorClass().getSimpleName());
             projections.put((Class<? extends Projection>) prop.actorClass(), projectionRef);
+            inSubscribePhase.add(projectionRef);
         }
+
     }
 
 
@@ -66,27 +68,17 @@ public class ProjectionManager extends UntypedActor {
             for (ActorRef actorRef : projections.values()) {
                 actorRef.tell(o, sender());
             }
+        } else if(IN_SUBSCRIBE.equals(o)){
+            inSubscribePhase.add(sender());
+        } else if(SUBSCRIBE_FINISHED.equals(o)){
+            inSubscribePhase.remove(sender());
         }
     }
 
     private void isAnyoneInSubscribePhase() {
-        final ActorRef sender = sender();
-        ArrayList<Future<Object>> futures = new ArrayList<Future<Object>>();
-        for (ActorRef actorRef : projections.values()) {
-            futures.add((Future<Object>) ask(actorRef, call("isSubscribePhase"), 3000));
+        if(!inSubscribePhase.isEmpty()) {
+            log.info("projections in subscribe phase {}", inSubscribePhase);
         }
-
-        scala.concurrent.Future<Boolean> future = fold(false, futures, new Function2<Boolean, Object, Boolean>() {
-            @Override
-            public Boolean apply(Boolean o, Object o2) {
-                    return (Boolean) o2 || o;
-            }
-        }, getContext().dispatcher());
-        future.onSuccess(new OnSuccess<Boolean>() {
-            @Override
-            public void onSuccess(Boolean aObject) {
-                sender.tell(aObject, self());
-            }
-        }, getContext().dispatcher());
+        sender().tell(new Boolean(!inSubscribePhase.isEmpty()), self());
     }
 }

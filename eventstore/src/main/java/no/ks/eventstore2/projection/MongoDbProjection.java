@@ -20,7 +20,7 @@ public abstract class MongoDbProjection extends ProjectionSnapshot {
         super(eventStore);
         this.store = new MongoDbStore(client, nodename + "_SnapshotRepository");
         gridFS = new GridFS(store.getDb(), nodename + "_snapshot_data");
-        store.getCollection("snapshot").ensureIndex(new BasicDBObject("dataVersion", 1).append("projectionId",1));
+        store.getCollection("snapshot").ensureIndex(new BasicDBObject("dataVersion", 1).append("projectionId", 1));
     }
 
     @Override
@@ -32,25 +32,33 @@ public abstract class MongoDbProjection extends ProjectionSnapshot {
 
     @Override
     public void saveSnapshot() {
-        log.info("{} Saving snapshot for event {}", getClass().getSimpleName(), latestJournalidReceived);
+        final String simpleName = getClass().getSimpleName();
+        log.info("{} Saving snapshot for event {}", simpleName, latestJournalidReceived);
 
-        try {
-            DBCollection collection = store.getCollection("snapshot");
-            if (latestJournalidReceived != null) {
-                DBObject update = new BasicDBObject("_id", getId())
-                        .append("jid", latestJournalidReceived)
-                        .append("dataVersion", getSnapshotDataVersion())
-                        .append("projectionId", getClass().getSimpleName());
+        final byte[] data = serializeData();
 
-                collection.save(update);
+        context().dispatcher().execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    DBCollection collection = store.getCollection("snapshot");
+                    if (latestJournalidReceived != null) {
+                        DBObject update = new BasicDBObject("_id", getId())
+                                .append("jid", latestJournalidReceived)
+                                .append("dataVersion", getSnapshotDataVersion())
+                                .append("projectionId", simpleName);
 
-                saveDataToGridFS();
+                        collection.save(update);
 
-                log.info("{} Saved snapshot for event {}", getClass().getSimpleName(), latestJournalidReceived);
+                        saveDataToGridFS(data);
+
+                        log.info("{} Saved snapshot for event {}", simpleName, latestJournalidReceived);
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to write snapshot", e);
+                }
             }
-        } catch (Exception e) {
-            log.error("Failed to write snapshot", e);
-        }
+        });
     }
 
 
@@ -92,10 +100,10 @@ public abstract class MongoDbProjection extends ProjectionSnapshot {
         }
     }
 
-    protected void saveDataToGridFS() {
+    protected void saveDataToGridFS(byte[] data) {
         gridFS.remove(new BasicDBObject("_id", getId()));
 
-        GridFSInputFile file = gridFS.createFile(serializeData());
+        GridFSInputFile file = gridFS.createFile(data);
         file.setId(getId());
         file.save();
     }

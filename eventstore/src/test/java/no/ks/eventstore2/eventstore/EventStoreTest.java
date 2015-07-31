@@ -60,6 +60,18 @@ public class EventStoreTest extends MongoDbEventstore2TestKit {
     }
 
     @Test
+    public void testLiveSubscription() throws Exception {
+        for(int i = 0; i<11;i++)
+            mongodbJournal.saveEvent(new AggEvent("agg"));
+
+        TestActorRef<Actor> actorTestActorRef = TestActorRef.create(_system, EventStore.mkProps(mongodbJournal));
+        actorTestActorRef.tell(new LiveSubscription("agg"),super.testActor());
+        expectMsgClass(CompleteSubscriptionRegistered.class);
+        actorTestActorRef.tell(new AggEvent("agg"), super.testActor());
+        expectMsgClass(AggEvent.class);
+    }
+
+    @Test
     public void testNoImcompleteIfSentAllOnFristSubscribe() throws Exception {
         for(int i = 0; i<3;i++)
             mongodbJournal.saveEvent(new AggEvent("agg"));

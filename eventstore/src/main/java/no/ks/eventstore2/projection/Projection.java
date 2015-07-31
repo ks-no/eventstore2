@@ -82,7 +82,7 @@ public abstract class Projection extends UntypedActor {
         context().parent().tell(ProjectionManager.SUBSCRIBE_FINISHED, self());
     }
 
-    private void setInSubscribe() {
+    protected void setInSubscribe() {
         subscribePhase = true;
         context().parent().tell(ProjectionManager.IN_SUBSCRIBE, self());
     }

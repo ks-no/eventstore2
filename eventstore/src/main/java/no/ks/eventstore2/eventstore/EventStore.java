@@ -229,6 +229,16 @@ public class EventStore extends UntypedActor {
 
     private void tryToFillSubscription(final ActorRef sender, final Subscription subscription) {
         final ActorRef self = self();
+        if (subscription instanceof LiveSubscription) {
+            if (leaderInfo.isLeader()) {
+                log.info("CompleteSubscriptionRegistered");
+                sender.tell(new CompleteSubscriptionRegistered(subscription.getAggregateType()), self());
+                addSubscriber(subscription);
+            } else {
+                log.info("Sending subscription to leader {} from {}", leaderEventStore.path(), sender().path());
+                leaderEventStore.tell(subscription, sender);
+            }
+        }
         if (subscription instanceof AsyncSubscription) {
             Future<Boolean> f = future(new Callable<Boolean>() {
                 public Boolean call() {

@@ -3,12 +3,16 @@ package no.ks.eventstore2.projection;
 import akka.actor.ActorRef;
 import akka.actor.Status;
 import akka.actor.UntypedActor;
+import akka.dispatch.OnFailure;
+import akka.dispatch.OnSuccess;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.eventstore.*;
 import no.ks.eventstore2.reflection.HandlerFinder;
 import no.ks.eventstore2.response.NoResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.concurrent.Future;
+import scala.util.Failure;
 
 import java.lang.reflect.Method;
 import java.util.*;
@@ -106,7 +110,23 @@ public abstract class Projection extends UntypedActor {
             Method method = getCallMethod(call);
             Object result = method.invoke(this, call.getArgs());
 
-            if (!method.getReturnType().equals(Void.TYPE)) {
+            if(method.getReturnType().equals(Future.class)){
+                final ActorRef sender = sender();
+                final ActorRef self = self();
+                ((Future<Object>) result).onSuccess(new OnSuccess<Object>(){
+                    @Override
+                    public void onSuccess(Object result) throws Throwable {
+                        sender.tell(result,self);
+                    }
+                },getContext().dispatcher());
+                ((Future<Object>) result).onFailure(new OnFailure(){
+
+                    @Override
+                    public void onFailure(Throwable failure) throws Throwable {
+                        sender.tell(new Failure<>(failure), self);
+                    }
+                }, getContext().dispatcher());
+            } else if (!method.getReturnType().equals(Void.TYPE)) {
                 if (result != null) {
                     sender().tell(result, self());
                 } else {

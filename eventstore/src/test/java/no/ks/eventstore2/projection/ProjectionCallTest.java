@@ -21,10 +21,12 @@ import org.junit.Test;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
+import scala.util.Failure;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static akka.pattern.Patterns.ask;
 import static akka.testkit.JavaTestKit.duration;
@@ -123,6 +125,27 @@ public class ProjectionCallTest extends TestKit {
         projection.tell(new CompleteSubscriptionRegistered("agg"),super.testActor());
         Integer nrStatuser = (Integer) Await.result(nrStatusesFuture, Duration.create("3 seconds"));
         assertEquals(new Integer(1), nrStatuser);
+
+    }
+
+    @Test
+    public void testProjectionCallWithFutureMethod() throws Exception {
+        TestActorRef<Actor> projection = TestActorRef.create(_system, Props.create(FutureCallProjection.class, super.testActor()));
+        expectMsgClass(Subscription.class);
+        projection.tell(new CompleteSubscriptionRegistered("agg"), ActorRef.noSender());
+        final Future<Object> getString = ask(projection, call("getString"), 3000);
+        final Object result = Await.result(getString, Duration.create(3, TimeUnit.SECONDS));
+        assertEquals("OK", result);
+    }
+
+    @Test
+    public void testFailingFufutreCall() throws Exception {
+        TestActorRef<Actor> projection = TestActorRef.create(_system, Props.create(FutureCallProjection.class, super.testActor()));
+        expectMsgClass(Subscription.class);
+        projection.tell(new CompleteSubscriptionRegistered("agg"), ActorRef.noSender());
+        final Future<Object> getString = ask(projection, call("getFailure"), 3000);
+        final Object result = Await.result(getString, Duration.create(3, TimeUnit.SECONDS));
+        assertEquals(RuntimeException.class, ((Failure)result).exception().getClass());
 
     }
 }

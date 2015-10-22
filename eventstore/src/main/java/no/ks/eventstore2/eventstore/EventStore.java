@@ -17,12 +17,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
 import scala.concurrent.Future;
-import scala.concurrent.duration.Duration;
 
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
 
 import static akka.dispatch.Futures.future;
 
@@ -117,9 +117,6 @@ public class EventStore extends UntypedActor {
             if (o instanceof String && "fail".equals(o)) {
                 throw new RuntimeException("Failing by force");
             }
-            if (!(o instanceof Subscription)) {
-                fillPendingSubscriptions();
-            }
             if (o instanceof ClusterEvent.MemberRemoved) {
                 ClusterEvent.MemberRemoved removed = (ClusterEvent.MemberRemoved) o;
                 log.info("Member removed: {} status {}", removed.member(), removed.previousStatus());
@@ -169,7 +166,6 @@ public class EventStore extends UntypedActor {
                 }
             } else if (o instanceof Subscription) {
                 Subscription subscription = (Subscription) o;
-                addSubscriber(subscription);
                 tryToFillSubscription(sender(), subscription);
             } else if (o instanceof SubscriptionRefresh) {
                 SubscriptionRefresh subscriptionRefresh = (SubscriptionRefresh) o;
@@ -297,35 +293,6 @@ public class EventStore extends UntypedActor {
 
         }
         return finished;
-    }
-
-    private Map<String, HashSet<ActorRef>> pendingSubscriptions = new HashMap<String, HashSet<ActorRef>>();
-
-    private void fillPendingSubscriptions() {
-        if (pendingSubscriptions.isEmpty()) {
-            return;
-        }
-        log.info("Filling pending subscriptions {}", pendingSubscriptions);
-        for (final String aggregateType : pendingSubscriptions.keySet()) {
-            storage.loadEventsAndHandle(aggregateType, new HandleEvent() {
-                @Override
-                public void handleEvent(Event event) {
-                    sendEvent(event, pendingSubscriptions.get(aggregateType));
-                }
-            });
-        }
-        pendingSubscriptions.clear();
-        log.info("Filled pending subscriptions");
-    }
-
-    private void addPendingSubscription(ActorRef subscriber, String aggregateType) {
-        if (pendingSubscriptions.get(aggregateType) == null) {
-            pendingSubscriptions.put(aggregateType, new HashSet<ActorRef>());
-        }
-        pendingSubscriptions.get(aggregateType).add(subscriber);
-
-        getContext().system().scheduler().scheduleOnce(Duration.create(250, TimeUnit.MILLISECONDS),
-                self(), "FillPendingSubscriptions", getContext().system().dispatcher(), self());
     }
 
     private void addSubscriber(SubscriptionRefresh refresh) {

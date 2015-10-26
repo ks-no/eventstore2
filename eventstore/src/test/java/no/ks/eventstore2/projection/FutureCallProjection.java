@@ -5,6 +5,8 @@ import no.ks.eventstore2.eventstore.Subscription;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 
+import java.util.concurrent.Callable;
+
 import static akka.dispatch.Futures.future;
 
 public class FutureCallProjection extends Projection {
@@ -20,11 +22,21 @@ public class FutureCallProjection extends Projection {
 
     public Future<String> getString(){
         ExecutionContext ec = getContext().system().dispatcher();
-        return future(() -> "OK", ec);
+        return future(new Callable<String>() {
+            @Override
+            public String call() throws Exception {
+                return "OK";
+            }
+        }, ec);
     }
 
     public Future<String> getFailure(){
         ExecutionContext ec = getContext().system().dispatcher();
-        return future(() -> {throw new RuntimeException("Failing");}, ec);
+        return future(new Callable<String>() {
+            @Override
+            public String call() throws Exception {
+                throw new RuntimeException("Failing");
+            }
+        }, ec);
     }
 }

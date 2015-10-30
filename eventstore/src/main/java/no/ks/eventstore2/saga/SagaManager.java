@@ -7,14 +7,13 @@ import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
 import akka.cluster.ClusterEvent;
+import akka.cluster.pubsub.DistributedPubSub;
+import akka.cluster.pubsub.DistributedPubSubMediator;
 import no.ks.eventstore2.AkkaClusterInfo;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.TakeBackup;
 import no.ks.eventstore2.TakeSnapshot;
-import no.ks.eventstore2.eventstore.AcknowledgePreviousEventsProcessed;
-import no.ks.eventstore2.eventstore.EventstoreRestarting;
-import no.ks.eventstore2.eventstore.IncompleteSubscriptionPleaseSendNew;
-import no.ks.eventstore2.eventstore.Subscription;
+import no.ks.eventstore2.eventstore.*;
 import no.ks.eventstore2.projection.Subscriber;
 import no.ks.eventstore2.reflection.HandlerFinder;
 import no.ks.eventstore2.response.Success;
@@ -83,6 +82,15 @@ public class SagaManager extends UntypedActor {
         registerSagas();
         akkaClusterInfo = new AkkaClusterInfo(getContext().system());
         akkaClusterInfo.subscribeToClusterEvents(self());
+        try {
+            ActorRef mediator =
+                    DistributedPubSub.get(getContext().system()).mediator();
+
+            mediator.tell(new DistributedPubSubMediator.Subscribe(EventStore.EVENTSTOREMESSAGES, getSelf()),
+                    getSelf());
+        } catch (ConfigurationException e){
+            log.info("Not subscribing to eventstore event, no cluster system");
+        }
         updateLeaderState(null);
 
     }
@@ -119,7 +127,7 @@ public class SagaManager extends UntypedActor {
                 ActorRef sagaRef = getOrCreateSaga(mapping.getSagaClass(), sagaId);
                 sagaRef.tell(event, self());
             }
-        } else if (o instanceof EventstoreRestarting) {
+        } else if (o instanceof NewEventstoreStarting) {
             updateLeaderState(null);
         } else if (o instanceof ClusterEvent.LeaderChanged) {
             updateLeaderState((ClusterEvent.LeaderChanged) o);
@@ -153,6 +161,8 @@ public class SagaManager extends UntypedActor {
                 log.info("Saving latestJournalId {} for sagaManager aggregate {}", latestJournalidReceived.get(aggregate), aggregate);
                 repository.saveLatestJournalId(aggregate, latestJournalidReceived.get(aggregate));
             }
+        } else if (o instanceof DistributedPubSubMediator.SubscribeAck){
+            log.info("Subscribing for eventstore restartmessages");
         }
     }
 

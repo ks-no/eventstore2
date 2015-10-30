@@ -1,8 +1,11 @@
 package no.ks.eventstore2.projection;
 
+import akka.ConfigurationException;
 import akka.actor.ActorRef;
 import akka.actor.Status;
 import akka.actor.UntypedActor;
+import akka.cluster.pubsub.DistributedPubSub;
+import akka.cluster.pubsub.DistributedPubSubMediator;
 import akka.dispatch.OnFailure;
 import akka.dispatch.OnSuccess;
 import no.ks.eventstore2.Event;
@@ -38,6 +41,15 @@ public abstract class Projection extends UntypedActor {
     @Override
     public void preStart() {
         log.debug(getSelf().path().toString());
+        try {
+            ActorRef mediator =
+                    DistributedPubSub.get(getContext().system()).mediator();
+
+            mediator.tell(new DistributedPubSubMediator.Subscribe(EventStore.EVENTSTOREMESSAGES, getSelf()),
+                    getSelf());
+        } catch (ConfigurationException e){
+            log.info("Not subscribing to eventstore event, no cluster system");
+        }
         subscribe();
     }
 
@@ -47,11 +59,12 @@ public abstract class Projection extends UntypedActor {
             if (o instanceof Event) {
                 latestJournalidReceived = ((Event) o).getJournalid();
                 dispatchToCorrectEventHandler((Event) o);
-            } else if (o instanceof EventstoreRestarting) {
-                setInSubscribe();
+            } else if (o instanceof NewEventstoreStarting) {
                 preStart();
             } else if (o instanceof Call && !subscribePhase) {
                 handleCall((Call) o);
+            }else if (o instanceof RefreshSubscription){
+                subscribe();
             } else if (o instanceof IncompleteSubscriptionPleaseSendNew) {
                 log.debug("Sending new subscription on {} from {}", ((IncompleteSubscriptionPleaseSendNew) o).getAggregateType(), latestJournalidReceived);
                 if (latestJournalidReceived == null) {
@@ -73,6 +86,8 @@ public abstract class Projection extends UntypedActor {
             } else if (o instanceof Call && subscribePhase) {
                 log.debug("Adding call {} to pending calls", o);
                 pendingCalls.add(new PendingCall((Call) o, sender()));
+            }else if (o instanceof DistributedPubSubMediator.SubscribeAck){
+                log.info("Subscribing for eventstore restartmessages");
             }
         } catch (Exception e) {
             getContext().parent().tell(new ProjectionFailedError(self(), e, o), self());

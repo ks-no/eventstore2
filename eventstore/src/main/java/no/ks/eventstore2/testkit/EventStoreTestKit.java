@@ -9,7 +9,6 @@ import no.ks.eventstore2.eventstore.CompleteSubscriptionRegistered;
 import no.ks.eventstore2.saga.Saga;
 import no.ks.eventstore2.saga.SagaInMemoryRepository;
 import no.ks.eventstore2.util.IdUtil;
-import scala.concurrent.duration.Duration;
 
 public class EventStoreTestKit extends TestKit {
 
@@ -36,10 +35,5 @@ public class EventStoreTestKit extends TestKit {
 
     protected EventReceiver createEventReceiver() {
         return (EventReceiver) TestActorRef.create(actorSystem, Props.create(EventReceiver.class), IdUtil.createUUID()).underlyingActor();
-    }
-
-    @Override
-    public Duration awaitCond$default$3() {
-        return super.awaitCond$default$3();
     }
 }

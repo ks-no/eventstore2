@@ -201,7 +201,11 @@ public class MongoDBJournalV2 implements JournalStorage {
                         return dbObjects.next();
                     }
                 });
-                handleEvent.handleEvent(deSerialize((byte[]) next.get("d")));
+                final Event event = deSerialize((byte[]) next.get("d"));
+                if(!(""+next.get("jid")).equals(event.getJournalid())){
+                    log.error("Journalid in database dosen't match event db: {} event: {} : completeevent:{}", next.get("jid"), event.getJournalid(), event);
+                }
+                handleEvent.handleEvent(event);
                 i++;
             }
         } finally {

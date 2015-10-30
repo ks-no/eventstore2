@@ -39,8 +39,8 @@ public class MongoDBJournal implements JournalStorage {
         this.registration = registration;
         db.setWriteConcern(WriteConcern.SAFE);
         for (String aggregate : aggregates) {
-            db.getCollection(aggregate).ensureIndex("jid");
-            db.getCollection(aggregate).ensureIndex("rid");
+            db.getCollection(aggregate).createIndex("jid");
+            db.getCollection(aggregate).createIndex("rid");
             db.getCollection(aggregate).setWriteConcern(WriteConcern.SAFE);
         }
         metaCollection = db.getCollection("journalMetadata");

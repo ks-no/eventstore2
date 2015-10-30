@@ -10,6 +10,8 @@ public class MongoDbOperations {
 
     private static final Logger log = LoggerFactory.getLogger(MongoDbOperations.class);
 
+    private MongoDbOperations(){}
+
     public static <T> T doDbOperation(Callable<T> callable, int retries, int sleepms) {
         T result = null;
         boolean finished = false;

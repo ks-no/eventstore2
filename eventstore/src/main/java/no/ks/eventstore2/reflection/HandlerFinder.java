@@ -13,6 +13,8 @@ import akka.actor.UntypedActor;
 
 public class HandlerFinder {
 
+    private HandlerFinder() {}
+
     public static Method findHandlingMethod(Map<Class<? extends Event>, Method> handlers, Event event) {
         Method method = null;
 

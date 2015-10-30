@@ -19,6 +19,8 @@ public class Asker {
     private static final String THREE_SECONDS_STR = "3 seconds";
     private static final String TEN_SECONDS_STR = "10 seconds";
 
+    private Asker(){}
+
     public static ObjectConverter askProjection(ActorRef projection, String method, Object... args) throws Exception {
         if(isNotNull(projection, method, args)) {
             Future<Object> future = ask(projection, call(method, args), THREE_SECONDS);

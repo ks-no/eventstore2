@@ -2,42 +2,44 @@ package no.ks.eventstore2.eventstore;
 
 import akka.ConfigurationException;
 import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
+import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
+import akka.cluster.singleton.ClusterSingletonManager;
+import akka.cluster.singleton.ClusterSingletonManagerSettings;
+import akka.cluster.singleton.ClusterSingletonProxy;
+import akka.cluster.singleton.ClusterSingletonProxySettings;
 import akka.dispatch.OnFailure;
 import com.google.common.collect.HashMultimap;
-import no.ks.eventstore2.AkkaClusterInfo;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.TakeBackup;
 import no.ks.eventstore2.TakeSnapshot;
-import no.ks.eventstore2.response.Success;
-import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
 import scala.concurrent.Future;
 
 import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.Callable;
 
 import static akka.dispatch.Futures.future;
 
 public class EventStore extends UntypedActor {
 
+    public static final String EVENTSTOREMESSAGES = "eventstoremessages";
+
     private static Logger log = LoggerFactory.getLogger(EventStore.class);
 
     private HashMultimap<String, ActorRef> aggregateSubscribers = HashMultimap.create();
-    private ActorRef leaderEventStore;
 
-    private AkkaClusterInfo leaderInfo;
-    private JournalStorage storage;
+    JournalStorage storage;
+
+    private ActorRef eventstoresingeltonProxy;
     private SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
 
     public static Props mkProps(JournalStorage journalStorage) {
+
         return Props.create(EventStore.class, journalStorage);
     }
 
@@ -46,76 +48,42 @@ public class EventStore extends UntypedActor {
     }
 
     @Override
-    public void postStop() {
-        storage.close();
-    }
-
-    @Override
-    public void preRestart(Throwable reason, Option<Object> message) throws Exception {
-        for (ActorRef subscriber : aggregateSubscribers.values()) {
-            subscriber.tell(new EventstoreRestarting(), self());
-        }
-        super.preRestart(reason, message);
-    }
-
-    @Override
     public void preStart() {
-        leaderInfo = new AkkaClusterInfo(getContext().system());
-        leaderInfo.subscribeToClusterEvents(self());
-        updateLeaderState(null);
+
+        try {
+            Cluster cluster = Cluster.get(getContext().system());
+            cluster.subscribe(self(), ClusterEvent.MemberRemoved.class);
+            log.info("{} subscribes to cluster events", self());
+        } catch (ConfigurationException e) {
+        }
+        final ActorSystem system = context().system();
+        try {
+            Cluster cluster = Cluster.get(system);
+            final ClusterSingletonManagerSettings settings =
+                    ClusterSingletonManagerSettings.create(system);
+            system.actorOf(ClusterSingletonManager.props(
+                    EventstoreSingelton.mkProps(storage),
+                    "shutdown", settings), "eventstoresingelton");
+
+            ClusterSingletonProxySettings proxySettings =
+                    ClusterSingletonProxySettings.create(system);
+            proxySettings.withBufferSize(10000);
+
+            eventstoresingeltonProxy = system.actorOf(ClusterSingletonProxy.props("/user/eventstoresingelton", proxySettings),
+                    "eventstoresingeltonProxy");
+        } catch (ConfigurationException e) {
+            log.info("not cluster system");
+            eventstoresingeltonProxy = system.actorOf(EventstoreSingelton.mkProps(storage));
+        }
         log.debug("Eventstore started with adress {}", getSelf().path());
     }
 
-    @Override
-    public void postRestart(Throwable reason) throws Exception {
-        super.postRestart(reason);
-        log.warn("Restarted eventstore, restarting storage");
-        storage.close();
-        if (leaderInfo.isLeader()) {
-            // sleep so we are reasonably sure the other node has closed the storage
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-            }
-            storage.open();
-
-        }
-
-    }
-
-    private void updateLeaderState(ClusterEvent.LeaderChanged leaderChanged) {
-        try {
-            leaderInfo.updateLeaderState(leaderChanged);
-            leaderEventStore = getContext().actorFor(leaderInfo.getLeaderAdress() + "/user/eventstore");
-            log.debug("LeaderEventStore is {}", leaderEventStore);
-
-            if (!leaderInfo.isLeader() && leaderInfo.amIUp()) {
-                for (String s : aggregateSubscribers.keySet()) {
-                    leaderEventStore.tell(new SubscriptionRefresh(s, aggregateSubscribers.get(s)), self());
-                }
-            }
-
-            if (leaderInfo.isLeader()) {
-                // sleep so we are reasonably sure the other node has closed the storage
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
-                }
-                log.info("opening journal store");
-                storage.open();
-            } else {
-                log.info("closing journal store");
-                storage.close();
-            }
-        } catch (ConfigurationException e) {
-            log.debug("Not cluster system");
-        }
-    }
 
     public void onReceive(Object o) throws Exception {
+        log.debug("Received message {}", o);
         try {
             if (o instanceof String && "fail".equals(o)) {
-                throw new RuntimeException("Failing by force");
+                eventstoresingeltonProxy.tell(o, sender());
             }
             if (o instanceof ClusterEvent.MemberRemoved) {
                 ClusterEvent.MemberRemoved removed = (ClusterEvent.MemberRemoved) o;
@@ -133,122 +101,45 @@ public class EventStore extends UntypedActor {
                         log.info("Aggregate {} removeed subscriber {}", aggregate, actorRef);
                     }
                 }
-            }
-            if (o instanceof ClusterEvent.LeaderChanged) {
-                log.info("Recieved LeaderChanged event: {}", o);
-                updateLeaderState((ClusterEvent.LeaderChanged) o);
-            } else if (o instanceof StoreEvents) {
-                if (leaderInfo.isLeader()) {
-                    storeEvents((StoreEvents) o);
-                    publishEvents((StoreEvents) o);
-                    for (Event event : ((StoreEvents) o).getEvents()) {
-                        log.info("Published event {}: {}", event, ((Event) event).getLogMessage());
-                    }
-                } else {
-                    log.info("Sending to leader {} events {}", sender(), o);
-                    leaderEventStore.tell(o, sender());
-                }
-            } else if (o instanceof Event) {
-                if (leaderInfo.isLeader()) {
-                    storeEvent((Event) o);
-                    publishEvent((Event) o);
-                    log.info("Published event {}: {}", o, ((Event) o).getLogMessage());
-                } else {
-                    log.info("Sending to leader {} event {}", sender(), o);
-                    leaderEventStore.tell(o, sender());
-                }
-            } else if (o instanceof RetreiveAggregateEvents) {
-                if (leaderInfo.isLeader()) {
-                    readAggregateEvents((RetreiveAggregateEvents) o);
-                } else {
-                    log.info("Sending to leader {} retrieveAggregateEvents {}", sender(), o);
-                    leaderEventStore.tell(o, sender());
-                }
             } else if (o instanceof Subscription) {
                 Subscription subscription = (Subscription) o;
                 tryToFillSubscription(sender(), subscription);
-            } else if (o instanceof SubscriptionRefresh) {
-                SubscriptionRefresh subscriptionRefresh = (SubscriptionRefresh) o;
-                log.info("Refreshing subscription for {}", subscriptionRefresh);
-                addSubscriber(subscriptionRefresh);
-            } else if ("ping".equals(o)) {
-                log.debug("Ping reveiced from {}", sender());
-                sender().tell("pong", self());
-            } else if ("pong".equals(o)) {
-                log.debug("Pong received from {}", sender());
-            } else if ("startping".equals(o)) {
-                log.debug("starting ping sending to {} from {}", leaderEventStore, self());
-                if (leaderEventStore != null) {
-                    leaderEventStore.tell("ping", self());
-                }
-            } else if (o instanceof AcknowledgePreviousEventsProcessed) {
-                if (leaderInfo.isLeader()) {
-                    sender().tell(new Success(), self());
-                } else {
-                    leaderEventStore.tell(o, sender());
-                }
-            } else if (o instanceof UpgradeAggregate && leaderInfo.isLeader()) {
-                UpgradeAggregate upgrade = (UpgradeAggregate) o;
-                log.info("Upgrading aggregate " + upgrade.getAggregateType());
-                storage.upgradeFromOldStorage(upgrade.getAggregateType(), upgrade.getOldStorage());
-                log.info("Upgraded aggregate " + upgrade.getAggregateType());
-            } else if (o instanceof TakeBackup) {
-                if (leaderInfo.isLeader()) {
-                    for (ActorRef actorRef : aggregateSubscribers.values()) {
-                        actorRef.tell(o, self());
-                    }
-                    storage.doBackup(((TakeBackup) o).getBackupdir(), "backupEventStore" + format.format(new Date()));
-                } else {
-                    leaderEventStore.tell(o, sender());
-                }
-            } else if (o instanceof TakeSnapshot) {
-                if (leaderInfo.isLeader()) {
-                    for (ActorRef actorRef : aggregateSubscribers.values()) {
-                        actorRef.tell(o, self());
-                    }
-                } else {
-                    leaderEventStore.tell(o, sender());
-                }
+            } else if (o instanceof String ||
+                    o instanceof Subscription ||
+                    o instanceof StoreEvents ||
+                    o instanceof Event ||
+                    o instanceof RetreiveAggregateEvents ||
+                    o instanceof AcknowledgePreviousEventsProcessed ||
+                    o instanceof UpgradeAggregate ||
+                    o instanceof TakeBackup ||
+                    o instanceof TakeSnapshot) {
+                if (!(o instanceof AcknowledgePreviousEventsProcessed))
+                    log.info("Sending to singelton  message {} from {}", o, sender());
+                eventstoresingeltonProxy.tell(o, sender());
             }
-
         } catch (Exception e) {
             log.error("Eventstore got an error: ", e);
             throw e;
         }
     }
 
-    private void readAggregateEvents(RetreiveAggregateEvents retreiveAggregateEvents) {
-        final ActorRef sender = sender();
-
-        sender.tell(storage.loadEventsForAggregateId(retreiveAggregateEvents.getAggregateType(), retreiveAggregateEvents.getAggregateId(), retreiveAggregateEvents.getFromJournalId()), self());
-    }
-
     private void tryToFillSubscription(final ActorRef sender, final Subscription subscription) {
         final ActorRef self = self();
-        if (subscription instanceof LiveSubscription) {
-            if (leaderInfo.isLeader()) {
-                log.info("CompleteSubscriptionRegistered");
-                sender.tell(new CompleteSubscriptionRegistered(subscription.getAggregateType()), self());
-                addSubscriber(subscription);
-            } else {
-                log.info("Sending subscription to leader {} from {}", leaderEventStore.path(), sender().path());
-                leaderEventStore.tell(subscription, sender);
-            }
-        }
+
         if (subscription instanceof AsyncSubscription) {
-            Future<Boolean> f = future(new Callable<Boolean>() {
-                public Boolean call() {
-                    log.info("Got async subscription on {} from {}, filling subscriptions", subscription, sender);
-                    boolean finished = loadEvents(sender, subscription);
-                    if (!finished) {
-                        log.info("Async IncompleteSubscriptionPleaseSendNew");
-                        sender.tell(new IncompleteSubscriptionPleaseSendNew(subscription.getAggregateType()), self);
-                    } else {
-                        log.info("Async CompleteAsyncSubscriptionPleaseSendSyncSubscription");
-                        sender.tell(new CompleteAsyncSubscriptionPleaseSendSyncSubscription(subscription.getAggregateType()), self);
-                    }
-                    return finished;
+            Future<Boolean> f = future(() -> {
+                log.info("Got async subscription on {} from {}, filling subscriptions", subscription, sender);
+
+                boolean finished = loadEvents(sender, subscription);
+
+                if (!finished) {
+                    log.info("Async IncompleteSubscriptionPleaseSendNew");
+                    sender.tell(new IncompleteSubscriptionPleaseSendNew(subscription.getAggregateType()), self);
+                } else {
+                    log.info("Async CompleteAsyncSubscriptionPleaseSendSyncSubscription");
+                    sender.tell(new CompleteAsyncSubscriptionPleaseSendSyncSubscription(subscription.getAggregateType()), self);
                 }
+                return finished;
             }, getContext().system().dispatcher());
             f.onFailure(new OnFailure() {
                 public void onFailure(Throwable failure) {
@@ -256,21 +147,8 @@ public class EventStore extends UntypedActor {
                 }
             }, getContext().system().dispatcher());
         } else {
-            log.info("Got subscription on {} from {}, filling subscriptions", subscription, sender);
-            boolean finished = loadEvents(sender, subscription);
-            if (!finished) {
-                log.info("IncompleteSubscriptionPleaseSendNew");
-                sender.tell(new IncompleteSubscriptionPleaseSendNew(subscription.getAggregateType()), self());
-            } else {
-                if (leaderInfo.isLeader()) {
-                    log.info("CompleteSubscriptionRegistered");
-                    sender.tell(new CompleteSubscriptionRegistered(subscription.getAggregateType()), self());
-                    addSubscriber(subscription);
-                } else {
-                    log.info("Sending subscription to leader {} from {}", leaderEventStore.path(), sender().path());
-                    leaderEventStore.tell(subscription, sender);
-                }
-            }
+            log.info("Sending subscription to singelton {} from {}", eventstoresingeltonProxy.path(), sender().path());
+            eventstoresingeltonProxy.tell(subscription, sender());
         }
     }
 
@@ -295,53 +173,10 @@ public class EventStore extends UntypedActor {
         return finished;
     }
 
-    private void addSubscriber(SubscriptionRefresh refresh) {
-        aggregateSubscribers.putAll(refresh.getAggregateType(), refresh.getSubscribers());
-    }
-
-    private void publishEvents(StoreEvents events) {
-        for (Event event : events.getEvents()) {
-            publishEvent(event);
-        }
-    }
-
-    private void publishEvent(Event event) {
-        Set<ActorRef> actorRefs = aggregateSubscribers.get(event.getAggregateType());
-        if (actorRefs == null) {
-            return;
-        }
-        sendEvent(event, actorRefs);
-    }
-
-    private void addSubscriber(Subscription subscription) {
-        aggregateSubscribers.put(subscription.getAggregateType(), sender());
-    }
-
-    public void storeEvent(final Event event) {
-        event.setCreated(new DateTime());
-        storage.saveEvent(event);
-    }
-
-    private void storeEvents(StoreEvents o) {
-        for (Event event : o.getEvents()) {
-            event.setCreated(new DateTime());
-        }
-        storage.saveEvents(o.getEvents());
-    }
-
-
     private void sendEvent(Event event, ActorRef subscriber) {
         Event upgadedEvent = upgradeEvent(event);
         log.debug("Publishing event {} to {}", upgadedEvent, subscriber);
         subscriber.tell(upgadedEvent, self());
-    }
-
-    private void sendEvent(Event event, Set<ActorRef> subscribers) {
-        Event upgradedEvent = upgradeEvent(event);
-        for (ActorRef subscriber : subscribers) {
-            log.debug("Publishing event {} to {}", upgradedEvent, subscriber);
-            subscriber.tell(upgradedEvent, self());
-        }
     }
 
     private Event upgradeEvent(Event event) {
@@ -352,6 +187,12 @@ public class EventStore extends UntypedActor {
             upgraded = currentEvent.upgrade();
         }
         return upgraded;
+    }
+
+    private void addSubscriber(Subscription subscription) {
+        aggregateSubscribers.put(subscription.getAggregateType(), sender());
+        log.info("Added subscriber {} " + subscription);
+        log.info("Current subscribers " + aggregateSubscribers);
     }
 
 

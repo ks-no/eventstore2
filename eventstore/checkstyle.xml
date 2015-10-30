@@ -1,10 +1,28 @@
 <?xml version="1.0"?>
-<!DOCTYPE module PUBLIC
-		"-//Puppy Crawl//DTD Check Configuration 1.2//EN"
-		"http://www.puppycrawl.com/dtds/configuration_1_2.dtd">
+		<!DOCTYPE module PUBLIC
+				"-//Puppy Crawl//DTD Check Configuration 1.3//EN"
+				"http://www.puppycrawl.com/dtds/configuration_1_3.dtd">
 
+		<!--
+          Checkstyle configuration that checks the sun coding conventions from:
+            - the Java Language Specification at
+              http://java.sun.com/docs/books/jls/second_edition/html/index.html
+            - the Sun Code Conventions at http://java.sun.com/docs/codeconv/
+            - the Javadoc guidelines at
+              http://java.sun.com/j2se/javadoc/writingdoccomments/index.html
+            - the JDK Api documentation http://java.sun.com/j2se/docs/api/index.html
+            - some best practices
+          Checkstyle is very configurable. Be sure to read the documentation at
+          http://checkstyle.sf.net (or in your downloaded distribution).
+          Most Checks are configurable, be sure to consult the documentation.
+          To completely disable a check, just comment it out or delete it from the file.
+          Finally, it is worth reading the documentation.
+        -->
 
 <module name="Checker">
+        <module name="SuppressionFilter">
+               <property name="file" value="suppressions.xml" />
+        </module>
 	<!-- Checks that a package-info.java file exists for each package.     -->
 	<!-- See http://checkstyle.sf.net/config_javadoc.html#JavadocPackage -->
 	<!--<module name="JavadocPackage"/>-->
@@ -34,20 +52,21 @@
 		<property name="message" value="Line has trailing spaces."/>
 	</module>
 
+	<!-- Checks for Headers                                -->
+	<!-- See http://checkstyle.sf.net/config_header.html   -->
+	<!-- <module name="Header"> -->
+	<!--   <property name="headerFile" value="${checkstyle.header.file}"/> -->
+	<!--   <property name="fileExtensions" value="java"/> -->
+	<!-- </module> -->
+
 	<module name="TreeWalker">
-		<property name="cacheFile" value="target/checkstylecachefile"/>
+
 		<!-- Checks for Javadoc comments.                     -->
 		<!-- See http://checkstyle.sf.net/config_javadoc.html -->
-		<!--<module name="JavadocMethod">-->
-			<!--<property name="excludeScope" value="private"/>-->
-		<!--</module>-->
-		<!--<module name="JavadocType"/>-->
-		<!--<module name="JavadocVariable">-->
-			<!--<property name="excludeScope" value="private"/>-->
-		<!--</module>-->
-		<!--<module name="JavadocStyle">-->
-			<!--<property name="checkEmptyJavadoc" value="true"/>-->
-		<!--</module>-->
+		<!-- <module name="JavadocMethod"/>
+		<module name="JavadocType"/>
+		<module name="JavadocVariable"/>
+		<module name="JavadocStyle"/> -->
 
 
 		<!-- Checks for Naming Conventions.                  -->
@@ -56,17 +75,17 @@
 		<!--<module name="LocalFinalVariableName"/>-->
 		<module name="LocalVariableName"/>
 		<module name="MemberName"/>
-		<!--<module name="MethodName"/>-->
+		<module name="MethodName"/>
 		<module name="PackageName"/>
 		<module name="ParameterName"/>
 		<module name="StaticVariableName"/>
 		<module name="TypeName"/>
 
+
 		<!-- Checks for imports                              -->
 		<!-- See http://checkstyle.sf.net/config_import.html -->
 		<!--<module name="AvoidStarImport"/>-->
-		<module name="IllegalImport"/>
-		<!-- defaults to sun.* packages -->
+		<module name="IllegalImport"/> <!-- defaults to sun.* packages -->
 		<module name="RedundantImport"/>
 		<module name="UnusedImports"/>
 
@@ -75,7 +94,7 @@
 		<!-- See http://checkstyle.sf.net/config_sizes.html -->
 		<!--<module name="LineLength"/>-->
 		<module name="MethodLength"/>
-		<module name="ParameterNumber"/>
+		<!--<module name="ParameterNumber"/>-->
 
 
 		<!-- Checks for whitespace                               -->
@@ -85,7 +104,7 @@
 		<module name="MethodParamPad"/>
 		<!--<module name="NoWhitespaceAfter"/>-->
 		<module name="NoWhitespaceBefore"/>
-		<!--<module name="OperatorWrap"/>-->
+		<!-- <module name="OperatorWrap"/> -->
 		<!--<module name="ParenPad"/>-->
 		<module name="TypecastParenPad"/>
 		<!-- <module name="WhitespaceAfter"/> -->
@@ -102,15 +121,14 @@
 		<!-- See http://checkstyle.sf.net/config_blocks.html -->
 		<module name="AvoidNestedBlocks"/>
 		<!--<module name="EmptyBlock"/>-->
-		<module name="LeftCurly"/>
+		<!--<module name="LeftCurly"/>-->
 		<!--<module name="NeedBraces"/>-->
-		<module name="RightCurly"/>
+		<!--<module name="RightCurly"/>-->
 
 
 		<!-- Checks for common coding problems               -->
 		<!-- See http://checkstyle.sf.net/config_coding.html -->
 		<!--<module name="AvoidInlineConditionals"/>-->
-		<!--<module name="DoubleCheckedLocking"/>-->
 		<module name="EmptyStatement"/>
 		<module name="EqualsHashCode"/>
 		<!--<module name="HiddenField">-->
@@ -129,21 +147,18 @@
 		<!-- See http://checkstyle.sf.net/config_design.html -->
 		<!--<module name="DesignForExtension"/>-->
 		<!--<module name="FinalClass"/>-->
+		<module name="HideUtilityClassConstructor"/>
 		<module name="InterfaceIsType"/>
 		<!--<module name="VisibilityModifier"/>-->
 
 
 		<!-- Miscellaneous other checks.                   -->
 		<!-- See http://checkstyle.sf.net/config_misc.html -->
-		<!--<module name="ArrayTypeStyle"/>-->
+		<module name="ArrayTypeStyle"/>
 		<!--<module name="FinalParameters"/>-->
 		<!--<module name="TodoComment"/>-->
 		<module name="UpperEll"/>
 
-		<module name="IllegalThrows">
-			<property name="illegalClassNames"
-					  value="java.lang.Error, java.lang.RuntimeException"/>
-		</module>
 	</module>
 
 </module>

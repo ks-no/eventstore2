@@ -24,13 +24,6 @@ public abstract class MongoDbProjection extends ProjectionSnapshot {
     }
 
     @Override
-    public void preStart() {
-        super.preStart();
-        loadSnapshot();
-
-    }
-
-    @Override
     public void saveSnapshot() {
         final String simpleName = getClass().getSimpleName();
         log.info("{} Saving snapshot for event {}", simpleName, latestJournalidReceived);

@@ -28,7 +28,7 @@ public abstract class Projection extends UntypedActor {
 
     protected String latestJournalidReceived;
 
-    private boolean subscribePhase = true;
+    private boolean subscribePhase = false;
 
     private List<PendingCall> pendingCalls = new ArrayList<PendingCall>();
 
@@ -257,7 +257,11 @@ public abstract class Projection extends UntypedActor {
     }
 
     protected void subscribe() {
-        setInSubscribe();
-        eventStore.tell(new AsyncSubscription(getSubscribe().getAggregateType(), latestJournalidReceived), self());
+        if(!subscribePhase) {
+            setInSubscribe();
+            eventStore.tell(new AsyncSubscription(getSubscribe().getAggregateType(), latestJournalidReceived), self());
+        } else {
+            log.warn("Trying to subscribe but is already in subscribe phase.");
+        }
     }
 }

@@ -1,15 +1,13 @@
 package no.ks.eventstore2.saga;
 
 import akka.ConfigurationException;
-import akka.actor.ActorRef;
-import akka.actor.Cancellable;
-import akka.actor.PoisonPill;
-import akka.actor.Props;
-import akka.actor.UntypedActor;
-import akka.cluster.ClusterEvent;
+import akka.actor.*;
 import akka.cluster.pubsub.DistributedPubSub;
 import akka.cluster.pubsub.DistributedPubSubMediator;
-import no.ks.eventstore2.AkkaClusterInfo;
+import akka.cluster.singleton.ClusterSingletonManager;
+import akka.cluster.singleton.ClusterSingletonManagerSettings;
+import akka.cluster.singleton.ClusterSingletonProxy;
+import akka.cluster.singleton.ClusterSingletonProxySettings;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.TakeBackup;
 import no.ks.eventstore2.TakeSnapshot;
@@ -28,13 +26,7 @@ import java.beans.IntrospectionException;
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 public class SagaManager extends UntypedActor {
@@ -45,23 +37,48 @@ public class SagaManager extends UntypedActor {
     private ActorRef eventstore;
     private String packageScanPath;
 
+
     private SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
 
     private Map<SagaCompositeId, ActorRef> sagas = new HashMap<SagaCompositeId, ActorRef>();
-    private AkkaClusterInfo akkaClusterInfo;
+
     private Map<String, String> latestJournalidReceived = new HashMap<String, String>();
+    private Map<String, Boolean> inSubscribe = new HashMap<>();
 
     private final Cancellable snapshotSchedule = getContext().system().scheduler().schedule(
             Duration.create(1, TimeUnit.HOURS),
             Duration.create(2, TimeUnit.HOURS),
             getSelf(), new TakeSnapshot(), getContext().dispatcher(), null);
 
-    public static Props mkProps(ActorRef commandDispatcher, SagaInMemoryRepository repository, ActorRef eventStore) {
-        return mkProps(commandDispatcher, repository, eventStore, "no");
+    public static Props mkProps(ActorSystem system, ActorRef commandDispatcher, SagaInMemoryRepository repository, ActorRef eventStore) {
+        return mkProps(system, commandDispatcher, repository, eventStore, "no");
     }
+    public static Props mkProps(ActorSystem system, ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore, String packageScanPath) {
+        return mkProps(system, commandDispatcher, repository, eventstore, packageScanPath, null);
+    }
+    public static Props mkProps(ActorSystem system, ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore, String packageScanPath, String dispatcher) {
+        Props singletonProps = Props.create(SagaManager.class, commandDispatcher, repository, eventstore, packageScanPath);
+        if(dispatcher != null){
+            singletonProps = singletonProps.withDispatcher(dispatcher);
+        }
+        try {
+            final ClusterSingletonManagerSettings settings =
+                    ClusterSingletonManagerSettings.create(system);
 
-    public static Props mkProps(ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore, String packageScanPath) {
-        return Props.create(SagaManager.class, commandDispatcher, repository, eventstore, packageScanPath);
+            system.actorOf(ClusterSingletonManager.props(
+                    singletonProps,
+                    "shutdown", settings), "sagamanagersingelton");
+
+            ClusterSingletonProxySettings proxySettings =
+                    ClusterSingletonProxySettings.create(system);
+            proxySettings.withBufferSize(10000);
+
+            return ClusterSingletonProxy.props("/user/eventstoresingelton", proxySettings);
+        } catch (ConfigurationException e) {
+            log.info("not cluster system");
+            return singletonProps;
+        }
+
     }
 
     public SagaManager(ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore, String packageScanPath) {
@@ -80,8 +97,6 @@ public class SagaManager extends UntypedActor {
     @Override
     public void preStart() {
         registerSagas();
-        akkaClusterInfo = new AkkaClusterInfo(getContext().system());
-        akkaClusterInfo.subscribeToClusterEvents(self());
         try {
             ActorRef mediator =
                     DistributedPubSub.get(getContext().system()).mediator();
@@ -91,8 +106,8 @@ public class SagaManager extends UntypedActor {
         } catch (ConfigurationException e){
             log.info("Not subscribing to eventstore event, no cluster system");
         }
-        updateLeaderState(null);
-
+        repository.open();
+        subscribe();
     }
 
     @Override
@@ -100,25 +115,18 @@ public class SagaManager extends UntypedActor {
         super.postRestart(reason);
         log.warn("Restarted sagamanager, restarting storage");
         repository.close();
-        if (akkaClusterInfo.isLeader()) {
-            // sleep so we are reasonably sure the other node has closed the storage
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-            }
-            repository.open();
-        }
+        repository.open();
     }
 
     @Override
     public void onReceive(Object o) throws Exception {
         if (log.isDebugEnabled() && o instanceof Event) {
-            log.debug("SagaManager received event {} is leader {}", o, akkaClusterInfo.isLeader());
+            log.debug("SagaManager received event {}", o);
         }
         if (o instanceof Event) {
             latestJournalidReceived.put(((Event) o).getAggregateType(), ((Event) o).getJournalid());
         }
-        if (o instanceof Event && akkaClusterInfo.isLeader()) {
+        if (o instanceof Event) {
             log.debug("SagaManager processing event {}", o);
             Event event = (Event) o;
             Set<SagaEventMapping> sagaClassesForEvent = getSagaClassesForEvent(event.getClass());
@@ -128,10 +136,8 @@ public class SagaManager extends UntypedActor {
                 sagaRef.tell(event, self());
             }
         } else if (o instanceof NewEventstoreStarting) {
-            updateLeaderState(null);
-        } else if (o instanceof ClusterEvent.LeaderChanged) {
-            updateLeaderState((ClusterEvent.LeaderChanged) o);
-        } else if (o instanceof UpgradeSagaRepoStore && akkaClusterInfo.isLeader()) {
+            subscribe();
+        } else if (o instanceof UpgradeSagaRepoStore) {
             repository.open();
             if (repository.getState("Saga", "upgradedH2Db") != (byte) 1) {
                 log.info("Upgrading sagaRepository");
@@ -147,27 +153,22 @@ public class SagaManager extends UntypedActor {
             Subscription subscription = new Subscription(aggregateType, latestJournalidReceived.get(aggregateType));
             eventstore.tell(subscription, self());
         } else if (o instanceof TakeBackup) {
-            if (akkaClusterInfo.isLeader()) {
                 repository.doBackup(((TakeBackup) o).getBackupdir(), "backupSagaRepo" + format.format(new Date()));
-            }
         } else if (o instanceof AcknowledgePreviousEventsProcessed) {
-            if (akkaClusterInfo.isLeader()) {
                 sender().tell(new Success(), self());
-            } else {
-                getLeaderSagaManager().tell(o, sender());
-            }
-        } else if (o instanceof TakeSnapshot && akkaClusterInfo.isLeader()) {
+        } else if (o instanceof TakeSnapshot) {
             for (String aggregate : latestJournalidReceived.keySet()) {
                 log.info("Saving latestJournalId {} for sagaManager aggregate {}", latestJournalidReceived.get(aggregate), aggregate);
                 repository.saveLatestJournalId(aggregate, latestJournalidReceived.get(aggregate));
             }
         } else if (o instanceof DistributedPubSubMediator.SubscribeAck){
             log.info("Subscribing for eventstore restartmessages");
+        } else if( o instanceof CompleteSubscriptionRegistered) {
+            inSubscribe.remove(((CompleteSubscriptionRegistered) o).getAggregateType());
+        } else if("shutdown".equals(o)){
+            log.info("shutting down sagamanager");
+            removeOldActorsWithWrongState();
         }
-    }
-
-    private ActorRef getLeaderSagaManager() {
-        return getContext().actorFor(akkaClusterInfo.getLeaderAdress() + "/user/sagaManager");
     }
 
     private ActorRef getOrCreateSaga(Class<? extends Saga> clz, String sagaId) {
@@ -287,34 +288,16 @@ public class SagaManager extends UntypedActor {
         eventToSagaMap.get(eventClass).add(new SagaEventMapping(sagaClass, propertyMethod));
     }
 
-    private void updateLeaderState(ClusterEvent.LeaderChanged leaderChanged) {
-        try {
-            boolean oldLeader = akkaClusterInfo.isLeader();
-            akkaClusterInfo.updateLeaderState(leaderChanged);
-            if (oldLeader && !akkaClusterInfo.isLeader()) {
-                removeOldActorsWithWrongState();
+    private void subscribe() {
+        if(inSubscribe.size() == 0) {
+            for (String aggregate : aggregates) {
+                latestJournalidReceived.put(aggregate, repository.loadLatestJournalID(aggregate));
+                log.info("SagaManager loaded aggregate {} latestJournalid {}", aggregate, latestJournalidReceived.get(aggregate));
             }
-            if (akkaClusterInfo.isLeader()) {
-                log.info("Opening repository for sagaManager");
-                // sleep so we are reasonably sure the other node has closed the storage
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
-                }
-                repository.open();
-                for (String aggregate : aggregates) {
-                    latestJournalidReceived.put(aggregate, repository.loadLatestJournalID(aggregate));
-                    log.info("SagaManager loaded aggregate {} latestJournalid {}", aggregate, latestJournalidReceived.get(aggregate));
-                }
-                for (String aggregate : aggregates) {
-                    eventstore.tell(new Subscription(aggregate, latestJournalidReceived.get(aggregate)), self());
-                }
-            } else {
-                log.info("Closing repository for sagaManager");
-                repository.close();
+            for (String aggregate : aggregates) {
+                inSubscribe.put(aggregate, true);
+                eventstore.tell(new Subscription(aggregate, latestJournalidReceived.get(aggregate)), self());
             }
-        } catch (ConfigurationException e) {
-            log.debug("Not cluster system");
         }
     }
 

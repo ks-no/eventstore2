@@ -56,7 +56,7 @@ public class FormProcessorIntegrationTest extends EmbeddedDatabaseTest {
 
 
             final ActorRef commandDispatcher = system.actorOf(CommandDispatcher.mkProps(commandHandlerProps), "commandDispatcher");
-            final ActorRef sagaManager = system.actorOf(SagaManager.mkProps(commandDispatcher, new SagaInMemoryRepository(), eventStore), "sagaManager");
+            final ActorRef sagaManager = system.actorOf(SagaManager.mkProps(system, commandDispatcher, new SagaInMemoryRepository(), eventStore), "sagaManager");
 
             eventStore.tell(new FormReceived("form_id_1"), getRef());
             eventStore.tell(new Subscription("FORM"), getRef());

@@ -64,12 +64,12 @@ public class SagaManagerTest extends TestKit {
 
     private Props getSagaManagerProps() {
         final ActorRef testActor = super.testActor();
-        return SagaManager.mkProps(testActor, sagaInMemoryRepository, _system.actorOf(Props.create(DummyActor.class)), "no");
+        return SagaManager.mkProps(_system, testActor, sagaInMemoryRepository, _system.actorOf(Props.create(DummyActor.class)), "no");
     }
 
     @Test
     public void testIncompleteSubscribeSendsCorrectJournalid() throws Exception {
-        final Props props = SagaManager.mkProps(super.testActor(), sagaInMemoryRepository, super.testActor(), "no");
+        final Props props = SagaManager.mkProps(_system, super.testActor(), sagaInMemoryRepository, super.testActor(), "no");
         final TestActorRef<SagaManager> ref = TestActorRef.create(_system, props, "sagaManagerIncomplete");
         expectMsgClass(Subscription.class);
         expectMsgClass(Subscription.class);

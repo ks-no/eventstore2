@@ -2,6 +2,7 @@ package no.ks.eventstore2.projection;
 
 import akka.ConfigurationException;
 import akka.actor.ActorRef;
+import akka.actor.Cancellable;
 import akka.actor.Status;
 import akka.actor.UntypedActor;
 import akka.cluster.pubsub.DistributedPubSub;
@@ -15,10 +16,12 @@ import no.ks.eventstore2.response.NoResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.Future;
+import scala.concurrent.duration.Duration;
 import scala.util.Failure;
 
 import java.lang.reflect.Method;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 public abstract class Projection extends UntypedActor {
 
@@ -31,6 +34,7 @@ public abstract class Projection extends UntypedActor {
     private boolean subscribePhase = false;
 
     private List<PendingCall> pendingCalls = new ArrayList<PendingCall>();
+    private Cancellable subscribeTimeout;
 
     //TODO; constructor vs preStart, and how do we handle faling actor creations? Pass exception to parent and shutdown actor system?
     public Projection(ActorRef eventStore) {
@@ -67,6 +71,7 @@ public abstract class Projection extends UntypedActor {
                 subscribe();
             } else if (o instanceof IncompleteSubscriptionPleaseSendNew) {
                 log.debug("Sending new subscription on {} from {}", ((IncompleteSubscriptionPleaseSendNew) o).getAggregateType(), latestJournalidReceived);
+                resetSubscribeTimeout();
                 if (latestJournalidReceived == null) {
                     throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
                 }
@@ -74,6 +79,7 @@ public abstract class Projection extends UntypedActor {
             } else if (o instanceof CompleteSubscriptionRegistered) {
                 if (o instanceof CompleteAsyncSubscriptionPleaseSendSyncSubscription) {
                     log.info("AsyncSubscription complete, sending sync subscription");
+                    resetSubscribeTimeout();
                     eventStore.tell(new Subscription(((CompleteAsyncSubscriptionPleaseSendSyncSubscription) o).getAggregateType(), latestJournalidReceived), self());
                 } else {
                     log.info("Subscription on {} is complete", ((CompleteSubscriptionRegistered) o).getAggregateType());
@@ -88,6 +94,9 @@ public abstract class Projection extends UntypedActor {
                 pendingCalls.add(new PendingCall((Call) o, sender()));
             }else if (o instanceof DistributedPubSubMediator.SubscribeAck){
                 log.info("Subscribing for eventstore restartmessages");
+            } else if("stillInSubscribe?".equals(o)){
+                log.error("We are still in subscribe somethings wrong, resubscribing");
+                preStart();
             }
         } catch (Exception e) {
             getContext().parent().tell(new ProjectionFailedError(self(), e, o), self());
@@ -99,11 +108,24 @@ public abstract class Projection extends UntypedActor {
     private void setSubscribeFinished() {
         subscribePhase = false;
         context().parent().tell(ProjectionManager.SUBSCRIBE_FINISHED, self());
+        cancelSubscribeTimeout();
     }
+
+    private void cancelSubscribeTimeout() {
+        if(subscribeTimeout != null) subscribeTimeout.cancel();
+        subscribeTimeout = null;
+    }
+
 
     protected void setInSubscribe() {
         subscribePhase = true;
         context().parent().tell(ProjectionManager.IN_SUBSCRIBE, self());
+        resetSubscribeTimeout();
+    }
+
+    private void resetSubscribeTimeout() {
+        if(subscribeTimeout != null) subscribeTimeout.cancel();
+        subscribeTimeout = getContext().system().scheduler().scheduleOnce(Duration.create(5, TimeUnit.MINUTES), self(), "stillInSubscribe?", getContext().system().dispatcher(),self());
     }
 
     public final void dispatchToCorrectEventHandler(Event event) {

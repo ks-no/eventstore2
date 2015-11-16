@@ -143,7 +143,8 @@ public class EventStore extends UntypedActor {
             }, getContext().system().dispatcher());
             f.onFailure(new OnFailure() {
                 public void onFailure(Throwable failure) {
-                    log.error("Error in AsyncSubscribe", failure);
+                    log.error("Error in AsyncSubscribe, restarting subscriber", failure);
+                    sender.tell(new NewEventstoreStarting(), self);
                 }
             }, getContext().system().dispatcher());
         } else {

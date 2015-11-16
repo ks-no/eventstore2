@@ -193,7 +193,15 @@ public class EventStore extends UntypedActor {
     private void addSubscriber(Subscription subscription) {
         aggregateSubscribers.put(subscription.getAggregateType(), sender());
         log.info("Added subscriber {} " + subscription);
-        log.info("Current subscribers " + aggregateSubscribers);
+        log.debug("Current subscribers " + toLogString(aggregateSubscribers));
+    }
+
+    private String toLogString(HashMultimap<String, ActorRef> aggregateSubscribers) {
+        String str = "";
+        for (String s : aggregateSubscribers.keySet()) {
+            str += "['" + s + "':" + aggregateSubscribers.get(s) + "]\n";
+        }
+        return str;
     }
 
 

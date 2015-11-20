@@ -96,6 +96,7 @@ public abstract class Projection extends UntypedActor {
                 log.info("Subscribing for eventstore restartmessages");
             } else if("stillInSubscribe?".equals(o)){
                 log.error("We are still in subscribe somethings wrong, resubscribing");
+                subscribePhase = false;
                 preStart();
             }
         } catch (Exception e) {

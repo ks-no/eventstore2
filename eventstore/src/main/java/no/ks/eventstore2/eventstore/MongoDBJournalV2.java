@@ -63,6 +63,7 @@ public class MongoDBJournalV2 implements JournalStorage {
             kryo.setInstantiatorStrategy(new SerializingInstantiatorStrategy());
             kryo.setDefaultSerializer(CompatibleFieldSerializer.class);
             kryo.register(DateTime.class, new JodaDateTimeSerializer());
+            kryo.setRegistrationRequired(true);
             registration.registerClasses(kryo);
             tlkryo.set(kryo);
         }

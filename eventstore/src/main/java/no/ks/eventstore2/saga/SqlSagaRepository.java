@@ -25,7 +25,7 @@ public abstract class SqlSagaRepository extends SagaRepository {
 	@Override
 	public void saveState(String sagaStateId, String sagaid, byte state) {
 		log.debug("Saving state {} sagaid {} state "+ state, sagaStateId, sagaid);
-		int i = template.queryForInt("select count(0) from saga where id = ? and clazz = ?", sagaid, sagaStateId);
+		int i = template.queryForObject("select count(0) from saga where id = ? and clazz = ?", new Object[]{sagaid, sagaStateId}, Integer.class );
 		if(i > 0) {
 			template.update(getUpdateSagaSql(), state, sagaid, sagaStateId);
 		} else {
@@ -37,7 +37,7 @@ public abstract class SqlSagaRepository extends SagaRepository {
 	public byte getState(String sagaStateId, String sagaid) {
 		int result = 0;
 		try{
-			result = template.queryForInt(getSelectStateSql(),new Object[]{sagaid, sagaStateId});
+			result = template.queryForObject(getSelectStateSql(), new Object[]{sagaid, sagaStateId}, Integer.class);
 		} catch (EmptyResultDataAccessException e){
 
 		}

@@ -30,7 +30,7 @@ public class H2JournalStorage extends AbstractJournalStorage {
     public void saveEvent(final Event event) {
         final ByteArrayOutputStream output = createByteArrayOutputStream(event);
         LobHandler lobHandler = new DefaultLobHandler();
-        final long id = template.queryForLong("select seq.nextval from dual");
+        final long id = template.queryForObject("select seq.nextval from dual", Long.class);
         event.setJournalid(String.valueOf(id));
         template.execute("INSERT INTO event (id, aggregatetype, class, dataversion, kryoeventdata) VALUES(?,?,?,?,?)",
                 new AbstractLobCreatingPreparedStatementCallback(lobHandler) {

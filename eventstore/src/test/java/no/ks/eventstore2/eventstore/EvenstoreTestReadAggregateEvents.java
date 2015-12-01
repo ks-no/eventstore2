@@ -4,6 +4,7 @@ import akka.actor.Actor;
 import akka.testkit.TestActorRef;
 import com.esotericsoftware.kryo.Kryo;
 import com.mongodb.DB;
+import com.mongodb.client.MongoDatabase;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
 import org.junit.Before;
@@ -21,14 +22,14 @@ public class EvenstoreTestReadAggregateEvents extends MongoDbEventstore2TestKit{
             kryo.register(AggEvent.class, 1001);
         }
     };
-    private MongoDBJournal journal;
+    private MongoDBJournalV2 journal;
 
     @Before
     public void setUp() throws Exception {
         super.setUp();
 
-        DB db = mongoClient.getDB("Journal");
-        journal = new MongoDBJournal(db, kryoClassRegistration, Arrays.asList(new String[]{"agg1"}), 10);
+        MongoDatabase db = mongoClient.getDatabase("Journal");
+        journal = new MongoDBJournalV2(db, kryoClassRegistration, Arrays.asList(new String[]{"agg1", "agg", "agg2"}), 10);
     }
 
     @Test

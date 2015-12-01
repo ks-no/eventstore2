@@ -6,6 +6,7 @@ import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
 import com.esotericsoftware.kryo.Kryo;
 import com.mongodb.DB;
+import com.mongodb.client.MongoDatabase;
 import com.typesafe.config.ConfigFactory;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
 import org.apache.commons.io.FileUtils;
@@ -28,13 +29,13 @@ public class EventStoreTest extends MongoDbEventstore2TestKit {
             kryo.register(AggEvent.class, 1001);
         }
     };
-    private DB journal;
+    private MongoDatabase journal;
 
 
     @Before
     public void setUp() throws Exception {
         super.setUp();
-        journal = mongoClient.getDB("Journal");
+        journal = mongoClient.getDatabase("Journal");
         mongodbJournal = new MongoDBJournalV2(journal, kryoClassRegistration, Arrays.asList(new String[]{"agg"}),10);
         mongodbJournal.open();
 

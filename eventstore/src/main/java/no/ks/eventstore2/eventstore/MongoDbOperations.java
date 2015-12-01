@@ -40,5 +40,4 @@ public class MongoDbOperations {
     public static <T> T doDbOperation(Callable<T> callable) {
         return doDbOperation(callable, 50, 500);
     }
-
 }

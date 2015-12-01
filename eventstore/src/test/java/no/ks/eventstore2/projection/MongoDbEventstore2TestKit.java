@@ -2,6 +2,7 @@ package no.ks.eventstore2.projection;
 
 import com.mongodb.MongoClient;
 import com.mongodb.ServerAddress;
+import com.mongodb.client.MongoIterable;
 import de.flapdoodle.embed.mongo.Command;
 import de.flapdoodle.embed.mongo.MongodExecutable;
 import de.flapdoodle.embed.mongo.MongodProcess;
@@ -9,11 +10,14 @@ import de.flapdoodle.embed.mongo.MongodStarter;
 import de.flapdoodle.embed.mongo.config.*;
 import de.flapdoodle.embed.mongo.distribution.Version;
 import de.flapdoodle.embed.process.config.IRuntimeConfig;
+import no.ks.eventstore2.Event;
 import no.ks.eventstore2.Eventstore2TestKit;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+
+import java.util.function.Consumer;
 
 public class MongoDbEventstore2TestKit extends Eventstore2TestKit {
 
@@ -60,9 +64,8 @@ public class MongoDbEventstore2TestKit extends Eventstore2TestKit {
 
     @After
     public void tearDown() throws Exception {
-        for (String dbname : mongoClient.getDatabaseNames()) {
-            mongoClient.dropDatabase(dbname);
-        }
+        final MongoIterable<String> strings = mongoClient.listDatabaseNames();
+        strings.forEach((Consumer<? super String>) (db) -> mongoClient.getDatabase(db).drop());
         mongoClient.close();
     }
 

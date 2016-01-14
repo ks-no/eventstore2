@@ -1,7 +1,6 @@
 package no.ks.eventstore2.eventstore;
 
 import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.CompatibleFieldSerializer;
@@ -199,7 +198,7 @@ public class MongoDBJournalV2 implements JournalStorage {
                     log.error("Journalid in database dosen't match event db: {} event: {} : completeevent:{}", document.get("jid"), event.getJournalid(), event);
                 }
                 handleEvent.handleEvent(event);
-            } catch (KryoException e) {
+            } catch (Exception e) {
                 log.error("Failed to read serialized class" + document.toString(), e);
                 throw e;
             }

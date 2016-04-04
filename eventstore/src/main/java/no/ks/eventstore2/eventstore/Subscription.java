@@ -1,8 +1,8 @@
 package no.ks.eventstore2.eventstore;
 
-import java.io.Serializable;
+import no.ks.eventstore2.KyroSerializable;
 
-public class Subscription implements Serializable{
+public class Subscription implements KyroSerializable {
 	private static final long serialVersionUID = 1L;
 
 	private String aggregateType;

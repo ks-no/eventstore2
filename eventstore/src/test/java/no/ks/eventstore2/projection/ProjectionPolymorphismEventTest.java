@@ -7,7 +7,6 @@ import akka.testkit.TestActorRef;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.Eventstore2TestKit;
 import no.ks.eventstore2.Handler;
-
 import org.junit.Test;
 
 import java.util.UUID;

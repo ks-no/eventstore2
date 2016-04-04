@@ -1,8 +1,6 @@
 package no.ks.eventstore2;
 
-import java.io.Serializable;
-
-public class TakeBackup implements Serializable {
+public class TakeBackup implements KyroSerializable {
 
     private String backupdir;
 

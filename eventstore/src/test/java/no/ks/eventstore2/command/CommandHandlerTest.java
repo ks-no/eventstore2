@@ -1,19 +1,15 @@
 package no.ks.eventstore2.command;
 
-import no.ks.eventstore2.formProcessorProject.FormParsed;
-import no.ks.eventstore2.formProcessorProject.FormParser;
-import no.ks.eventstore2.formProcessorProject.ParseForm;
-
-import org.junit.Test;
-import org.springframework.test.util.ReflectionTestUtils;
-
-import akka.actor.Actor;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
-
 import com.typesafe.config.ConfigFactory;
+import no.ks.eventstore2.formProcessorProject.FormParsed;
+import no.ks.eventstore2.formProcessorProject.FormParser;
+import no.ks.eventstore2.formProcessorProject.ParseForm;
+import org.junit.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 public class CommandHandlerTest extends TestKit {
 

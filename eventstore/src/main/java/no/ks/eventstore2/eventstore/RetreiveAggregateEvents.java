@@ -1,8 +1,8 @@
 package no.ks.eventstore2.eventstore;
 
-import java.io.Serializable;
+import no.ks.eventstore2.KyroSerializable;
 
-public class RetreiveAggregateEvents implements Serializable{
+public class RetreiveAggregateEvents implements KyroSerializable {
     private String aggregateId;
     private String fromJournalId;
     private String aggregateType;

@@ -1,12 +1,12 @@
 package no.ks.eventstore2.eventstore;
 
 import no.ks.eventstore2.Event;
+import no.ks.eventstore2.KyroSerializable;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class EventBatch implements Serializable{
+public class EventBatch implements KyroSerializable {
 
     private final String aggregateType;
     private final String aggregateId;

@@ -1,6 +1,8 @@
 package no.ks.eventstore2.saga;
 
-import akka.actor.*;
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;

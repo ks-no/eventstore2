@@ -1,8 +1,8 @@
 package no.ks.eventstore2.eventstore;
 
-import java.io.Serializable;
+import no.ks.eventstore2.KyroSerializable;
 
-public class UpgradeAggregate implements Serializable{
+public class UpgradeAggregate implements KyroSerializable {
     private JournalStorage oldStorage;
     private String aggregateType;
 

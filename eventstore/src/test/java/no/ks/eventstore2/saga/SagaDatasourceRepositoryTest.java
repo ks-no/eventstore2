@@ -1,7 +1,6 @@
 package no.ks.eventstore2.saga;
 
 import no.ks.eventstore2.EmbeddedDatabaseTest;
-import no.ks.eventstore2.formProcessorProject.FormProcess;
 import org.junit.Test;
 
 import static junit.framework.Assert.assertEquals;

@@ -1,7 +1,6 @@
 package no.ks.eventstore2.saga;
 
 import com.mongodb.DB;
-import no.ks.eventstore2.formProcessorProject.FormProcess;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
 import org.junit.Before;
 import org.junit.Test;

@@ -9,7 +9,6 @@ import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.eventstore.Subscription;
 import no.ks.eventstore2.projection.Subscriber;
 import no.ks.eventstore2.response.Success;
-
 import org.junit.Test;
 
 import java.util.UUID;

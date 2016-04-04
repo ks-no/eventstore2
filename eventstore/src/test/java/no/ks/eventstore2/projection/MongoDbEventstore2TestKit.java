@@ -10,7 +10,6 @@ import de.flapdoodle.embed.mongo.MongodStarter;
 import de.flapdoodle.embed.mongo.config.*;
 import de.flapdoodle.embed.mongo.distribution.Version;
 import de.flapdoodle.embed.process.config.IRuntimeConfig;
-import no.ks.eventstore2.Event;
 import no.ks.eventstore2.Eventstore2TestKit;
 import org.junit.After;
 import org.junit.AfterClass;

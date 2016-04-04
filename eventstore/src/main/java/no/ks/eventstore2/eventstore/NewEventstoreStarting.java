@@ -1,6 +1,6 @@
 package no.ks.eventstore2.eventstore;
 
-import java.io.Serializable;
+import no.ks.eventstore2.KyroSerializable;
 
-public class NewEventstoreStarting implements Serializable{
+public class NewEventstoreStarting implements KyroSerializable {
 }

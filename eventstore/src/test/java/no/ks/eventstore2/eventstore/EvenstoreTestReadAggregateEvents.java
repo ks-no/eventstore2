@@ -3,7 +3,6 @@ package no.ks.eventstore2.eventstore;
 import akka.actor.Actor;
 import akka.testkit.TestActorRef;
 import com.esotericsoftware.kryo.Kryo;
-import com.mongodb.DB;
 import com.mongodb.client.MongoDatabase;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;

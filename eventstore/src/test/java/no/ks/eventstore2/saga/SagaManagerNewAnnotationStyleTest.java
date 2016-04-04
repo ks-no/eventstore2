@@ -5,10 +5,9 @@ import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.Eventstore2TestKit;
-import no.ks.eventstore2.eventstore.Subscription;
 import no.ks.eventstore2.Handler;
+import no.ks.eventstore2.eventstore.Subscription;
 import no.ks.eventstore2.projection.Subscriber;
-
 import org.junit.Test;
 
 import java.util.UUID;

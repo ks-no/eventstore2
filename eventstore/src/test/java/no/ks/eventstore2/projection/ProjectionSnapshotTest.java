@@ -5,29 +5,16 @@ import akka.actor.Actor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
-
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.MapSerializer;
 import com.mongodb.MongoClient;
-
-import com.mongodb.ServerAddress;
-import de.flapdoodle.embed.mongo.MongodExecutable;
-import de.flapdoodle.embed.mongo.MongodProcess;
-import de.flapdoodle.embed.mongo.MongodStarter;
-import de.flapdoodle.embed.mongo.config.IMongodConfig;
-import de.flapdoodle.embed.mongo.config.MongodConfigBuilder;
-import de.flapdoodle.embed.mongo.config.Net;
-import de.flapdoodle.embed.mongo.distribution.Version;
-import de.flapdoodle.embed.process.runtime.Network;
 import no.ks.eventstore2.Event;
-import no.ks.eventstore2.Eventstore2TestKit;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.TakeSnapshot;
 import no.ks.eventstore2.eventstore.Subscription;
-
-import org.junit.*;
+import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.util.HashMap;

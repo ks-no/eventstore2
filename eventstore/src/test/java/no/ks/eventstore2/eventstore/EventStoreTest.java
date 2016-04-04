@@ -3,18 +3,14 @@ package no.ks.eventstore2.eventstore;
 import akka.actor.Actor;
 import akka.actor.ActorSystem;
 import akka.testkit.TestActorRef;
-import akka.testkit.TestKit;
 import com.esotericsoftware.kryo.Kryo;
-import com.mongodb.DB;
 import com.mongodb.client.MongoDatabase;
 import com.typesafe.config.ConfigFactory;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
-import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.File;
 import java.util.Arrays;
 
 public class EventStoreTest extends MongoDbEventstore2TestKit {

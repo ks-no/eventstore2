@@ -1,8 +1,8 @@
 package no.ks.eventstore2.response;
 
-import java.io.Serializable;
+import no.ks.eventstore2.KyroSerializable;
 
-public class NoResult implements Serializable {
+public class NoResult implements KyroSerializable {
 	private static final long serialVersionUID = 1L;
 
 }

@@ -1,6 +1,6 @@
 package no.ks.eventstore2.eventstore;
 
-import no.ks.eventstore2.Event;import java.lang.Override;import java.lang.String;
+import no.ks.eventstore2.Event;
 
 public class AggEvent extends Event {
 	private static final long serialVersionUID = 1L;

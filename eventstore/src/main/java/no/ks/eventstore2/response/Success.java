@@ -1,6 +1,6 @@
 package no.ks.eventstore2.response;
 
-import java.io.Serializable;
+import no.ks.eventstore2.KyroSerializable;
 
-public class Success implements Serializable {
+public class Success implements KyroSerializable {
 }

@@ -3,6 +3,7 @@ package no.ks.eventstore2;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.actor.Props;
 import akka.testkit.TestKit;
 import com.esotericsoftware.kryo.Kryo;
 import com.typesafe.config.ConfigFactory;
@@ -13,6 +14,7 @@ import no.ks.eventstore2.events.OldEvent;
 import no.ks.eventstore2.eventstore.*;
 import no.ks.eventstore2.formProcessorProject.FormParsed;
 import no.ks.eventstore2.response.Success;
+import no.ks.eventstore2.testapplication.TestProjection;
 import org.junit.After;
 import org.junit.Test;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
@@ -57,6 +59,7 @@ public class EventStoreTest extends TestKit {
         eventstore.tell(new Subscription(event.getAggregateType()),super.testActor());
         expectMsg(event);
     }
+
 
     @Test
     public void testEventsAreUpgraded() throws Exception {

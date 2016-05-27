@@ -112,6 +112,7 @@ public class EventStore extends UntypedActor {
                     o instanceof AcknowledgePreviousEventsProcessed ||
                     o instanceof UpgradeAggregate ||
                     o instanceof TakeBackup ||
+                    o instanceof RemoveSubscription ||
                     o instanceof TakeSnapshot) {
                 if (!(o instanceof AcknowledgePreviousEventsProcessed || o instanceof RetreiveAggregateEvents))
                     log.info("Sending to singelton  message {} from {}", o, sender());

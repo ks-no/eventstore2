@@ -7,6 +7,8 @@ import com.esotericsoftware.kryo.Kryo;
 import com.mongodb.client.MongoDatabase;
 import com.typesafe.config.ConfigFactory;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
+import no.ks.eventstore2.response.Success;
+import no.ks.eventstore2.testapplication.AggregateType;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -108,6 +110,22 @@ public class EventStoreTest extends MongoDbEventstore2TestKit {
         expectMsgClass(CompleteAsyncSubscriptionPleaseSendSyncSubscription.class);
         actorTestActorRef.tell(new Subscription("agg","10"),super.testActor());
         expectMsgClass(CompleteSubscriptionRegistered.class);
+    }
+
+    @Test
+    public void testActorRestarting() throws Exception {
+        mongodbJournal.saveEvent(new AggEvent("agg"));
+
+        TestActorRef<Actor> eventstore = TestActorRef.create(_system, EventStore.mkProps(mongodbJournal));
+        eventstore.tell(new Subscription("agg",null),super.testActor());
+        expectMsgClass(AggEvent.class);
+        expectMsgClass(CompleteSubscriptionRegistered.class);
+        eventstore.tell(new RemoveSubscription("agg"),super.testActor());
+        expectMsgClass(SubscriptionRemoved.class);
+
+        eventstore.tell(new AggEvent("agg"),super.testActor());
+        eventstore.tell(new AcknowledgePreviousEventsProcessed(),super.testActor());
+        expectMsgClass(Success.class);
     }
 
 }

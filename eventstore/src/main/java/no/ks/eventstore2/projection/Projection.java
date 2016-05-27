@@ -9,12 +9,16 @@ import akka.cluster.pubsub.DistributedPubSub;
 import akka.cluster.pubsub.DistributedPubSubMediator;
 import akka.dispatch.OnFailure;
 import akka.dispatch.OnSuccess;
+import akka.japi.Procedure;
 import no.ks.eventstore2.Event;
+import no.ks.eventstore2.RestartActorException;
+import no.ks.eventstore2.eventstore.RemoveSubscription;
 import no.ks.eventstore2.eventstore.*;
 import no.ks.eventstore2.reflection.HandlerFinder;
 import no.ks.eventstore2.response.NoResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
 import scala.util.Failure;
@@ -35,6 +39,14 @@ public abstract class Projection extends UntypedActor {
 
     private List<PendingCall> pendingCalls = new ArrayList<PendingCall>();
     private Cancellable subscribeTimeout;
+    private Cancellable removeSubscriptionTimeout;
+    private Procedure<Object> restarting = message -> {
+        if (message instanceof SubscriptionRemoved) {
+            throw new RestartActorException("Restaring actor");
+        } else {
+            log.debug("Got message {} while restarting", message);
+        }
+    };
 
     //TODO; constructor vs preStart, and how do we handle faling actor creations? Pass exception to parent and shutdown actor system?
     public Projection(ActorRef eventStore) {
@@ -58,7 +70,19 @@ public abstract class Projection extends UntypedActor {
     }
 
     @Override
+    public void preRestart(Throwable reason, Option<Object> message) throws Exception {
+        removeSubscriptionTimeout.cancel();
+    }
+
+    @Override
     public void onReceive(Object o) {
+        if("restart".equals(o)){
+            eventStore.tell(new RemoveSubscription(getSubscribe().getAggregateType()), getSelf());
+            startRemoveSubscriptionTimeout();
+
+            getContext().become(restarting);
+
+        }
         try {
             if (o instanceof Event) {
                 latestJournalidReceived = ((Event) o).getJournalid();
@@ -104,6 +128,10 @@ public abstract class Projection extends UntypedActor {
             log.error("Projection threw exception while handling message: ", e);
             throw new RuntimeException("Projection threw exception while handling message: ", e);
         }
+    }
+
+    private void startRemoveSubscriptionTimeout() {
+        removeSubscriptionTimeout = getContext().system().scheduler().scheduleOnce(Duration.create(10, TimeUnit.SECONDS), self(), "stillInSubscribe?", getContext().system().dispatcher(),self());
     }
 
     private void setSubscribeFinished() {

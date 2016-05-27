@@ -33,7 +33,7 @@ public class TestProjection extends Projection {
         return isEventReceived;
     }
 
-    public List<TestEvent> getEvents(String arg1, String arg2) {
+    public List<TestEvent> getEvents() {
         return events;
     }
 
@@ -45,9 +45,9 @@ public class TestProjection extends Projection {
         }
     }
 
-    public static List<TestEvent> askEvents(ActorRef projection, String arg1, String arg2) {
+    public static List<TestEvent> askEvents(ActorRef projection) {
         try {
-            return Asker.askProjection(projection, "getEvents", arg1, arg2).list(TestEvent.class);
+            return Asker.askProjection(projection, "getEvents").list(TestEvent.class);
         } catch (Exception e) {
             throw new RuntimeException("Error when asking projection " + e);
         }

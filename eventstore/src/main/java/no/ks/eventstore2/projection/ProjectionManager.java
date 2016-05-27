@@ -4,6 +4,8 @@ import akka.actor.*;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.japi.Function;
+import no.ks.eventstore2.AkkaClusterInfo;
+import no.ks.eventstore2.RestartActorException;
 import no.ks.eventstore2.TakeSnapshot;
 import scala.concurrent.duration.Duration;
 
@@ -38,12 +40,20 @@ public class ProjectionManager extends UntypedActor {
 
     }
 
+    @Override
+    public void preStart() throws Exception {
+        super.preStart();
+        final AkkaClusterInfo akkaClusterInfo = new AkkaClusterInfo(getContext().system());
+        akkaClusterInfo.subscribeToClusterEvents(getSelf());
+    }
 
     private static SupervisorStrategy strategy =
             new OneForOneStrategy(10, Duration.create("1 minute"),
                     new Function<Throwable, SupervisorStrategy.Directive>() {
                         public SupervisorStrategy.Directive apply(Throwable t) {
-                            if (t instanceof RuntimeException || t instanceof Exception) {
+                            if(t instanceof RestartActorException)
+                                return restart();
+                            else if (t instanceof RuntimeException || t instanceof Exception) {
                                 return resume();
                             } else {
                                 return restart();
@@ -58,6 +68,7 @@ public class ProjectionManager extends UntypedActor {
 
     @Override
     public void onReceive(Object o) throws Exception {
+
         if(o instanceof ProjectionFailedError) {
             errorListener.tell(o,sender());
         } else if (o instanceof Call && "getProjectionRef".equals(((Call) o).getMethodName())) {

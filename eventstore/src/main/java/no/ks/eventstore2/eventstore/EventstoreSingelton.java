@@ -47,6 +47,7 @@ public class EventstoreSingelton extends UntypedActor {
         try {
             Cluster cluster = Cluster.get(getContext().system());
             cluster.subscribe(self(), ClusterEvent.MemberRemoved.class);
+            cluster.subscribe(self(), ClusterEvent.ReachableMember.class);
             log.info("{} subscribes to cluster events", self());
         } catch (ConfigurationException e) {
         }
@@ -81,7 +82,18 @@ public class EventstoreSingelton extends UntypedActor {
         if (o instanceof String && "fail".equals(o)) {
             throw new RuntimeException("Failing by force");
         }
-        if (o instanceof ClusterEvent.MemberRemoved) {
+        if (o instanceof ClusterEvent.ReachableMember) {
+            ClusterEvent.ReachableMember reachable = (ClusterEvent.ReachableMember) o;
+            log.info("Member reachable: {}", reachable.member());
+            for (String aggregate : aggregateSubscribers.keySet()) {
+                for (ActorRef actorRef : aggregateSubscribers.get(aggregate)) {
+                    if (actorRef.path().address().equals(reachable.member().address())) {
+                        actorRef.tell("restart", getSelf());
+                        log.debug("Sending restart to actorref {}", actorRef);
+                    }
+                }
+            }
+        }else if (o instanceof ClusterEvent.MemberRemoved) {
             ClusterEvent.MemberRemoved removed = (ClusterEvent.MemberRemoved) o;
             log.info("Member removed: {} status {}", removed.member(), removed.previousStatus());
             for (String aggregate : aggregateSubscribers.keySet()) {
@@ -129,6 +141,10 @@ public class EventstoreSingelton extends UntypedActor {
             for (ActorRef actorRef : aggregateSubscribers.values()) {
                 actorRef.tell(o, self());
             }
+        } else if(o instanceof RemoveSubscription){
+            aggregateSubscribers.remove(((RemoveSubscription) o).getAggregateType(), sender());
+            log.info("Removed subscription for {} from ", o, sender());
+            sender().tell(new SubscriptionRemoved(((RemoveSubscription) o).getAggregateType()), self());
         } else if(o instanceof ClusterEvent.ClusterMetricsChanged){
 
         } else {

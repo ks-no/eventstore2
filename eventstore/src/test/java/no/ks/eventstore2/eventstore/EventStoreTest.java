@@ -8,7 +8,6 @@ import com.mongodb.client.MongoDatabase;
 import com.typesafe.config.ConfigFactory;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
 import no.ks.eventstore2.response.Success;
-import no.ks.eventstore2.testapplication.AggregateType;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -34,7 +33,7 @@ public class EventStoreTest extends MongoDbEventstore2TestKit {
     public void setUp() throws Exception {
         super.setUp();
         journal = mongoClient.getDatabase("Journal");
-        mongodbJournal = new MongoDBJournalV2(journal, kryoClassRegistration, Arrays.asList(new String[]{"agg"}),10);
+        mongodbJournal = new MongoDBJournalV2(journal, kryoClassRegistration, Arrays.asList(new String[]{"agg"}),10, null);
         mongodbJournal.open();
 
     }

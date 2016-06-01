@@ -12,6 +12,7 @@ import akka.cluster.singleton.ClusterSingletonManagerSettings;
 import akka.cluster.singleton.ClusterSingletonProxy;
 import akka.cluster.singleton.ClusterSingletonProxySettings;
 import akka.dispatch.OnFailure;
+import akka.dispatch.OnSuccess;
 import com.google.common.collect.HashMultimap;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.TakeBackup;
@@ -78,6 +79,25 @@ public class EventStore extends UntypedActor {
         log.debug("Eventstore started with adress {}", getSelf().path());
     }
 
+    private void readAggregateEvents(RetrieveAggregateEventsAsync retreiveAggregateEvents) {
+        final ActorRef sender = sender();
+        final ActorRef self = self();
+        final Future<EventBatch> future = storage.loadEventsForAggregateIdAsync(retreiveAggregateEvents.getAggregateType(), retreiveAggregateEvents.getAggregateId(), retreiveAggregateEvents.getFromJournalId());
+        future.onSuccess(new OnSuccess<EventBatch>() {
+            @Override
+            public void onSuccess(EventBatch result) throws Throwable {
+                sender.tell(result, self);
+            }
+        }, getContext().dispatcher());
+        future.onFailure(new OnFailure() {
+                             @Override
+                             public void onFailure(Throwable failure) throws Throwable {
+                                 log.error("failed to read events from journalstorage {} ", retreiveAggregateEvents, failure);
+                             }
+                         }, getContext().dispatcher()
+        );
+
+    }
 
     public void onReceive(Object o) throws Exception {
         log.debug("Received message {}", o);
@@ -104,12 +124,14 @@ public class EventStore extends UntypedActor {
             } else if (o instanceof Subscription) {
                 Subscription subscription = (Subscription) o;
                 tryToFillSubscription(sender(), subscription);
+            } else if (o instanceof RetrieveAggregateEventsAsync) {
+                readAggregateEvents((RetrieveAggregateEventsAsync) o);
             } else if (o instanceof String ||
                     o instanceof Subscription ||
                     o instanceof StoreEvents ||
                     o instanceof Event ||
-                    o instanceof RetreiveAggregateEvents ||
                     o instanceof AcknowledgePreviousEventsProcessed ||
+                    o instanceof RetreiveAggregateEvents ||
                     o instanceof UpgradeAggregate ||
                     o instanceof TakeBackup ||
                     o instanceof RemoveSubscription ||

@@ -31,7 +31,7 @@ public class MongoDBJournalv2Test extends MongoDbEventstore2TestKit {
     public void setUp() throws Exception {
         super.setUp();
         MongoDatabase db = mongoClient.getDatabase("Journal");
-        journal = new MongoDBJournalV2(db, kryoClassRegistration, Arrays.asList(new String[]{"agg1", "agg3", "agg2"}), 10);
+        journal = new MongoDBJournalV2(db, kryoClassRegistration, Arrays.asList(new String[]{"agg1", "agg3", "agg2"}), 10, null);
     }
 
     @Override

@@ -1,6 +1,7 @@
 package no.ks.eventstore2.eventstore;
 
 import no.ks.eventstore2.Event;
+import scala.concurrent.Future;
 
 import java.util.List;
 
@@ -45,6 +46,15 @@ public interface JournalStorage {
      * @return
      */
     EventBatch loadEventsForAggregateId(String aggregateType, String aggregateId, String fromJournalId);
+
+    /**
+     *
+     * @param aggregateType
+     * @param aggregateId
+     * @param fromJournalId null if read from begining
+     * @return
+     */
+    Future<EventBatch> loadEventsForAggregateIdAsync(final String aggregateType, final String aggregateId, final String fromJournalId);
 
     void saveEvents(List<? extends Event> events);
 }

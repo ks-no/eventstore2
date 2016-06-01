@@ -122,6 +122,11 @@
             <version>${mongodb.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>mongodb-driver-async</artifactId>
+            <version>${mongodb.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.fusesource.leveldbjni</groupId>
             <artifactId>leveldbjni-all</artifactId>
             <version>${leveldbjni.version}</version>

@@ -28,7 +28,7 @@ public class EvenstoreTestReadAggregateEvents extends MongoDbEventstore2TestKit{
         super.setUp();
 
         MongoDatabase db = mongoClient.getDatabase("Journal");
-        journal = new MongoDBJournalV2(db, kryoClassRegistration, Arrays.asList(new String[]{"agg1", "agg", "agg2"}), 10);
+        journal = new MongoDBJournalV2(db, kryoClassRegistration, Arrays.asList(new String[]{"agg1", "agg", "agg2"}), 10, null);
     }
 
     @Test

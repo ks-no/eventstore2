@@ -1,5 +1,6 @@
 package no.ks.eventstore2.eventstore;
 
+import akka.dispatch.Futures;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
@@ -19,6 +20,8 @@ import org.bson.types.Binary;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.concurrent.Future;
+import scala.concurrent.Promise;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
@@ -34,6 +37,7 @@ public class MongoDBJournalV2 implements JournalStorage {
     private final MongoCollection<Document> metaCollection;
     private final MongoCollection<Document> counters;
     private MongoDatabase db;
+    private com.mongodb.async.client.MongoDatabase dbasync;
     private final KryoClassRegistration registration;
     private HashSet<String> aggregates;
 
@@ -43,14 +47,15 @@ public class MongoDBJournalV2 implements JournalStorage {
     private Logger log = LoggerFactory.getLogger(MongoDBJournalV2.class);
 
 
-    public MongoDBJournalV2(MongoDatabase db, KryoClassRegistration registration, List<String> aggregates, int eventReadLimit) {
-        this(db, registration, aggregates);
+    public MongoDBJournalV2(MongoDatabase db, KryoClassRegistration registration, List<String> aggregates, int eventReadLimit, com.mongodb.async.client.MongoDatabase dbasync) {
+        this(db, registration, aggregates, dbasync);
         this.eventReadLimit = eventReadLimit;
     }
 
-    public MongoDBJournalV2(MongoDatabase db, KryoClassRegistration registration, List<String> aggregates) {
+    public MongoDBJournalV2(MongoDatabase db, KryoClassRegistration registration, List<String> aggregates, com.mongodb.async.client.MongoDatabase dbasync) {
         this.db = db;
-        db.withWriteConcern(WriteConcern.SAFE);
+        this.dbasync = dbasync;
+        db.withWriteConcern(WriteConcern.JOURNALED);
         this.registration = registration;
         this.aggregates = new HashSet<>(aggregates);
         metaCollection = db.getCollection("journalMetadata");
@@ -58,7 +63,7 @@ public class MongoDBJournalV2 implements JournalStorage {
             db.getCollection(aggregate).createIndex(new Document("jid",1), new IndexOptions().unique(true));
             db.getCollection(aggregate).createIndex(new Document("rid",1));
             db.getCollection(aggregate).createIndex(new Document("rid",1).append("v",1),new IndexOptions().unique(true));
-            db.getCollection(aggregate).withWriteConcern(WriteConcern.SAFE);
+            db.getCollection(aggregate).withWriteConcern(WriteConcern.JOURNALED);
         }
 
         counters = db.getCollection("counters");
@@ -243,5 +248,18 @@ public class MongoDBJournalV2 implements JournalStorage {
         return new EventBatch(aggregateType, aggregateId, events, events.size() != eventReadLimit);
     }
 
+    @Override
+    public Future<EventBatch> loadEventsForAggregateIdAsync(final String aggregateType, final String aggregateId, final String fromJournalId) {
+        final Document query = new Document("rid", aggregateId);
+        if (fromJournalId != null)
+            query.append("jid", new Document("$gt", Long.parseLong(fromJournalId)));
 
+        final ArrayList<Event> events = new ArrayList<>();
+        com.mongodb.async.client.FindIterable<Document> dbObjects = MongoDbOperations.doDbOperation(() -> dbasync.getCollection(aggregateType).find(query).sort(new Document("jid", 1)).limit(eventReadLimit));
+
+        final Promise<EventBatch> promise = Futures.promise();
+        final Future<EventBatch> theFuture = promise.future();
+        dbObjects.forEach(document -> events.add(deSerialize(((Binary) document.get("d")).getData())), (result, t) -> promise.success(new EventBatch(aggregateType, aggregateId, events, events.size() != eventReadLimit)));
+        return theFuture;
+    }
 }

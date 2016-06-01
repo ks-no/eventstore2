@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.support.AbstractLobCreatingPreparedStatemen
 import org.springframework.jdbc.support.lob.DefaultLobHandler;
 import org.springframework.jdbc.support.lob.LobCreator;
 import org.springframework.jdbc.support.lob.LobHandler;
+import scala.concurrent.Future;
 
 import javax.sql.DataSource;
 import java.io.ByteArrayOutputStream;
@@ -61,5 +62,10 @@ public class MysqlJournalStorage extends AbstractJournalStorage {
     @Override
     public EventBatch loadEventsForAggregateId(String aggregateType, String aggregateId, String fromJournalId) {
         return null;
+    }
+
+    @Override
+    public Future<EventBatch> loadEventsForAggregateIdAsync(String aggregateType, String aggregateId, String fromJournalId) {
+        throw new RuntimeException("Not implemented");
     }
 }

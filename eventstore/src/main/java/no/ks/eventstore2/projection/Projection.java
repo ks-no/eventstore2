@@ -40,6 +40,7 @@ public abstract class Projection extends UntypedActor {
     private List<PendingCall> pendingCalls = new ArrayList<PendingCall>();
     private Cancellable subscribeTimeout;
     private Cancellable removeSubscriptionTimeout;
+
     private Procedure<Object> restarting = message -> {
         if (message instanceof SubscriptionRemoved) {
             throw new RestartActorException("Restaring actor");

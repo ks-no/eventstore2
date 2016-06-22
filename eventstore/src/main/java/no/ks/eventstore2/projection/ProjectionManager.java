@@ -1,10 +1,13 @@
 package no.ks.eventstore2.projection;
 
+import akka.ConfigurationException;
 import akka.actor.*;
+import akka.cluster.Cluster;
+import akka.cluster.ClusterEvent;
+import akka.cluster.Member;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.japi.Function;
-import no.ks.eventstore2.AkkaClusterInfo;
 import no.ks.eventstore2.RestartActorException;
 import no.ks.eventstore2.TakeSnapshot;
 import scala.concurrent.duration.Duration;
@@ -24,6 +27,7 @@ public class ProjectionManager extends UntypedActor {
     private Map<Class<? extends Projection>, ActorRef> projections = new HashMap<Class<? extends Projection>, ActorRef>();
     private Set<ActorRef> inSubscribePhase = new HashSet<>();
     private ActorRef errorListener;
+    private Cluster cluster;
 
     public static Props mkProps(ActorRef errorListener, List<Props> props){
         return Props.create(ProjectionManager.class,errorListener,props);
@@ -43,8 +47,12 @@ public class ProjectionManager extends UntypedActor {
     @Override
     public void preStart() throws Exception {
         super.preStart();
-        final AkkaClusterInfo akkaClusterInfo = new AkkaClusterInfo(getContext().system());
-        akkaClusterInfo.subscribeToClusterEvents(getSelf());
+        try {
+            cluster = Cluster.get(getContext().system());
+            cluster.subscribe(self(), ClusterEvent.ReachableMember.class);
+            log.info("{} subscribes to cluster events", self());
+        } catch (ConfigurationException e) {
+        }
     }
 
     private static SupervisorStrategy strategy =
@@ -68,8 +76,25 @@ public class ProjectionManager extends UntypedActor {
 
     @Override
     public void onReceive(Object o) throws Exception {
+        if (o instanceof ClusterEvent.ReachableMember) {
+            ClusterEvent.ReachableMember reachable = (ClusterEvent.ReachableMember) o;
+            log.info("Member reachable: {}", reachable.member());
 
-        if(o instanceof ProjectionFailedError) {
+            final Iterable<Member> members = cluster.state().getMembers();
+            Member oldest = reachable.member();
+            for (Member member : members) {
+                if(member.isOlderThan(oldest)){
+                    oldest = member;
+                }
+            }
+            log.info("Member oldest {}", oldest );
+            if(oldest.equals(reachable.member())) {
+                for (ActorRef actorRef : projections.values()) {
+                    actorRef.tell("restart", self());
+                    log.debug("Sending restart to actorref {}", actorRef);
+                }
+            }
+        }else if(o instanceof ProjectionFailedError) {
             errorListener.tell(o,sender());
         } else if (o instanceof Call && "getProjectionRef".equals(((Call) o).getMethodName())) {
         	sender().tell(projections.get(((Call) o).getArgs()[0]), self());

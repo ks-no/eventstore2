@@ -69,7 +69,6 @@ public class EventstoreSingelton extends UntypedActor {
         super.postStop();
     }
 
-
     @Override
     public void postRestart(Throwable reason) throws Exception {
         log.warn("Restarted eventstoreSingelton, restarting storage");
@@ -82,18 +81,7 @@ public class EventstoreSingelton extends UntypedActor {
         if (o instanceof String && "fail".equals(o)) {
             throw new RuntimeException("Failing by force");
         }
-        if (o instanceof ClusterEvent.ReachableMember) {
-            ClusterEvent.ReachableMember reachable = (ClusterEvent.ReachableMember) o;
-            log.info("Member reachable: {}", reachable.member());
-            for (String aggregate : aggregateSubscribers.keySet()) {
-                for (ActorRef actorRef : aggregateSubscribers.get(aggregate)) {
-                    if (actorRef.path().address().equals(reachable.member().address())) {
-                        actorRef.tell("restart", getSelf());
-                        log.debug("Sending restart to actorref {}", actorRef);
-                    }
-                }
-            }
-        }else if (o instanceof ClusterEvent.MemberRemoved) {
+        if (o instanceof ClusterEvent.MemberRemoved) {
             ClusterEvent.MemberRemoved removed = (ClusterEvent.MemberRemoved) o;
             log.info("Member removed: {} status {}", removed.member(), removed.previousStatus());
             for (String aggregate : aggregateSubscribers.keySet()) {

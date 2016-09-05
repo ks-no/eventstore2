@@ -6,6 +6,7 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.CompatibleFieldSerializer;
 import com.esotericsoftware.shaded.org.objenesis.strategy.SerializingInstantiatorStrategy;
+import com.google.protobuf.Message;
 import com.mongodb.WriteConcern;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
@@ -15,6 +16,7 @@ import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.ReturnDocument;
 import de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer;
 import no.ks.eventstore2.Event;
+import no.ks.eventstore2.EventMetadata;
 import org.bson.Document;
 import org.bson.types.Binary;
 import org.joda.time.DateTime;
@@ -91,6 +93,11 @@ public class MongoDBJournalV2 implements JournalStorage {
         return outputs.toByteArray();
     }
 
+    private EventMetadata deSerialize(Document d) {
+        return new EventMetadata(d.getString("jid"), d.getString("rid"), d.getInteger("v"), d.getString("protoSerializationType"), d.get("d"));
+
+    }
+
     private Event deSerialize(byte[] value) {
         Input input = new Input(value);
         return (Event) getKryo().readClassAndObject(input);
@@ -104,9 +111,29 @@ public class MongoDBJournalV2 implements JournalStorage {
         event.setJournalid(String.valueOf(journalid));
         // if version is not set, find the next one
         if(event.getVersion()  == -1){
-            event.setVersion(getNextVersion(collection, event));
+            event.setVersion(getNextVersion(collection, event.getAggregateRootId()));
         }
         MongoDbOperations.doDbOperation(() -> {collection.insertOne(getEventDBObject(event, journalid)); return null;}, 3, 500);
+    }
+
+    public void saveEvent(EventMetadata<? extends Message> eventMetadata) {
+        if(!aggregates.contains(eventMetadata.getAggregateType())) throw new RuntimeException("Aggregate " + eventMetadata.getAggregateType() + " not registered");
+        final MongoCollection<Document> collection = db.getCollection(eventMetadata.getAggregateType());
+        final int journalid = getNextValueInSeq("journalid_" + eventMetadata.getAggregateType(), 1);
+        eventMetadata.setJournalid(String.valueOf(journalid));
+        // if version is not set, find the next one
+        if(eventMetadata.getVersion()  == -1){
+            eventMetadata.setVersion(getNextVersion(collection, eventMetadata.getAggregateRootId()));
+        }
+        MongoDbOperations.doDbOperation(() -> {collection.insertOne(getEventDBObject(eventMetadata)); return null;}, 3, 500);
+    }
+
+    private Document getEventDBObject(EventMetadata<? extends Message> eventMetadata) {
+        return new Document("jid", eventMetadata.getJournalid())
+                .append("rid", eventMetadata.getAggregateRootId())
+                .append("v", eventMetadata.getVersion())
+                .append("protoSerializationType", eventMetadata.getProtoSerializationType())
+                .append("d", eventMetadata.getEvent().toByteArray());
     }
 
     private Document getEventDBObject(Event event, int journalid) {
@@ -116,8 +143,9 @@ public class MongoDBJournalV2 implements JournalStorage {
                     append("d", serielize(event));
     }
 
-    private int getNextVersion(MongoCollection<Document> collection, Event event) {
-        FindIterable<Document> one = collection.find(new Document("rid", event.getAggregateRootId())).sort(new Document("v", -1)).limit(1).projection(new Document("v",1));
+
+    private int getNextVersion(MongoCollection<Document> collection, String aggregateRootId) {
+        FindIterable<Document> one = collection.find(new Document("rid", aggregateRootId)).sort(new Document("v", -1)).limit(1).projection(new Document("v",1));
         final Document first = one.first();
         if(first == null) return 0;
         return first.getInteger("v") +1;
@@ -145,10 +173,10 @@ public class MongoDBJournalV2 implements JournalStorage {
                     event.setVersion(version);
                     versions_for_aggregates.put(event.getAggregateRootId(), version);
                 } else {
-                    event.setVersion(getNextVersion(collection, event));
-                    versions_for_aggregates.put(event.getAggregateRootId(), event.getVersion());
+                    event.setVersion(getNextVersion(collection, event.getAggregateRootId()));
                 }
-            log.debug("Saving event " + event);
+                versions_for_aggregates.put(event.getAggregateRootId(), event.getVersion());
+                log.debug("Saving event " + event);
             }
             dbObjectArrayList.add(getEventDBObject(event, jid));
             jid++;
@@ -161,7 +189,6 @@ public class MongoDBJournalV2 implements JournalStorage {
         }, 0, 500);
 
     }
-
 
     private int getNextValueInSeq(final String counterName, final int numbers) {
         return MongoDbOperations.doDbOperation(() -> {
@@ -179,17 +206,38 @@ public class MongoDBJournalV2 implements JournalStorage {
     public boolean loadEventsAndHandle(String aggregateType, HandleEvent handleEvent, String fromKey) {
         return loadEventsAndHandle(aggregateType, handleEvent, fromKey, eventReadLimit);
     }
-
     class Counter {
+
         int i = 0;
 
         public void increment(){
             i++;
         }
-
         public int getValue(){
             return i;
         }
+
+    }
+
+    boolean loadEventsAndHandle(final String aggregateType, HandleEventMetadata handleEvent, String fromKey, final int readlimit) {
+        final Document query = new Document("jid", new Document("$gt", Long.parseLong(fromKey)));
+        FindIterable<Document> dbObjects = MongoDbOperations.doDbOperation(() -> db.getCollection(aggregateType).find(query).sort(new Document("jid", 1)).limit(readlimit));
+        final Counter counter = new Counter();
+        dbObjects.forEach((Consumer<Document>) document -> {
+            try {
+                EventMetadata event = deSerialize(document);
+                if (!("" + document.get("jid")).equals(event.getJournalid())) {
+                    log.error("Journalid in database dosen't match event db: {} event: {} : completeevent:{}", document.get("jid"), event.getJournalid(), event);
+                }
+                handleEvent.handleEvent(event);
+            } catch (Exception e) {
+                log.error("Failed to read serialized class" + document.toString(), e);
+                throw e;
+            }
+            counter.increment();
+        });
+
+        return counter.getValue() < readlimit;
     }
 
     boolean loadEventsAndHandle(final String aggregateType, HandleEvent handleEvent, String fromKey, final int readlimit) {

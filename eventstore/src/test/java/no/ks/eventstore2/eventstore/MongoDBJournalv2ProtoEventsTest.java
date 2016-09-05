@@ -2,9 +2,11 @@ package no.ks.eventstore2.eventstore;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.mongodb.client.MongoDatabase;
-import eventstore.test.events.Order;
+import events.Aggevents.Agg;
+import events.test.Order.Order;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.EventMetadata;
+import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
 import org.junit.After;
 import org.junit.Before;
@@ -29,9 +31,13 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
     };
     private MongoDBJournalV2 journal;
 
+
     @Before
     public void setUp() throws Exception {
         super.setUp();
+
+        ProtobufHelper.registerDeserializeMethod(Agg.Aggevent.getDefaultInstance());
+        ProtobufHelper.registerDeserializeMethod(Order.SearchRequest.getDefaultInstance());
         MongoDatabase db = mongoClient.getDatabase("Journal");
         journal = new MongoDBJournalV2(db, kryoClassRegistration, Arrays.asList(new String[]{"agg1", "agg3", "agg2"}), 10, null);
     }
@@ -47,7 +53,7 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
     public void testSaveAndRetrieveEvent() throws Exception {
         final Order.SearchRequest searchRequest = Order.SearchRequest.newBuilder().setQuery("Select all requests").setPageNumber(5).build();
         journal.saveEvent(new EventMetadata<>("agg1", UUID.randomUUID().toString(), searchRequest));
-        final List<Event> events = new ArrayList<Event>();
+        final List<EventMetadata> events = new ArrayList<>();
         journal.loadEventsAndHandle("agg1", new HandleEventMetadata() {
             @Override
             public void handleEvent(EventMetadata event) {
@@ -56,6 +62,7 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
         });
         assertEquals(1, events.size());
         assertEquals("agg1", events.get(0).getAggregateType());
+        assertEquals(searchRequest, events.get(0).getEvent());
     }
 
     @Test

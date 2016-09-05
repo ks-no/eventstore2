@@ -1,6 +1,7 @@
 package no.ks.eventstore2;
 
 import com.google.protobuf.Message;
+import org.bson.types.Binary;
 import org.joda.time.DateTime;
 
 import java.lang.reflect.InvocationTargetException;
@@ -10,9 +11,9 @@ public class EventMetadata<T extends Message> {
     String correlationId;
     String protoSerializationType;
     String aggregateRootId;
-    String journalid;
+    long journalid;
     String aggregateType;
-    int version;
+    long version;
     DateTime occurredTimestamp;
     T event;
 
@@ -27,12 +28,12 @@ public class EventMetadata<T extends Message> {
 
     }
 
-    public EventMetadata(String journalid, String aggregateRootId, Integer version, String protoSerializationType, Object eventData) throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+    public EventMetadata(long journalid, String aggregateRootId, long version, String protoSerializationType, Binary eventData) throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         this.journalid = journalid;
         this.aggregateRootId = aggregateRootId;
         this.version = version;
         this.protoSerializationType = protoSerializationType;
-        event = (T) (Class.forName(protoSerializationType)).getDeclaredMethod("parseFrom", byte[].class).invoke(eventData);
+        event = ProtobufHelper.deserializeByteArray(protoSerializationType, eventData.getData());
     }
 
     public String getAggregateType() {
@@ -67,19 +68,19 @@ public class EventMetadata<T extends Message> {
         this.aggregateRootId = aggregateRootId;
     }
 
-    public String getJournalid() {
+    public long getJournalid() {
         return journalid;
     }
 
-    public void setJournalid(String journalid) {
+    public void setJournalid(long journalid) {
         this.journalid = journalid;
     }
 
-    public int getVersion() {
+    public long getVersion() {
         return version;
     }
 
-    public void setVersion(int version) {
+    public void setVersion(long version) {
         this.version = version;
     }
 

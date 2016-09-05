@@ -17,6 +17,8 @@ public interface JournalStorage {
      */
     boolean loadEventsAndHandle(String aggregateType, final HandleEvent handleEvent);
 
+    boolean loadEventsAndHandle(String aggregateType, HandleEventMetadata handleEvent);
+
     /**
      * LoadEvent from a key
      * @param aggregateType

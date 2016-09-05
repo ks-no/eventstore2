@@ -193,6 +193,8 @@
                         </goals>
                         <configuration>
                             <protocVersion>3.0.0</protocVersion>
+                            <addSources>test</addSources>
+                            <outputDirectory>target/generated-test-sources</outputDirectory>
                             <inputDirectories>
                                 <include>src/test/protobuf</include>
                             </inputDirectories>

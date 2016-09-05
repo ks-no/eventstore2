@@ -94,8 +94,11 @@ public class MongoDBJournalV2 implements JournalStorage {
     }
 
     private EventMetadata deSerialize(Document d) {
-        return new EventMetadata(d.getString("jid"), d.getString("rid"), d.getInteger("v"), d.getString("protoSerializationType"), d.get("d"));
-
+        try {
+            return new EventMetadata(d.getLong("jid"), d.getString("rid"), d.getLong("v"), d.getString("protoSerializationType"), (Binary) d.get("d"));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private Event deSerialize(byte[] value) {
@@ -120,7 +123,7 @@ public class MongoDBJournalV2 implements JournalStorage {
         if(!aggregates.contains(eventMetadata.getAggregateType())) throw new RuntimeException("Aggregate " + eventMetadata.getAggregateType() + " not registered");
         final MongoCollection<Document> collection = db.getCollection(eventMetadata.getAggregateType());
         final int journalid = getNextValueInSeq("journalid_" + eventMetadata.getAggregateType(), 1);
-        eventMetadata.setJournalid(String.valueOf(journalid));
+        eventMetadata.setJournalid(journalid);
         // if version is not set, find the next one
         if(eventMetadata.getVersion()  == -1){
             eventMetadata.setVersion(getNextVersion(collection, eventMetadata.getAggregateRootId()));
@@ -203,6 +206,11 @@ public class MongoDBJournalV2 implements JournalStorage {
     }
 
     @Override
+    public boolean loadEventsAndHandle(String aggregateType, HandleEventMetadata handleEvent) {
+        return loadEventsAndHandle(aggregateType, handleEvent, "0", eventReadLimit);
+    }
+
+    @Override
     public boolean loadEventsAndHandle(String aggregateType, HandleEvent handleEvent, String fromKey) {
         return loadEventsAndHandle(aggregateType, handleEvent, fromKey, eventReadLimit);
     }
@@ -226,9 +234,7 @@ public class MongoDBJournalV2 implements JournalStorage {
         dbObjects.forEach((Consumer<Document>) document -> {
             try {
                 EventMetadata event = deSerialize(document);
-                if (!("" + document.get("jid")).equals(event.getJournalid())) {
-                    log.error("Journalid in database dosen't match event db: {} event: {} : completeevent:{}", document.get("jid"), event.getJournalid(), event);
-                }
+                event.setAggregateType(aggregateType);
                 handleEvent.handleEvent(event);
             } catch (Exception e) {
                 log.error("Failed to read serialized class" + document.toString(), e);

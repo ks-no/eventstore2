@@ -1,6 +1,7 @@
 syntax = "proto3";
 
-package eventstore.test.events;
+//option java_package = "events.test";
+package  events.test.Order;
 
 message SearchRequest {
   string query = 1;

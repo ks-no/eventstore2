@@ -1,7 +1,7 @@
 package no.ks.eventstore2.eventstore;
 
-/**
- * Created by idar on 02.09.16.
- */
-public class HandleEventMetadata {
+import no.ks.eventstore2.EventMetadata;
+
+public abstract class HandleEventMetadata {
+    public abstract void handleEvent(EventMetadata event);
 }

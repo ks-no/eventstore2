@@ -1,6 +1,7 @@
 package no.ks.eventstore2.eventstore;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.google.protobuf.Message;
 import com.mongodb.client.MongoDatabase;
 import events.Aggevents.Agg;
 import events.test.Order.Order;
@@ -68,32 +69,26 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
     @Test
     public void testTwoEventsWithoutVersion() throws Exception {
         final ArrayList<EventMetadata> events = new ArrayList<>();
-        events.add(new EventMetadata("agg1", "1", Order.SearchRequest.newBuilder().setQuery("query").setPageNumber(4).build()));
-        events.add(new EventMetadata("agg1", "1", Order.SearchResult.newBuilder().addResult("res1").addResult("res2").build()));
-        for (EventMetadata event : events) {
-            event.setVersion(-1);
-        }
+        events.add(new EventMetadata("agg1", "1", -1, Order.SearchRequest.newBuilder().setQuery("query").setPageNumber(4).build()));
+        events.add(new EventMetadata("agg1", "1", -1, Order.SearchResult.newBuilder().addResult("res1").addResult("res2").build()));
         journal.saveEvents(events);
         events.clear();
-        events.add(new EventMetadata("agg1", "1", Order.SearchRequest.newBuilder().setQuery("query").setPageNumber(4).build()));
-        events.add(new EventMetadata("agg1", "1", Order.SearchResult.newBuilder().addResult("res1").addResult("res2").build()));
-        for (EventMetadata event : events) {
-            event.setVersion(-1);
-        }
+        events.add(new EventMetadata("agg1", "1", -1, Order.SearchRequest.newBuilder().setQuery("query").setPageNumber(4).build()));
+        events.add(new EventMetadata("agg1", "1", -1, Order.SearchResult.newBuilder().addResult("res1").addResult("res2").build()));
         journal.saveEvents(events);
     }
 
     @Test
     public void testSaveAndReceiveEventsFromKey() throws Exception {
-        journal.saveEvent(new AggEvent("agg3"));
-        journal.saveEvent(new AggEvent("agg3"));
-        final List<Event> events = new ArrayList<Event>();
-        journal.loadEventsAndHandle("agg3", new HandleEvent() {
+        journal.saveEvent(new EventMetadata<Message>("agg3", "1", 0, Order.SearchRequest.newBuilder().build()));
+        journal.saveEvent(new EventMetadata<Message>("agg3", "1", 1, Order.SearchRequest.newBuilder().build()));
+        final List<EventMetadata> events = new ArrayList<>();
+        journal.loadEventsAndHandle("agg3", new HandleEventMetadata() {
             @Override
-            public void handleEvent(Event event) {
+            public void handleEvent(EventMetadata event) {
                 events.add(event);
             }
-        }, "1");
+        }, 1, 1000);
         assertEquals(1, events.size());
         assertEquals("agg3", events.get(0).getAggregateType());
     }
@@ -101,58 +96,30 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
     @Test
     public void testEventReadLimit() throws Exception {
         for (int i = 0; i < 15; i++) {
-            journal.saveEvent(new AggEvent("agg2"));
+            journal.saveEvent(new EventMetadata<Message>("agg2", "1", -1, Order.SearchRequest.newBuilder().build()));
         }
-        final List<Event> events = new ArrayList<Event>();
-        journal.loadEventsAndHandle("agg2", new HandleEvent() {
+        final List<EventMetadata> events = new ArrayList<>();
+        journal.loadEventsAndHandle("agg2", new HandleEventMetadata() {
             @Override
-            public void handleEvent(Event event) {
+            public void handleEvent(EventMetadata event) {
                 events.add(event);
             }
-        }, "0");
+        }, 0, 10);
         assertEquals(10, events.size());
-        journal.loadEventsAndHandle("agg2", new HandleEvent() {
+        journal.loadEventsAndHandle("agg2", new HandleEventMetadata() {
             @Override
-            public void handleEvent(Event event) {
+            public void handleEvent(EventMetadata event) {
                 events.add(event);
             }
-        }, events.get(events.size() - 1).getJournalid());
+        }, events.get(events.size() - 1).getJournalid(), 10);
         assertEquals(15, events.size());
     }
-
-    @Test
-    public void testPartialRead() throws Exception {
-        String aggregateType = "agg2";
-        for (int i = 0; i < 11; i++) {
-            journal.saveEvent(new AggEvent(aggregateType));
-        }
-        final ArrayList<Event> results = new ArrayList<Event>();
-        assertFalse(journal.loadEventsAndHandle(aggregateType, new HandleEvent() {
-            @Override
-            public void handleEvent(Event event) {
-                results.add(event);
-            }
-        }));
-        assertEquals(10, results.size());
-
-        assertTrue(journal.loadEventsAndHandle(aggregateType, new HandleEvent() {
-            @Override
-            public void handleEvent(Event event) {
-                results.add(event);
-            }
-        }, "10"));
-        assertEquals(11, results.size());
-        assertEquals("10", results.get(9).getJournalid());
-        assertEquals("11", results.get(10).getJournalid());
-
-    }
-
 
     @Test
     public void testWritingSameVersionShouldFail() throws Exception {
         AggEvent versionFail = new AggEvent("version_failed_agg_id", "agg1");
         versionFail.setVersion(0);
-        journal.saveEvent(versionFail);
+        journal.saveEvent(new EventMetadata<>("agg1", "version_failed_agg_id", 0, Order.SearchResult.newBuilder().build()));
         try {
             journal.saveEvent(versionFail);
             fail("Should have gotten exception");
@@ -171,30 +138,23 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
 
         final ArrayList<Future<String>> futures = new ArrayList<Future<String>>();
         for (int p = 0; p < NUMBER_OF_AGGREGATES; p++) {
-            futures.add(executorService.submit(new Callable<String>() {
-                @Override
-                public String call() {
-                    String aggregateRootId = UUID.randomUUID().toString();
-                    for (int i = 0; i < NUMBER_OF_VERSIONS; i++) {
-                        AggEvent agg1 = new AggEvent(aggregateRootId, "agg1");
-                        agg1.setVersion(i);
-                        journal.saveEvent(agg1);
-                    }
-                    return aggregateRootId;
-
+            futures.add(executorService.submit(() -> {
+                String aggregateRootId = UUID.randomUUID().toString();
+                for (int i = 0; i < NUMBER_OF_VERSIONS; i++) {
+                    journal.saveEvent(new EventMetadata<>("agg1", aggregateRootId, -1, Order.SearchRequest.newBuilder().build()));
                 }
+                return aggregateRootId;
             }));
-
         }
         final ArrayList<String> aggregateIds = new ArrayList<String>();
         for (Future<String> future : futures) {
             aggregateIds.add(future.get(60, TimeUnit.SECONDS));
         }
-        final ArrayList<Event> events = new ArrayList<Event>();
+        final ArrayList<EventMetadata> events = new ArrayList<>();
 
-        final HandleEvent loadEvents = new HandleEvent() {
+        final HandleEventMetadata loadEvents = new HandleEventMetadata() {
             @Override
-            public void handleEvent(Event event) {
+            public void handleEvent(EventMetadata event) {
                 events.add(event);
             }
         };
@@ -204,17 +164,5 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
         }
         assertEquals(NUMBER_OF_AGGREGATES * NUMBER_OF_VERSIONS, mongoClient.getDB("Journal").getCollection("agg1").find().size());
         assertEquals(NUMBER_OF_AGGREGATES * NUMBER_OF_VERSIONS, events.size());
-    }
-
-    private void assertEvent(String aggregateId) {
-        final List<Event> events = journal.loadEventsForAggregateId("agg1", aggregateId, "0").getEvents();
-        try {
-            assertEquals(1, events.size());
-            assertEquals("" + (Integer.parseInt(aggregateId) +1), events.get(0).getJournalid());
-        } catch (AssertionError e){
-            System.out.println("failed on " + aggregateId);
-            throw e;
-        }
-
     }
 }

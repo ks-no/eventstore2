@@ -126,7 +126,7 @@ public class MongoDBJournalV2 implements JournalStorage {
         eventMetadata.setJournalid(journalid);
         // if version is not set, find the next one
         if(eventMetadata.getVersion()  == -1){
-            eventMetadata.setVersion(getNextVersion(collection, eventMetadata.getAggregateRootId()));
+            eventMetadata.setVersion(getNextLongVersion(collection, eventMetadata.getAggregateRootId()));
         }
         MongoDbOperations.doDbOperation(() -> {collection.insertOne(getEventDBObject(eventMetadata)); return null;}, 3, 500);
     }
@@ -251,12 +251,16 @@ public class MongoDBJournalV2 implements JournalStorage {
 
     @Override
     public boolean loadEventsAndHandle(String aggregateType, HandleEventMetadata handleEvent) {
-        return loadEventsAndHandle(aggregateType, handleEvent, "0", eventReadLimit);
+        return loadEventsAndHandle(aggregateType, handleEvent, 0, eventReadLimit);
     }
 
     @Override
     public boolean loadEventsAndHandle(String aggregateType, HandleEvent handleEvent, String fromKey) {
         return loadEventsAndHandle(aggregateType, handleEvent, fromKey, eventReadLimit);
+    }
+
+    public boolean loadEventsAndHandle(String aggregateType, HandleEventMetadata loadEvents, long journalid) {
+        return loadEventsAndHandle(aggregateType, loadEvents, journalid, eventReadLimit);
     }
 
     class Counter {
@@ -266,14 +270,14 @@ public class MongoDBJournalV2 implements JournalStorage {
         public void increment(){
             i++;
         }
+
         public int getValue(){
             return i;
         }
-
     }
 
-    boolean loadEventsAndHandle(final String aggregateType, HandleEventMetadata handleEvent, String fromKey, final int readlimit) {
-        final Document query = new Document("jid", new Document("$gt", Long.parseLong(fromKey)));
+    public boolean loadEventsAndHandle(final String aggregateType, HandleEventMetadata handleEvent, long fromKey, int readlimit) {
+        final Document query = new Document("jid", new Document("$gt", fromKey));
         FindIterable<Document> dbObjects = MongoDbOperations.doDbOperation(() -> db.getCollection(aggregateType).find(query).sort(new Document("jid", 1)).limit(readlimit));
         final Counter counter = new Counter();
         dbObjects.forEach((Consumer<Document>) document -> {
@@ -287,7 +291,6 @@ public class MongoDBJournalV2 implements JournalStorage {
             }
             counter.increment();
         });
-
         return counter.getValue() < readlimit;
     }
 

@@ -17,9 +17,16 @@ public class EventMetadata<T extends Message> {
     DateTime occurredTimestamp;
     T event;
 
-    public EventMetadata(String aggregateType, String aggregateId, T event) {
+    public EventMetadata(String aggregateType, String aggregateRootId, T event) {
         this.aggregateType = aggregateType;
-        this.aggregateRootId = aggregateId;
+        this.aggregateRootId = aggregateRootId;
+        this.event = event;
+        protoSerializationType = event.getDescriptorForType().getFullName();
+    }
+    public EventMetadata(String aggregateType, String aggregateRootId, long version, T event) throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        this.aggregateType = aggregateType;
+        this.aggregateRootId = aggregateRootId;
+        this.version = version;
         this.event = event;
         protoSerializationType = event.getDescriptorForType().getFullName();
     }

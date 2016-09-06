@@ -139,7 +139,7 @@ public class MongoDBJournalV2 implements JournalStorage {
                 .append("d", eventMetadata.getEvent().toByteArray());
     }
 
-    private Document getEventDBObject(Event event, int journalid) {
+    private Document getEventDBObject(Event event, long journalid) {
         return new Document("jid", journalid).
                     append("rid", event.getAggregateRootId()).
                     append("v", event.getVersion()).
@@ -152,6 +152,13 @@ public class MongoDBJournalV2 implements JournalStorage {
         final Document first = one.first();
         if(first == null) return 0;
         return first.getInteger("v") +1;
+    }
+
+    private long getNextLongVersion(MongoCollection<Document> collection, String aggregateRootId) {
+        FindIterable<Document> one = collection.find(new Document("rid", aggregateRootId)).sort(new Document("v", -1)).limit(1).projection(new Document("v",1));
+        final Document first = one.first();
+        if(first == null) return 0;
+        return first.getLong("v") +1;
     }
 
     @Override
@@ -193,6 +200,43 @@ public class MongoDBJournalV2 implements JournalStorage {
 
     }
 
+    public void saveEvents(ArrayList<EventMetadata> events) {
+        if (events == null || events.size() == 0) {
+            return;
+        }
+        String agg = events.get(0).getAggregateType();
+        if(!aggregates.contains(agg)) throw new RuntimeException("Aggregate "+ agg + " not registered");
+        final MongoCollection<Document> collection = db.getCollection(agg);
+
+        final List<Document> dbObjectArrayList = new ArrayList<>();
+        long maxJournalId = getNextValueInSeq("journalid_" + agg, events.size());
+        long jid = (maxJournalId - events.size())+1;
+        final HashMap<String, Long> versions_for_aggregates = new HashMap<>();
+        for (EventMetadata event : events) {
+            event.setJournalid(jid);
+            // if version is not set, find the next one
+            if(event.getVersion()  == -1){
+                if(versions_for_aggregates.containsKey(event.getAggregateRootId())){
+                    final long version = versions_for_aggregates.get(event.getAggregateRootId()) + 1;
+                    event.setVersion(version);
+                    versions_for_aggregates.put(event.getAggregateRootId(), version);
+                } else {
+                    event.setVersion(getNextLongVersion(collection, event.getAggregateRootId()));
+                }
+                versions_for_aggregates.put(event.getAggregateRootId(), event.getVersion());
+                log.debug("Saving event " + event);
+            }
+            dbObjectArrayList.add(getEventDBObject(event));
+            jid++;
+        }
+
+        MongoDbOperations.doDbOperation(() -> {
+            log.debug("Saving " + dbObjectArrayList);
+            collection.insertMany(dbObjectArrayList);
+            return null;
+        }, 0, 500);
+    }
+
     private int getNextValueInSeq(final String counterName, final int numbers) {
         return MongoDbOperations.doDbOperation(() -> {
             Document andModify = counters.findOneAndUpdate(new Document("_id", counterName), new Document("$inc", new Document("seq", numbers)),new FindOneAndUpdateOptions().upsert(true).returnDocument(ReturnDocument.AFTER).projection(new Document("seq",1)));
@@ -214,6 +258,7 @@ public class MongoDBJournalV2 implements JournalStorage {
     public boolean loadEventsAndHandle(String aggregateType, HandleEvent handleEvent, String fromKey) {
         return loadEventsAndHandle(aggregateType, handleEvent, fromKey, eventReadLimit);
     }
+
     class Counter {
 
         int i = 0;

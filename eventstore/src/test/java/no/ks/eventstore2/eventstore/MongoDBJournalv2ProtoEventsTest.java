@@ -67,21 +67,19 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
 
     @Test
     public void testTwoEventsWithoutVersion() throws Exception {
-        final ArrayList<Event> events = new ArrayList<>();
-        final AggEvent agg1 = new AggEvent("1", "agg1");
-        agg1.setVersion(-1);
-        final AggEvent agg2 = new AggEvent("1", "agg1");
-        agg2.setVersion(-1);
-        events.add(agg1);
-        events.add(agg2);
+        final ArrayList<EventMetadata> events = new ArrayList<>();
+        events.add(new EventMetadata("agg1", "1", Order.SearchRequest.newBuilder().setQuery("query").setPageNumber(4).build()));
+        events.add(new EventMetadata("agg1", "1", Order.SearchResult.newBuilder().addResult("res1").addResult("res2").build()));
+        for (EventMetadata event : events) {
+            event.setVersion(-1);
+        }
         journal.saveEvents(events);
         events.clear();
-        final AggEvent agg3 = new AggEvent("1", "agg1");
-        agg3.setVersion(-1);
-        final AggEvent agg4 = new AggEvent("1", "agg1");
-        agg4.setVersion(-1);
-        events.add(agg3);
-        events.add(agg4);
+        events.add(new EventMetadata("agg1", "1", Order.SearchRequest.newBuilder().setQuery("query").setPageNumber(4).build()));
+        events.add(new EventMetadata("agg1", "1", Order.SearchResult.newBuilder().addResult("res1").addResult("res2").build()));
+        for (EventMetadata event : events) {
+            event.setVersion(-1);
+        }
         journal.saveEvents(events);
     }
 

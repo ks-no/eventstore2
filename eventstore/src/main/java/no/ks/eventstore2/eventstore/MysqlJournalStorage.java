@@ -48,6 +48,11 @@ public class MysqlJournalStorage extends AbstractJournalStorage {
     }
 
     @Override
+    public boolean loadEventsAndHandle(String aggregateType, HandleEventMetadata handleEvent, long fromKey) {
+        throw new RuntimeException("NotImplemented");
+    }
+
+    @Override
     public void open() {
     }
 

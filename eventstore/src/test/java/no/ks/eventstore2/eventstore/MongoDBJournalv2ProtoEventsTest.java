@@ -5,8 +5,7 @@ import com.google.protobuf.Message;
 import com.mongodb.client.MongoDatabase;
 import events.Aggevents.Agg;
 import events.test.Order.Order;
-import no.ks.eventstore2.Event;
-import no.ks.eventstore2.EventMetadata;
+import no.ks.eventstore2.EventWrapper;
 import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
 import org.junit.After;
@@ -53,11 +52,11 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
     @Test
     public void testSaveAndRetrieveEvent() throws Exception {
         final Order.SearchRequest searchRequest = Order.SearchRequest.newBuilder().setQuery("Select all requests").setPageNumber(5).build();
-        journal.saveEvent(new EventMetadata<>("agg1", UUID.randomUUID().toString(), searchRequest));
-        final List<EventMetadata> events = new ArrayList<>();
+        journal.saveEvent(new EventWrapper<>("agg1", UUID.randomUUID().toString(), searchRequest));
+        final List<EventWrapper> events = new ArrayList<>();
         journal.loadEventsAndHandle("agg1", new HandleEventMetadata() {
             @Override
-            public void handleEvent(EventMetadata event) {
+            public void handleEvent(EventWrapper event) {
                 events.add(event);
             }
         });
@@ -68,24 +67,24 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
 
     @Test
     public void testTwoEventsWithoutVersion() throws Exception {
-        final ArrayList<EventMetadata> events = new ArrayList<>();
-        events.add(new EventMetadata("agg1", "1", -1, Order.SearchRequest.newBuilder().setQuery("query").setPageNumber(4).build()));
-        events.add(new EventMetadata("agg1", "1", -1, Order.SearchResult.newBuilder().addResult("res1").addResult("res2").build()));
+        final ArrayList<EventWrapper> events = new ArrayList<>();
+        events.add(new EventWrapper("agg1", "1", -1, Order.SearchRequest.newBuilder().setQuery("query").setPageNumber(4).build()));
+        events.add(new EventWrapper("agg1", "1", -1, Order.SearchResult.newBuilder().addResult("res1").addResult("res2").build()));
         journal.saveEvents(events);
         events.clear();
-        events.add(new EventMetadata("agg1", "1", -1, Order.SearchRequest.newBuilder().setQuery("query").setPageNumber(4).build()));
-        events.add(new EventMetadata("agg1", "1", -1, Order.SearchResult.newBuilder().addResult("res1").addResult("res2").build()));
+        events.add(new EventWrapper("agg1", "1", -1, Order.SearchRequest.newBuilder().setQuery("query").setPageNumber(4).build()));
+        events.add(new EventWrapper("agg1", "1", -1, Order.SearchResult.newBuilder().addResult("res1").addResult("res2").build()));
         journal.saveEvents(events);
     }
 
     @Test
     public void testSaveAndReceiveEventsFromKey() throws Exception {
-        journal.saveEvent(new EventMetadata<Message>("agg3", "1", 0, Order.SearchRequest.newBuilder().build()));
-        journal.saveEvent(new EventMetadata<Message>("agg3", "1", 1, Order.SearchRequest.newBuilder().build()));
-        final List<EventMetadata> events = new ArrayList<>();
+        journal.saveEvent(new EventWrapper<Message>("agg3", "1", 0, Order.SearchRequest.newBuilder().build()));
+        journal.saveEvent(new EventWrapper<Message>("agg3", "1", 1, Order.SearchRequest.newBuilder().build()));
+        final List<EventWrapper> events = new ArrayList<>();
         journal.loadEventsAndHandle("agg3", new HandleEventMetadata() {
             @Override
-            public void handleEvent(EventMetadata event) {
+            public void handleEvent(EventWrapper event) {
                 events.add(event);
             }
         }, 1, 1000);
@@ -96,19 +95,19 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
     @Test
     public void testEventReadLimit() throws Exception {
         for (int i = 0; i < 15; i++) {
-            journal.saveEvent(new EventMetadata<Message>("agg2", "1", -1, Order.SearchRequest.newBuilder().build()));
+            journal.saveEvent(new EventWrapper<Message>("agg2", "1", -1, Order.SearchRequest.newBuilder().build()));
         }
-        final List<EventMetadata> events = new ArrayList<>();
+        final List<EventWrapper> events = new ArrayList<>();
         journal.loadEventsAndHandle("agg2", new HandleEventMetadata() {
             @Override
-            public void handleEvent(EventMetadata event) {
+            public void handleEvent(EventWrapper event) {
                 events.add(event);
             }
         }, 0, 10);
         assertEquals(10, events.size());
         journal.loadEventsAndHandle("agg2", new HandleEventMetadata() {
             @Override
-            public void handleEvent(EventMetadata event) {
+            public void handleEvent(EventWrapper event) {
                 events.add(event);
             }
         }, events.get(events.size() - 1).getJournalid(), 10);
@@ -119,7 +118,7 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
     public void testWritingSameVersionShouldFail() throws Exception {
         AggEvent versionFail = new AggEvent("version_failed_agg_id", "agg1");
         versionFail.setVersion(0);
-        journal.saveEvent(new EventMetadata<>("agg1", "version_failed_agg_id", 0, Order.SearchResult.newBuilder().build()));
+        journal.saveEvent(new EventWrapper<>("agg1", "version_failed_agg_id", 0, Order.SearchResult.newBuilder().build()));
         try {
             journal.saveEvent(versionFail);
             fail("Should have gotten exception");
@@ -141,7 +140,7 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
             futures.add(executorService.submit(() -> {
                 String aggregateRootId = UUID.randomUUID().toString();
                 for (int i = 0; i < NUMBER_OF_VERSIONS; i++) {
-                    journal.saveEvent(new EventMetadata<>("agg1", aggregateRootId, -1, Order.SearchRequest.newBuilder().build()));
+                    journal.saveEvent(new EventWrapper<>("agg1", aggregateRootId, -1, Order.SearchRequest.newBuilder().build()));
                 }
                 return aggregateRootId;
             }));
@@ -150,11 +149,11 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
         for (Future<String> future : futures) {
             aggregateIds.add(future.get(60, TimeUnit.SECONDS));
         }
-        final ArrayList<EventMetadata> events = new ArrayList<>();
+        final ArrayList<EventWrapper> events = new ArrayList<>();
 
         final HandleEventMetadata loadEvents = new HandleEventMetadata() {
             @Override
-            public void handleEvent(EventMetadata event) {
+            public void handleEvent(EventWrapper event) {
                 events.add(event);
             }
         };

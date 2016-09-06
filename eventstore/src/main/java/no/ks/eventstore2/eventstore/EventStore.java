@@ -14,6 +14,7 @@ import akka.cluster.singleton.ClusterSingletonProxySettings;
 import akka.dispatch.OnFailure;
 import akka.dispatch.OnSuccess;
 import com.google.common.collect.HashMultimap;
+import eventstore.Messages;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.TakeBackup;
 import no.ks.eventstore2.TakeSnapshot;
@@ -128,6 +129,7 @@ public class EventStore extends UntypedActor {
                 readAggregateEvents((RetrieveAggregateEventsAsync) o);
             } else if (o instanceof String ||
                     o instanceof Subscription ||
+                    o instanceof Messages.Subscription ||
                     o instanceof StoreEvents ||
                     o instanceof Event ||
                     o instanceof AcknowledgePreviousEventsProcessed ||

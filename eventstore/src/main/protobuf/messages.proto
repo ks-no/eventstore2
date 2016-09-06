@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package  eventstore;
+
+message Subscription {
+    string aggregateType = 1;
+    int64 fromJournalId = 2;
+}
+
+message IncompleteSubscriptionPleaseSendNew {
+    string aggregateType = 1;
+}
+
+message CompleteSubscriptionRegistered {
+    string aggregateType = 1;
+}
+
+message LiveSubscription {
+    string aggregateType = 1;
+}

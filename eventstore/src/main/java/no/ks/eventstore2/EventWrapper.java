@@ -6,7 +6,7 @@ import org.joda.time.DateTime;
 
 import java.lang.reflect.InvocationTargetException;
 
-public class EventMetadata<T extends Message> {
+public class EventWrapper<T extends Message> {
 
     String correlationId;
     String protoSerializationType;
@@ -17,13 +17,13 @@ public class EventMetadata<T extends Message> {
     DateTime occurredTimestamp;
     T event;
 
-    public EventMetadata(String aggregateType, String aggregateRootId, T event) {
+    public EventWrapper(String aggregateType, String aggregateRootId, T event) {
         this.aggregateType = aggregateType;
         this.aggregateRootId = aggregateRootId;
         this.event = event;
         protoSerializationType = event.getDescriptorForType().getFullName();
     }
-    public EventMetadata(String aggregateType, String aggregateRootId, long version, T event) throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+    public EventWrapper(String aggregateType, String aggregateRootId, long version, T event) throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         this.aggregateType = aggregateType;
         this.aggregateRootId = aggregateRootId;
         this.version = version;
@@ -31,11 +31,11 @@ public class EventMetadata<T extends Message> {
         protoSerializationType = event.getDescriptorForType().getFullName();
     }
 
-    public EventMetadata() {
+    public EventWrapper() {
 
     }
 
-    public EventMetadata(long journalid, String aggregateRootId, long version, String protoSerializationType, Binary eventData) throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+    public EventWrapper(long journalid, String aggregateRootId, long version, String protoSerializationType, Binary eventData) throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         this.journalid = journalid;
         this.aggregateRootId = aggregateRootId;
         this.version = version;

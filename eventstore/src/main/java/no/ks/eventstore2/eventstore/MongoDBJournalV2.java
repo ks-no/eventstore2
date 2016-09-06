@@ -16,7 +16,7 @@ import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.ReturnDocument;
 import de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer;
 import no.ks.eventstore2.Event;
-import no.ks.eventstore2.EventMetadata;
+import no.ks.eventstore2.EventWrapper;
 import org.bson.Document;
 import org.bson.types.Binary;
 import org.joda.time.DateTime;
@@ -93,9 +93,9 @@ public class MongoDBJournalV2 implements JournalStorage {
         return outputs.toByteArray();
     }
 
-    private EventMetadata deSerialize(Document d) {
+    private EventWrapper deSerialize(Document d) {
         try {
-            return new EventMetadata(d.getLong("jid"), d.getString("rid"), d.getLong("v"), d.getString("protoSerializationType"), (Binary) d.get("d"));
+            return new EventWrapper(d.getLong("jid"), d.getString("rid"), d.getLong("v"), d.getString("protoSerializationType"), (Binary) d.get("d"));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -119,24 +119,24 @@ public class MongoDBJournalV2 implements JournalStorage {
         MongoDbOperations.doDbOperation(() -> {collection.insertOne(getEventDBObject(event, journalid)); return null;}, 3, 500);
     }
 
-    public void saveEvent(EventMetadata<? extends Message> eventMetadata) {
-        if(!aggregates.contains(eventMetadata.getAggregateType())) throw new RuntimeException("Aggregate " + eventMetadata.getAggregateType() + " not registered");
-        final MongoCollection<Document> collection = db.getCollection(eventMetadata.getAggregateType());
-        final int journalid = getNextValueInSeq("journalid_" + eventMetadata.getAggregateType(), 1);
-        eventMetadata.setJournalid(journalid);
+    public void saveEvent(EventWrapper<? extends Message> eventWrapper) {
+        if(!aggregates.contains(eventWrapper.getAggregateType())) throw new RuntimeException("Aggregate " + eventWrapper.getAggregateType() + " not registered");
+        final MongoCollection<Document> collection = db.getCollection(eventWrapper.getAggregateType());
+        final int journalid = getNextValueInSeq("journalid_" + eventWrapper.getAggregateType(), 1);
+        eventWrapper.setJournalid(journalid);
         // if version is not set, find the next one
-        if(eventMetadata.getVersion()  == -1){
-            eventMetadata.setVersion(getNextLongVersion(collection, eventMetadata.getAggregateRootId()));
+        if(eventWrapper.getVersion()  == -1){
+            eventWrapper.setVersion(getNextLongVersion(collection, eventWrapper.getAggregateRootId()));
         }
-        MongoDbOperations.doDbOperation(() -> {collection.insertOne(getEventDBObject(eventMetadata)); return null;}, 3, 500);
+        MongoDbOperations.doDbOperation(() -> {collection.insertOne(getEventDBObject(eventWrapper)); return null;}, 3, 500);
     }
 
-    private Document getEventDBObject(EventMetadata<? extends Message> eventMetadata) {
-        return new Document("jid", eventMetadata.getJournalid())
-                .append("rid", eventMetadata.getAggregateRootId())
-                .append("v", eventMetadata.getVersion())
-                .append("protoSerializationType", eventMetadata.getProtoSerializationType())
-                .append("d", eventMetadata.getEvent().toByteArray());
+    private Document getEventDBObject(EventWrapper<? extends Message> eventWrapper) {
+        return new Document("jid", eventWrapper.getJournalid())
+                .append("rid", eventWrapper.getAggregateRootId())
+                .append("v", eventWrapper.getVersion())
+                .append("protoSerializationType", eventWrapper.getProtoSerializationType())
+                .append("d", eventWrapper.getEvent().toByteArray());
     }
 
     private Document getEventDBObject(Event event, long journalid) {
@@ -200,7 +200,7 @@ public class MongoDBJournalV2 implements JournalStorage {
 
     }
 
-    public void saveEvents(ArrayList<EventMetadata> events) {
+    public void saveEvents(ArrayList<EventWrapper> events) {
         if (events == null || events.size() == 0) {
             return;
         }
@@ -212,7 +212,7 @@ public class MongoDBJournalV2 implements JournalStorage {
         long maxJournalId = getNextValueInSeq("journalid_" + agg, events.size());
         long jid = (maxJournalId - events.size())+1;
         final HashMap<String, Long> versions_for_aggregates = new HashMap<>();
-        for (EventMetadata event : events) {
+        for (EventWrapper event : events) {
             event.setJournalid(jid);
             // if version is not set, find the next one
             if(event.getVersion()  == -1){
@@ -282,7 +282,7 @@ public class MongoDBJournalV2 implements JournalStorage {
         final Counter counter = new Counter();
         dbObjects.forEach((Consumer<Document>) document -> {
             try {
-                EventMetadata event = deSerialize(document);
+                EventWrapper event = deSerialize(document);
                 event.setAggregateType(aggregateType);
                 handleEvent.handleEvent(event);
             } catch (Exception e) {

@@ -9,7 +9,9 @@ import akka.cluster.ClusterEvent;
 import akka.cluster.pubsub.DistributedPubSub;
 import akka.cluster.pubsub.DistributedPubSubMediator;
 import com.google.common.collect.HashMultimap;
+import eventstore.Messages;
 import no.ks.eventstore2.Event;
+import no.ks.eventstore2.EventWrapper;
 import no.ks.eventstore2.TakeBackup;
 import no.ks.eventstore2.TakeSnapshot;
 import no.ks.eventstore2.response.Success;
@@ -97,8 +99,12 @@ public class EventstoreSingelton extends UntypedActor {
                     log.info("Aggregate {} removeed subscriber {}", aggregate, actorRef);
                 }
             }
-        } else if(o instanceof Subscription){
+        } else if(o instanceof Subscription) {
             tryToFillSubscription(sender(), (Subscription) o);
+        } else if(o instanceof Messages.Subscription) {
+            tryToFillSubscription(sender(), (Messages.Subscription) o);
+        }else if(o instanceof Messages.LiveSubscription){
+            tryToFillSubscription(sender(), (Messages.LiveSubscription) o);
         } else if (o instanceof StoreEvents) {
             storeEvents((StoreEvents) o);
             publishEvents((StoreEvents) o);
@@ -140,6 +146,24 @@ public class EventstoreSingelton extends UntypedActor {
         }
     }
 
+    private void tryToFillSubscription(ActorRef sender, Messages.LiveSubscription subscription) {
+        log.info("CompleteSubscriptionRegistered");
+        sender.tell(Messages.CompleteSubscriptionRegistered.newBuilder().setAggregateType(subscription.getAggregateType()).build(), self());
+        addSubscriber(subscription);
+    }
+
+    private void tryToFillSubscription(final ActorRef sender, final Messages.Subscription subscription) {
+        log.info("Got subscription on {} from {}, filling subscriptions", subscription, sender);
+        boolean finished = loadEvents(sender, subscription);
+        if (!finished) {
+            log.info("IncompleteSubscriptionPleaseSendNew");
+            sender.tell(Messages.IncompleteSubscriptionPleaseSendNew.newBuilder().setAggregateType(subscription.getAggregateType()).build(), self());
+        } else {
+            log.info("CompleteSubscriptionRegistered");
+            sender.tell(Messages.CompleteSubscriptionRegistered.newBuilder().setAggregateType(subscription.getAggregateType()).build(), self());
+            addSubscriber(subscription);
+        }
+    }
 
     private void tryToFillSubscription(final ActorRef sender, final Subscription subscription) {
         if (subscription instanceof LiveSubscription) {
@@ -164,6 +188,15 @@ public class EventstoreSingelton extends UntypedActor {
         final ActorRef sender = sender();
 
         sender.tell(storage.loadEventsForAggregateId(retreiveAggregateEvents.getAggregateType(), retreiveAggregateEvents.getAggregateId(), retreiveAggregateEvents.getFromJournalId()), self());
+    }
+
+    private boolean loadEvents(final ActorRef sender, Messages.Subscription subscription) {
+        return storage.loadEventsAndHandle(subscription.getAggregateType(), new HandleEventMetadata() {
+            @Override
+            public void handleEvent(EventWrapper event) {
+                sendEvent(event, sender);
+            }
+        }, subscription.getFromJournalId());
     }
 
     private boolean loadEvents(final ActorRef sender, Subscription subscription) {
@@ -201,6 +234,18 @@ public class EventstoreSingelton extends UntypedActor {
         sendEvent(event, actorRefs);
     }
 
+    private void addSubscriber(Messages.Subscription subscription) {
+        aggregateSubscribers.put(subscription.getAggregateType(), sender());
+        log.info("Added subscriber {} " + subscription);
+        log.info("Current subscribers " + aggregateSubscribers);
+    }
+
+    private void addSubscriber(Messages.LiveSubscription subscription) {
+        aggregateSubscribers.put(subscription.getAggregateType(), sender());
+        log.info("Added subscriber {} " + subscription);
+        log.info("Current subscribers " + aggregateSubscribers);
+    }
+
     private void addSubscriber(Subscription subscription) {
         aggregateSubscribers.put(subscription.getAggregateType(), sender());
         log.info("Added subscriber {} " + subscription);
@@ -217,6 +262,11 @@ public class EventstoreSingelton extends UntypedActor {
             event.setCreated(new DateTime());
         }
         storage.saveEvents(o.getEvents());
+    }
+
+    private void sendEvent(EventWrapper event, ActorRef subscriber) {
+        log.debug("Publishing event {} to {}", event, subscriber);
+        subscriber.tell(event, self());
     }
 
 

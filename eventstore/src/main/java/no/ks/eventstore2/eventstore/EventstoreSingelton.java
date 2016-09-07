@@ -11,7 +11,6 @@ import akka.cluster.pubsub.DistributedPubSubMediator;
 import com.google.common.collect.HashMultimap;
 import eventstore.Messages;
 import no.ks.eventstore2.Event;
-import no.ks.eventstore2.EventWrapper;
 import no.ks.eventstore2.TakeBackup;
 import no.ks.eventstore2.TakeSnapshot;
 import no.ks.eventstore2.response.Success;
@@ -115,6 +114,11 @@ public class EventstoreSingelton extends UntypedActor {
             storeEvent((Event) o);
             publishEvent((Event) o);
             log.info("Published event {}: {}", o, ((Event) o).getLogMessage());
+        }else if (o instanceof Messages.EventWrapper) {
+            storeEvent((Messages.EventWrapper) o);
+            publishEvent((Messages.EventWrapper) o);
+            log.info("Published event {}: {}", o, ((Event) o).getLogMessage());
+
         } else if (o instanceof RetreiveAggregateEvents) {
             readAggregateEvents((RetreiveAggregateEvents) o);
 
@@ -226,6 +230,14 @@ public class EventstoreSingelton extends UntypedActor {
         }
     }
 
+    private void publishEvent(Messages.EventWrapper eventWrapper) {
+        Set<ActorRef> actorRefs = aggregateSubscribers.get(eventWrapper.getAggregateType());
+        if (actorRefs == null) {
+            return;
+        }
+        sendEvent(eventWrapper, actorRefs);
+    }
+
     private void publishEvent(Event event) {
         Set<ActorRef> actorRefs = aggregateSubscribers.get(event.getAggregateType());
         if (actorRefs == null) {
@@ -252,6 +264,10 @@ public class EventstoreSingelton extends UntypedActor {
         log.info("Current subscribers " + aggregateSubscribers);
     }
 
+    private void storeEvent(Messages.EventWrapper eventWrapper) {
+        storage.saveEvent(eventWrapper);
+    }
+
     public void storeEvent(final Event event) {
         event.setCreated(new DateTime());
         storage.saveEvent(event);
@@ -262,6 +278,13 @@ public class EventstoreSingelton extends UntypedActor {
             event.setCreated(new DateTime());
         }
         storage.saveEvents(o.getEvents());
+    }
+
+    private void sendEvent(Messages.EventWrapper eventWrapper, Set<ActorRef> subscribers) {
+        for (ActorRef subscriber : subscribers) {
+            log.debug("Publishing event {} to {}", eventWrapper, subscriber);
+            subscriber.tell(eventWrapper, self());
+        }
     }
 
     private void sendEvent(Messages.EventWrapper event, ActorRef subscriber) {

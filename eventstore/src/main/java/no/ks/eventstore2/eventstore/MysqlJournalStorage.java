@@ -1,5 +1,6 @@
 package no.ks.eventstore2.eventstore;
 
+import eventstore.Messages;
 import no.ks.eventstore2.Event;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +26,11 @@ public class MysqlJournalStorage extends AbstractJournalStorage {
     @Override
     public void saveEvents(List<? extends Event> events) {
         throw new UnsupportedOperationException("Please implement save events on MysqlJournalStorage");
+    }
+
+    @Override
+    public void saveEvent(Messages.EventWrapper eventWrapper) {
+        throw new UnsupportedOperationException("Please implement save event on MysqlJournalStorage");
     }
 
     @Override

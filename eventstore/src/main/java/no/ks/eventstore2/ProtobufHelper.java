@@ -6,6 +6,7 @@ import com.google.protobuf.Message;
 import com.google.protobuf.Parser;
 import eventstore.Messages;
 import org.bson.types.Binary;
+import org.joda.time.DateTime;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -37,6 +38,7 @@ public class ProtobufHelper {
                 .setAggregateType(aggregateType)
                 .setAggregateRootId(aggregateRootId)
                 .setVersion(version)
+                .setOccurredOn(DateTime.now().getMillis())
                 .setProtoSerializationType(event.getDescriptorForType().getFullName())
                 .setEvent(Any.pack(event)).build();
     }
@@ -46,6 +48,7 @@ public class ProtobufHelper {
                 .setAggregateType(aggregateType)
                 .setAggregateRootId(aggregateRootId)
                 .setVersion(-1)
+                .setOccurredOn(DateTime.now().getMillis())
                 .setProtoSerializationType(event.getDescriptorForType().getFullName())
                 .setEvent(Any.pack(event)).build();
     }

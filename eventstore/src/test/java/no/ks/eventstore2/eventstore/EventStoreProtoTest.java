@@ -4,12 +4,10 @@ import akka.actor.Actor;
 import akka.actor.ActorSystem;
 import akka.testkit.TestActorRef;
 import com.esotericsoftware.kryo.Kryo;
-import com.google.protobuf.Message;
 import com.mongodb.client.MongoDatabase;
 import com.typesafe.config.ConfigFactory;
 import events.test.Order.Order;
 import eventstore.Messages;
-import no.ks.eventstore2.EventWrapper;
 import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
 import no.ks.eventstore2.response.Success;
@@ -56,10 +54,10 @@ public class EventStoreProtoTest extends MongoDbEventstore2TestKit {
         TestActorRef<Actor> actorTestActorRef = TestActorRef.create(_system, EventStore.mkProps(mongodbJournal));
         actorTestActorRef.tell(Messages.Subscription.newBuilder().setAggregateType("agg").build(), super.testActor());
         for(int i = 0; i<10;i++)
-            expectMsgClass(EventWrapper.class);
+            expectMsgClass(Messages.EventWrapper.class);
         expectMsgClass(Messages.IncompleteSubscriptionPleaseSendNew.class);
         actorTestActorRef.tell(Messages.Subscription.newBuilder().setAggregateType("agg").setFromJournalId(9).build(),super.testActor());
-        expectMsgClass(EventWrapper.class);
+        expectMsgClass(Messages.EventWrapper.class);
     }
 
     @Test
@@ -71,7 +69,7 @@ public class EventStoreProtoTest extends MongoDbEventstore2TestKit {
         actorTestActorRef.tell(Messages.LiveSubscription.newBuilder().setAggregateType("agg").build(),super.testActor());
         expectMsgClass(Messages.CompleteSubscriptionRegistered.class);
         actorTestActorRef.tell(ProtobufHelper.newEventWrapper("agg", "1", -1, Order.SearchRequest.newBuilder().build()), super.testActor());
-        expectMsgClass(EventWrapper.class);
+        expectMsgClass(Messages.EventWrapper.class);
     }
 
     @Test

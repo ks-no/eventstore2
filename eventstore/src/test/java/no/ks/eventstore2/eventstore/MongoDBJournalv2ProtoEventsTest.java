@@ -2,12 +2,10 @@ package no.ks.eventstore2.eventstore;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.google.protobuf.Any;
-import com.google.protobuf.Message;
 import com.mongodb.client.MongoDatabase;
 import events.Aggevents.Agg;
 import events.test.Order.Order;
 import eventstore.Messages;
-import no.ks.eventstore2.EventWrapper;
 import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
 import org.junit.After;

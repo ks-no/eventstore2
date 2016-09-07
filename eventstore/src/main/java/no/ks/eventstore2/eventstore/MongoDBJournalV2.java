@@ -16,7 +16,6 @@ import com.mongodb.client.model.ReturnDocument;
 import de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer;
 import eventstore.Messages;
 import no.ks.eventstore2.Event;
-import no.ks.eventstore2.EventWrapper;
 import no.ks.eventstore2.ProtobufHelper;
 import org.bson.Document;
 import org.bson.types.Binary;
@@ -234,7 +233,7 @@ public class MongoDBJournalV2 implements JournalStorage {
                 } else {
                     version = getNextLongVersion(collection, event.getAggregateRootId());
                 }
-                versions_for_aggregates.put(event.getAggregateRootId(), event.getVersion());
+                versions_for_aggregates.put(event.getAggregateRootId(), version);
                 log.debug("Saving event " + event);
             }
 

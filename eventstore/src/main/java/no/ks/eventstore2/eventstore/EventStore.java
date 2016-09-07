@@ -130,8 +130,10 @@ public class EventStore extends UntypedActor {
             } else if (o instanceof String ||
                     o instanceof Subscription ||
                     o instanceof Messages.Subscription ||
+                    o instanceof Messages.LiveSubscription ||
                     o instanceof StoreEvents ||
                     o instanceof Event ||
+                    o instanceof Messages.EventWrapper ||
                     o instanceof AcknowledgePreviousEventsProcessed ||
                     o instanceof RetreiveAggregateEvents ||
                     o instanceof UpgradeAggregate ||

@@ -139,6 +139,7 @@ public class EventStore extends UntypedActor {
                     o instanceof Messages.EventWrapper ||
                     o instanceof AcknowledgePreviousEventsProcessed ||
                     o instanceof RetreiveAggregateEvents ||
+                    o instanceof Messages.RetreiveAggregateEvents ||
                     o instanceof UpgradeAggregate ||
                     o instanceof TakeBackup ||
                     o instanceof RemoveSubscription ||
@@ -263,20 +264,5 @@ public class EventStore extends UntypedActor {
         }
         return upgraded;
     }
-
-    private void addSubscriber(Subscription subscription) {
-        aggregateSubscribers.put(subscription.getAggregateType(), sender());
-        log.info("Added subscriber {} " + subscription);
-        log.debug("Current subscribers " + toLogString(aggregateSubscribers));
-    }
-
-    private String toLogString(HashMultimap<String, ActorRef> aggregateSubscribers) {
-        String str = "";
-        for (String s : aggregateSubscribers.keySet()) {
-            str += "['" + s + "':" + aggregateSubscribers.get(s) + "]\n";
-        }
-        return str;
-    }
-
 
 }

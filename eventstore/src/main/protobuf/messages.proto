@@ -16,6 +16,13 @@ message EventWrapper {
     google.protobuf.Any event = 8;
 }
 
+message EventWrapperBatch {
+    string aggregate_type = 1;
+    string aggregate_root_id = 2;
+    bool read_all_events = 3;
+    repeated EventWrapper events = 4;
+}
+
 message Subscription {
     string aggregateType = 1;
     int64 fromJournalId = 2;
@@ -56,3 +63,16 @@ message AcknowledgePreviousEventsProcessed {
 message Success {
 
 }
+
+message RetreiveAggregateEvents {
+    string aggregateRootId = 1;
+    int64 fromJournalId = 2;
+    string aggregateType = 3;
+}
+
+message RetreiveAggregateEventsAsync {
+    string aggregateRootId = 1;
+    int64 fromJournalId = 2;
+    string aggregateType = 3;
+}
+

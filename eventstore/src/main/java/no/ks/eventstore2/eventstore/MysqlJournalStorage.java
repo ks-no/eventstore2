@@ -34,6 +34,11 @@ public class MysqlJournalStorage extends AbstractJournalStorage {
     }
 
     @Override
+    public Messages.EventWrapperBatch loadEventWrappersForAggregateId(String aggregateType, String aggregateRootId, long fromJournalId) {
+        throw new UnsupportedOperationException("Please implement save event on MysqlJournalStorage");
+    }
+
+    @Override
     public void saveEvent(final Event event) {
         final ByteArrayOutputStream output = createByteArrayOutputStream(event);
         LobHandler lobHandler = new DefaultLobHandler();

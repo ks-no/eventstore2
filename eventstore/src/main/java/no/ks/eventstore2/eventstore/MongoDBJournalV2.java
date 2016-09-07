@@ -156,13 +156,13 @@ public class MongoDBJournalV2 implements JournalStorage {
                     append("d", serielize(event));
     }
 
-
     private int getNextVersion(MongoCollection<Document> collection, String aggregateRootId) {
         FindIterable<Document> one = collection.find(new Document("rid", aggregateRootId)).sort(new Document("v", -1)).limit(1).projection(new Document("v",1));
         final Document first = one.first();
         if(first == null) return 0;
         return first.getInteger("v") +1;
     }
+
 
     private long getNextLongVersion(MongoCollection<Document> collection, String aggregateRootId) {
         FindIterable<Document> one = collection.find(new Document("rid", aggregateRootId)).sort(new Document("v", -1)).limit(1).projection(new Document("v",1));
@@ -285,8 +285,8 @@ public class MongoDBJournalV2 implements JournalStorage {
         public int getValue(){
             return i;
         }
-    }
 
+    }
     public boolean loadEventsAndHandle(final String aggregateType, HandleEventMetadata handleEvent, long fromKey, int readlimit) {
         final Document query = new Document("jid", new Document("$gt", fromKey));
         FindIterable<Document> dbObjects = MongoDbOperations.doDbOperation(() -> db.getCollection(aggregateType).find(query).sort(new Document("jid", 1)).limit(readlimit));
@@ -373,5 +373,24 @@ public class MongoDBJournalV2 implements JournalStorage {
         final Future<EventBatch> theFuture = promise.future();
         dbObjects.forEach(document -> events.add(deSerialize(((Binary) document.get("d")).getData())), (result, t) -> promise.success(new EventBatch(aggregateType, aggregateId, events, events.size() != eventReadLimit)));
         return theFuture;
+    }
+
+    @Override
+    public Messages.EventWrapperBatch loadEventWrappersForAggregateId(String aggregateType, String aggregateRootId, long fromJournalId) {
+        final Document query = new Document("rid", aggregateRootId);
+        query.append("jid", new Document("$gt", fromJournalId));
+
+        final FindIterable<Document> dbObjects = MongoDbOperations.doDbOperation(() -> db.getCollection(aggregateType).find(query).sort(new Document("jid", 1)).limit(eventReadLimit));
+
+        final List<Messages.EventWrapper> events = StreamSupport.stream(dbObjects.spliterator(), false)
+                .map(document -> deSerialize( document, aggregateType))
+                .collect(Collectors.toList());
+
+        final Messages.EventWrapperBatch build = Messages.EventWrapperBatch.newBuilder()
+                .setAggregateRootId(aggregateRootId)
+                .setAggregateType(aggregateType)
+                .setReadAllEvents(events.size() != eventReadLimit)
+                .addAllEvents(events).build();
+        return build;
     }
 }

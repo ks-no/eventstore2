@@ -71,4 +71,6 @@ public interface JournalStorage {
     void saveEvents(List<? extends Event> events);
 
     void saveEvent(Messages.EventWrapper eventWrapper);
+
+    Messages.EventWrapperBatch loadEventWrappersForAggregateId(String aggregateType, String aggregateRootId, long fromJournalId);
 }

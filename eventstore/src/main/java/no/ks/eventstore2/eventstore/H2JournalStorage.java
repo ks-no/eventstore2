@@ -34,6 +34,11 @@ public class H2JournalStorage extends AbstractJournalStorage {
         throw new RuntimeException("NotImplemented");
     }
 
+    @Override
+    public Messages.EventWrapperBatch loadEventWrappersForAggregateId(String aggregateType, String aggregateRootId, long fromJournalId) {
+        throw new RuntimeException("NotImplemented");
+    }
+
     public void saveEvent(final Event event) {
         final ByteArrayOutputStream output = createByteArrayOutputStream(event);
         LobHandler lobHandler = new DefaultLobHandler();

@@ -121,6 +121,8 @@ public class EventstoreSingelton extends UntypedActor {
 
         } else if (o instanceof RetreiveAggregateEvents) {
             readAggregateEvents((RetreiveAggregateEvents) o);
+        } else if (o instanceof Messages.RetreiveAggregateEvents) {
+            readAggregateEvents((Messages.RetreiveAggregateEvents) o);
 
         } else if (o instanceof AcknowledgePreviousEventsProcessed) {
             sender().tell(new Success(), self());
@@ -198,6 +200,12 @@ public class EventstoreSingelton extends UntypedActor {
         final ActorRef sender = sender();
 
         sender.tell(storage.loadEventsForAggregateId(retreiveAggregateEvents.getAggregateType(), retreiveAggregateEvents.getAggregateId(), retreiveAggregateEvents.getFromJournalId()), self());
+    }
+
+    private void readAggregateEvents(Messages.RetreiveAggregateEvents retreiveAggregateEvents) {
+        final ActorRef sender = sender();
+
+        sender.tell(storage.loadEventWrappersForAggregateId(retreiveAggregateEvents.getAggregateType(), retreiveAggregateEvents.getAggregateRootId(), retreiveAggregateEvents.getFromJournalId()), self());
     }
 
     private boolean loadEvents(final ActorRef sender, Messages.Subscription subscription) {

@@ -6,7 +6,6 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.CompatibleFieldSerializer;
 import com.esotericsoftware.shaded.org.objenesis.strategy.SerializingInstantiatorStrategy;
-import com.google.protobuf.Message;
 import com.mongodb.WriteConcern;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
@@ -15,8 +14,10 @@ import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.ReturnDocument;
 import de.javakaffee.kryoserializers.jodatime.JodaDateTimeSerializer;
+import eventstore.Messages;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.EventWrapper;
+import no.ks.eventstore2.ProtobufHelper;
 import org.bson.Document;
 import org.bson.types.Binary;
 import org.joda.time.DateTime;
@@ -93,9 +94,16 @@ public class MongoDBJournalV2 implements JournalStorage {
         return outputs.toByteArray();
     }
 
-    private EventWrapper deSerialize(Document d) {
+    private Messages.EventWrapper deSerialize(Document d, String aggregateType) {
         try {
-            return new EventWrapper(d.getLong("jid"), d.getString("rid"), d.getLong("v"), d.getString("protoSerializationType"), (Binary) d.get("d"));
+            return ProtobufHelper.newEventWrapper(d.getString("correlationid"),
+                    d.getString("protoSerializationType"),
+                    d.getString("rid"),
+                    d.getLong("jid"),
+                    aggregateType,
+                    d.getLong("v"),
+                    d.getLong("occuredon"),
+                    (Binary) d.get("d"));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -119,22 +127,25 @@ public class MongoDBJournalV2 implements JournalStorage {
         MongoDbOperations.doDbOperation(() -> {collection.insertOne(getEventDBObject(event, journalid)); return null;}, 3, 500);
     }
 
-    public void saveEvent(EventWrapper<? extends Message> eventWrapper) {
+    public void saveEvent(Messages.EventWrapper eventWrapper) {
         if(!aggregates.contains(eventWrapper.getAggregateType())) throw new RuntimeException("Aggregate " + eventWrapper.getAggregateType() + " not registered");
         final MongoCollection<Document> collection = db.getCollection(eventWrapper.getAggregateType());
         final int journalid = getNextValueInSeq("journalid_" + eventWrapper.getAggregateType(), 1);
-        eventWrapper.setJournalid(journalid);
         // if version is not set, find the next one
-        if(eventWrapper.getVersion()  == -1){
-            eventWrapper.setVersion(getNextLongVersion(collection, eventWrapper.getAggregateRootId()));
+        long version = eventWrapper.getVersion();
+        if(version  == -1){
+            version = getNextLongVersion(collection, eventWrapper.getAggregateRootId());
         }
-        MongoDbOperations.doDbOperation(() -> {collection.insertOne(getEventDBObject(eventWrapper)); return null;}, 3, 500);
+        final long v = version;
+        MongoDbOperations.doDbOperation(() -> {collection.insertOne(getEventDBObject(eventWrapper, v, journalid)); return null;}, 3, 500);
     }
 
-    private Document getEventDBObject(EventWrapper<? extends Message> eventWrapper) {
-        return new Document("jid", eventWrapper.getJournalid())
+    private Document getEventDBObject(Messages.EventWrapper eventWrapper, long version, long journalid) {
+        return new Document("jid", journalid)
                 .append("rid", eventWrapper.getAggregateRootId())
-                .append("v", eventWrapper.getVersion())
+                .append("v", version)
+                .append("correlationid", eventWrapper.getCorrelationId())
+                .append("occuredon", DateTime.now().getMillis())
                 .append("protoSerializationType", eventWrapper.getProtoSerializationType())
                 .append("d", eventWrapper.getEvent().toByteArray());
     }
@@ -200,7 +211,7 @@ public class MongoDBJournalV2 implements JournalStorage {
 
     }
 
-    public void saveEvents(ArrayList<EventWrapper> events) {
+    public void saveEvents(ArrayList<Messages.EventWrapper> events) {
         if (events == null || events.size() == 0) {
             return;
         }
@@ -212,21 +223,22 @@ public class MongoDBJournalV2 implements JournalStorage {
         long maxJournalId = getNextValueInSeq("journalid_" + agg, events.size());
         long jid = (maxJournalId - events.size())+1;
         final HashMap<String, Long> versions_for_aggregates = new HashMap<>();
-        for (EventWrapper event : events) {
-            event.setJournalid(jid);
+        long version = -1;
+        for (Messages.EventWrapper event : events) {
+
             // if version is not set, find the next one
             if(event.getVersion()  == -1){
                 if(versions_for_aggregates.containsKey(event.getAggregateRootId())){
-                    final long version = versions_for_aggregates.get(event.getAggregateRootId()) + 1;
-                    event.setVersion(version);
+                    version = versions_for_aggregates.get(event.getAggregateRootId()) + 1;
                     versions_for_aggregates.put(event.getAggregateRootId(), version);
                 } else {
-                    event.setVersion(getNextLongVersion(collection, event.getAggregateRootId()));
+                    version = getNextLongVersion(collection, event.getAggregateRootId());
                 }
                 versions_for_aggregates.put(event.getAggregateRootId(), event.getVersion());
                 log.debug("Saving event " + event);
             }
-            dbObjectArrayList.add(getEventDBObject(event));
+
+            dbObjectArrayList.add(getEventDBObject(event, version, jid));
             jid++;
         }
 
@@ -282,8 +294,7 @@ public class MongoDBJournalV2 implements JournalStorage {
         final Counter counter = new Counter();
         dbObjects.forEach((Consumer<Document>) document -> {
             try {
-                EventWrapper event = deSerialize(document);
-                event.setAggregateType(aggregateType);
+                Messages.EventWrapper event = deSerialize(document, aggregateType);
                 handleEvent.handleEvent(event);
             } catch (Exception e) {
                 log.error("Failed to read serialized class" + document.toString(), e);

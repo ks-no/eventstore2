@@ -10,6 +10,7 @@ import com.typesafe.config.ConfigFactory;
 import events.test.Order.Order;
 import eventstore.Messages;
 import no.ks.eventstore2.EventWrapper;
+import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
 import no.ks.eventstore2.response.Success;
 import org.junit.After;
@@ -50,7 +51,7 @@ public class EventStoreProtoTest extends MongoDbEventstore2TestKit {
     @Test
     public void testSendingIncompleteEvent() throws Exception {
         for(int i = 0; i<11;i++)
-            mongodbJournal.saveEvent(new EventWrapper<Message>("agg", "1", -1, Order.SearchRequest.newBuilder().build()));
+            mongodbJournal.saveEvent(ProtobufHelper.newEventWrapper("agg", "1", -1, Order.SearchRequest.newBuilder().build()));
 
         TestActorRef<Actor> actorTestActorRef = TestActorRef.create(_system, EventStore.mkProps(mongodbJournal));
         actorTestActorRef.tell(Messages.Subscription.newBuilder().setAggregateType("agg").build(), super.testActor());
@@ -64,13 +65,13 @@ public class EventStoreProtoTest extends MongoDbEventstore2TestKit {
     @Test
     public void testLiveSubscription() throws Exception {
         for(int i = 0; i<11;i++)
-            mongodbJournal.saveEvent(new AggEvent("agg"));
+            mongodbJournal.saveEvent(ProtobufHelper.newEventWrapper("agg", "1", -1, Order.SearchRequest.newBuilder().build()));
 
         TestActorRef<Actor> actorTestActorRef = TestActorRef.create(_system, EventStore.mkProps(mongodbJournal));
-        actorTestActorRef.tell(new LiveSubscription("agg"),super.testActor());
-        expectMsgClass(CompleteSubscriptionRegistered.class);
-        actorTestActorRef.tell(new AggEvent("agg"), super.testActor());
-        expectMsgClass(AggEvent.class);
+        actorTestActorRef.tell(Messages.LiveSubscription.newBuilder().setAggregateType("agg").build(),super.testActor());
+        expectMsgClass(Messages.CompleteSubscriptionRegistered.class);
+        actorTestActorRef.tell(ProtobufHelper.newEventWrapper("agg", "1", -1, Order.SearchRequest.newBuilder().build()), super.testActor());
+        expectMsgClass(EventWrapper.class);
     }
 
     @Test

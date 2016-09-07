@@ -1,7 +1,7 @@
 package no.ks.eventstore2.eventstore;
 
-import no.ks.eventstore2.EventWrapper;
+import eventstore.Messages;
 
 public abstract class HandleEventMetadata {
-    public abstract void handleEvent(EventWrapper event);
+    public abstract void handleEvent(Messages.EventWrapper event);
 }

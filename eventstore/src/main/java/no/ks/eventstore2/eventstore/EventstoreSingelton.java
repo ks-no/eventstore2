@@ -193,7 +193,7 @@ public class EventstoreSingelton extends UntypedActor {
     private boolean loadEvents(final ActorRef sender, Messages.Subscription subscription) {
         return storage.loadEventsAndHandle(subscription.getAggregateType(), new HandleEventMetadata() {
             @Override
-            public void handleEvent(EventWrapper event) {
+            public void handleEvent(Messages.EventWrapper event) {
                 sendEvent(event, sender);
             }
         }, subscription.getFromJournalId());
@@ -264,7 +264,7 @@ public class EventstoreSingelton extends UntypedActor {
         storage.saveEvents(o.getEvents());
     }
 
-    private void sendEvent(EventWrapper event, ActorRef subscriber) {
+    private void sendEvent(Messages.EventWrapper event, ActorRef subscriber) {
         log.debug("Publishing event {} to {}", event, subscriber);
         subscriber.tell(event, self());
     }

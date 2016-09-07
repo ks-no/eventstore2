@@ -125,6 +125,9 @@ public class EventStore extends UntypedActor {
             } else if (o instanceof Subscription) {
                 Subscription subscription = (Subscription) o;
                 tryToFillSubscription(sender(), subscription);
+            } else if (o instanceof Messages.AsyncSubscription) {
+                Messages.AsyncSubscription subscription = (Messages.AsyncSubscription) o;
+                tryToFillSubscription(sender(), subscription);
             } else if (o instanceof RetrieveAggregateEventsAsync) {
                 readAggregateEvents((RetrieveAggregateEventsAsync) o);
             } else if (o instanceof String ||
@@ -139,15 +142,44 @@ public class EventStore extends UntypedActor {
                     o instanceof UpgradeAggregate ||
                     o instanceof TakeBackup ||
                     o instanceof RemoveSubscription ||
-                    o instanceof TakeSnapshot) {
-                if (!(o instanceof AcknowledgePreviousEventsProcessed || o instanceof RetreiveAggregateEvents))
-                    log.info("Sending to singelton  message {} from {}", o, sender());
+                    o instanceof Messages.RemoveSubscription ||
+                    o instanceof TakeSnapshot ||
+                    o instanceof AcknowledgePreviousEventsProcessed
+                        || o instanceof RetreiveAggregateEvents
+                        || o instanceof Messages.AcknowledgePreviousEventsProcessed){
+
+                log.info("Sending to singelton  message {} from {}", o, sender());
                 eventstoresingeltonProxy.tell(o, sender());
             }
         } catch (Exception e) {
             log.error("Eventstore got an error: ", e);
             throw e;
         }
+    }
+
+    private void tryToFillSubscription(final ActorRef sender, final Messages.AsyncSubscription subscription) {
+        final ActorRef self = self();
+        Future<Boolean> f = future(() -> {
+            log.info("Got async subscription on {} from {}, filling subscriptions", subscription, sender);
+
+            boolean finished = loadEvents(sender, subscription);
+
+            if (!finished) {
+                log.info("Async IncompleteSubscriptionPleaseSendNew");
+                sender.tell(Messages.IncompleteSubscriptionPleaseSendNew.newBuilder().setAggregateType(subscription.getAggregateType()).build(), self);
+            } else {
+                log.info("Async CompleteAsyncSubscriptionPleaseSendSyncSubscription");
+                sender.tell(Messages.CompleteAsyncSubscriptionPleaseSendSyncSubscription.newBuilder().setAggregateType(subscription.getAggregateType()).build(), self);
+            }
+            return finished;
+        }, getContext().system().dispatcher());
+        f.onFailure(new OnFailure() {
+            public void onFailure(Throwable failure) {
+                log.error("Error in AsyncSubscribe, restarting subscriber", failure);
+                sender.tell(new NewEventstoreStarting(), self);
+            }
+        }, getContext().system().dispatcher());
+
     }
 
     private void tryToFillSubscription(final ActorRef sender, final Subscription subscription) {
@@ -199,6 +231,21 @@ public class EventStore extends UntypedActor {
 
         }
         return finished;
+    }
+
+    private boolean loadEvents(final ActorRef sender, Messages.AsyncSubscription subscription) {
+
+        return storage.loadEventsAndHandle(subscription.getAggregateType(), new HandleEventMetadata() {
+                @Override
+                public void handleEvent(Messages.EventWrapper event) {
+                    sendEvent(event, sender);
+                }
+            }, subscription.getFromJournalId());
+    }
+
+    private void sendEvent(Messages.EventWrapper event, ActorRef subscriber) {
+        log.debug("Publishing event {} to {}", event, subscriber);
+        subscriber.tell(event, self());
     }
 
     private void sendEvent(Event event, ActorRef subscriber) {

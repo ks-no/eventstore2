@@ -75,59 +75,59 @@ public class EventStoreProtoTest extends MongoDbEventstore2TestKit {
     @Test
     public void testNoImcompleteIfSentAllOnFristSubscribe() throws Exception {
         for(int i = 0; i<3;i++)
-            mongodbJournal.saveEvent(new AggEvent("agg"));
+            mongodbJournal.saveEvent(ProtobufHelper.newEventWrapper("agg", "1", -1, Order.SearchRequest.newBuilder().build()));
 
         TestActorRef<Actor> actorTestActorRef = TestActorRef.create(_system, EventStore.mkProps(mongodbJournal));
-        actorTestActorRef.tell(new Subscription("agg",null),super.testActor());
+        actorTestActorRef.tell(Messages.Subscription.newBuilder().setAggregateType("agg").build(),super.testActor());
         for(int i = 0; i<3;i++)
-            expectMsgClass(AggEvent.class);
-        expectMsgClass(CompleteSubscriptionRegistered.class);
+            expectMsgClass(Messages.EventWrapper.class);
+        expectMsgClass(Messages.CompleteSubscriptionRegistered.class);
     }
 
     @Test
     public void testNoIncompleteIf1000Events() throws Exception {
         for(int i = 0; i<10;i++)
-            mongodbJournal.saveEvent(new AggEvent("agg"));
+            mongodbJournal.saveEvent(ProtobufHelper.newEventWrapper("agg", "1", -1, Order.SearchRequest.newBuilder().build()));
 
         TestActorRef<Actor> actorTestActorRef = TestActorRef.create(_system, EventStore.mkProps(mongodbJournal));
-        actorTestActorRef.tell(new Subscription("agg",null),super.testActor());
+        actorTestActorRef.tell(Messages.Subscription.newBuilder().setAggregateType("agg").build(),super.testActor());
         for(int i = 0; i<10;i++)
-            expectMsgClass(AggEvent.class);
-        expectMsgClass(IncompleteSubscriptionPleaseSendNew.class);
-        actorTestActorRef.tell(new Subscription("agg","10"),super.testActor());
-        expectMsgClass(CompleteSubscriptionRegistered.class);
+            expectMsgClass(Messages.EventWrapper.class);
+        expectMsgClass(Messages.IncompleteSubscriptionPleaseSendNew.class);
+        actorTestActorRef.tell(Messages.Subscription.newBuilder().setAggregateType("agg").setFromJournalId(10).build(),super.testActor());
+        expectMsgClass(Messages.CompleteSubscriptionRegistered.class);
     }
 
     @Test
     public void testAsyncSubscription() throws Exception {
         for(int i = 0; i<10;i++)
-            mongodbJournal.saveEvent(new AggEvent("agg"));
+            mongodbJournal.saveEvent(ProtobufHelper.newEventWrapper("agg", "1", -1, Order.SearchRequest.newBuilder().build()));
 
         TestActorRef<Actor> actorTestActorRef = TestActorRef.create(_system, EventStore.mkProps(mongodbJournal));
-        actorTestActorRef.tell(new AsyncSubscription("agg",null),super.testActor());
+        actorTestActorRef.tell(Messages.AsyncSubscription.newBuilder().setAggregateType("agg").build(),super.testActor());
         for(int i = 0; i<10;i++)
-            expectMsgClass(AggEvent.class);
-        expectMsgClass(IncompleteSubscriptionPleaseSendNew.class);
-        actorTestActorRef.tell(new AsyncSubscription("agg","10"),super.testActor());
-        expectMsgClass(CompleteAsyncSubscriptionPleaseSendSyncSubscription.class);
-        actorTestActorRef.tell(new Subscription("agg","10"),super.testActor());
-        expectMsgClass(CompleteSubscriptionRegistered.class);
+            expectMsgClass(Messages.EventWrapper.class);
+        expectMsgClass(Messages.IncompleteSubscriptionPleaseSendNew.class);
+        actorTestActorRef.tell(Messages.AsyncSubscription.newBuilder().setAggregateType("agg").setFromJournalId(10).build(),super.testActor());
+        expectMsgClass(Messages.CompleteAsyncSubscriptionPleaseSendSyncSubscription.class);
+        actorTestActorRef.tell(Messages.Subscription.newBuilder().setAggregateType("agg").setFromJournalId(10).build(),super.testActor());
+        expectMsgClass(Messages.CompleteSubscriptionRegistered.class);
     }
 
     @Test
     public void testActorRestarting() throws Exception {
-        mongodbJournal.saveEvent(new AggEvent("agg"));
+        mongodbJournal.saveEvent(ProtobufHelper.newEventWrapper("agg", "1", -1, Order.SearchRequest.newBuilder().build()));
 
         TestActorRef<Actor> eventstore = TestActorRef.create(_system, EventStore.mkProps(mongodbJournal));
-        eventstore.tell(new Subscription("agg",null),super.testActor());
-        expectMsgClass(AggEvent.class);
-        expectMsgClass(CompleteSubscriptionRegistered.class);
-        eventstore.tell(new RemoveSubscription("agg"),super.testActor());
-        expectMsgClass(SubscriptionRemoved.class);
+        eventstore.tell(Messages.Subscription.newBuilder().setAggregateType("agg").build(),super.testActor());
+        expectMsgClass(Messages.EventWrapper.class);
+        expectMsgClass(Messages.CompleteSubscriptionRegistered.class);
+        eventstore.tell(Messages.RemoveSubscription.newBuilder().setAggregateType("agg").build(),super.testActor());
+        expectMsgClass(Messages.SubscriptionRemoved.class);
 
-        eventstore.tell(new AggEvent("agg"),super.testActor());
-        eventstore.tell(new AcknowledgePreviousEventsProcessed(),super.testActor());
-        expectMsgClass(Success.class);
+        eventstore.tell(ProtobufHelper.newEventWrapper("agg", "1", -1, Order.SearchRequest.newBuilder().build()),super.testActor());
+        eventstore.tell(Messages.AcknowledgePreviousEventsProcessed.getDefaultInstance(),super.testActor());
+        expectMsgClass(Messages.Success.class);
     }
 
 }

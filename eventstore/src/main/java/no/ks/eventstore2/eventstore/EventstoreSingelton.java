@@ -117,13 +117,15 @@ public class EventstoreSingelton extends UntypedActor {
         }else if (o instanceof Messages.EventWrapper) {
             storeEvent((Messages.EventWrapper) o);
             publishEvent((Messages.EventWrapper) o);
-            log.info("Published event {}: {}", o, ((Event) o).getLogMessage());
+            log.info("Published event {}", o);
 
         } else if (o instanceof RetreiveAggregateEvents) {
             readAggregateEvents((RetreiveAggregateEvents) o);
 
         } else if (o instanceof AcknowledgePreviousEventsProcessed) {
             sender().tell(new Success(), self());
+        } else if (o instanceof Messages.AcknowledgePreviousEventsProcessed) {
+            sender().tell(Messages.Success.getDefaultInstance(), self());
         } else if (o instanceof UpgradeAggregate) {
             UpgradeAggregate upgrade = (UpgradeAggregate) o;
             log.info("Upgrading aggregate " + upgrade.getAggregateType());
@@ -143,6 +145,10 @@ public class EventstoreSingelton extends UntypedActor {
             aggregateSubscribers.remove(((RemoveSubscription) o).getAggregateType(), sender());
             log.info("Removed subscription for {} from ", o, sender());
             sender().tell(new SubscriptionRemoved(((RemoveSubscription) o).getAggregateType()), self());
+        } else if(o instanceof Messages.RemoveSubscription){
+            aggregateSubscribers.remove(((Messages.RemoveSubscription) o).getAggregateType(), sender());
+            log.info("Removed subscription for {} from ", o, sender());
+            sender().tell(Messages.SubscriptionRemoved.newBuilder().setAggregateType(((Messages.RemoveSubscription) o).getAggregateType()).build(), self());
         } else if(o instanceof ClusterEvent.ClusterMetricsChanged){
 
         } else {

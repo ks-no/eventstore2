@@ -21,6 +21,11 @@ message Subscription {
     int64 fromJournalId = 2;
 }
 
+message AsyncSubscription {
+    string aggregateType = 1;
+    int64 fromJournalId = 2;
+}
+
 message IncompleteSubscriptionPleaseSendNew {
     string aggregateType = 1;
 }
@@ -29,6 +34,25 @@ message CompleteSubscriptionRegistered {
     string aggregateType = 1;
 }
 
+message CompleteAsyncSubscriptionPleaseSendSyncSubscription {
+    string aggregateType = 1;
+}
+
 message LiveSubscription {
     string aggregateType = 1;
+}
+
+message RemoveSubscription {
+    string aggregateType = 1;
+}
+
+message SubscriptionRemoved {
+    string aggregateType = 1;
+}
+
+message AcknowledgePreviousEventsProcessed {
+}
+
+message Success {
+
 }

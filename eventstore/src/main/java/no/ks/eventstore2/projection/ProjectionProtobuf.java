@@ -232,25 +232,26 @@ public class ProjectionProtobuf extends UntypedActor {
             } else if (o instanceof Messages.IncompleteSubscriptionPleaseSendNew) {
                 log.debug("Sending new subscription on {} from {}", ((Messages.IncompleteSubscriptionPleaseSendNew) o).getAggregateType(), latestJournalidReceived);
                 resetSubscribeTimeout();
-                if (latestJournalidReceived < 0 ) {
+                if (latestJournalidReceived < 0) {
                     throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
                 }
-                eventStore.tell(Messages.IncompleteSubscriptionPleaseSendNew.newBuilder().setAggregateType( ((IncompleteSubscriptionPleaseSendNew) o).getAggregateType()).build(),self());
+                eventStore.tell(Messages.IncompleteSubscriptionPleaseSendNew.newBuilder().setAggregateType(((IncompleteSubscriptionPleaseSendNew) o).getAggregateType()).build(), self());
                 //eventStore.tell(new AsyncSubscription(((IncompleteSubscriptionPleaseSendNew) o).getAggregateType(), latestJournalidReceived), self());
+
+            }else if (o instanceof Messages.CompleteAsyncSubscriptionPleaseSendSyncSubscription){
+                log.info("AsyncSubscription complete, sending sync subscription");
+                resetSubscribeTimeout();
+                //eventStore.tell(new Messages.Subscription(((CompleteAsyncSubscriptionPleaseSendSyncSubscription) o).getAggregateType(), latestJournalidReceived), self());
+                eventStore.tell(Messages.CompleteAsyncSubscriptionPleaseSendSyncSubscription.newBuilder().setAggregateType( ((CompleteAsyncSubscriptionPleaseSendSyncSubscription)o).getAggregateType()).build(),self());
+
             } else if (o instanceof Messages.CompleteSubscriptionRegistered) {
-                if (o instanceof Messages.CompleteAsyncSubscriptionPleaseSendSyncSubscription) {
-                    log.info("AsyncSubscription complete, sending sync subscription");
-                    resetSubscribeTimeout();
-                    //eventStore.tell(new Messages.Subscription(((CompleteAsyncSubscriptionPleaseSendSyncSubscription) o).getAggregateType(), latestJournalidReceived), self());
-                    eventStore.tell(Messages.CompleteAsyncSubscriptionPleaseSendSyncSubscription.newBuilder().setAggregateType( ((CompleteAsyncSubscriptionPleaseSendSyncSubscription)o).getAggregateType()).build(),self());
-                } else {
-                    log.info("Subscription on {} is complete", ((Messages.CompleteSubscriptionRegistered) o).getAggregateType());
-                    setSubscribeFinished();
-                    for (ProjectionProtobuf.PendingCall pendingCall : pendingCalls) {
+                log.info("Subscription on {} is complete", ((Messages.CompleteSubscriptionRegistered) o).getAggregateType());
+                setSubscribeFinished();
+                for (ProjectionProtobuf.PendingCall pendingCall : pendingCalls) {
                         self().tell(pendingCall.getCall(), pendingCall.getSender());
-                    }
-                    pendingCalls.clear();
                 }
+                pendingCalls.clear();
+
             } else if (o instanceof Call && subscribePhase) {
                 log.debug("Adding call {} to pending calls", o);
                 pendingCalls.add(new ProjectionProtobuf.PendingCall((Call) o, sender()));

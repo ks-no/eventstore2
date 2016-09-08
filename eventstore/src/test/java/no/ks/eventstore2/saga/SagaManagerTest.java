@@ -6,6 +6,7 @@ import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
+import eventstore.Messages;
 import no.ks.eventstore2.eventstore.IncompleteSubscriptionPleaseSendNew;
 import no.ks.eventstore2.eventstore.Subscription;
 import no.ks.eventstore2.formProcessorProject.*;
@@ -71,13 +72,13 @@ public class SagaManagerTest extends TestKit {
     public void testIncompleteSubscribeSendsCorrectJournalid() throws Exception {
         final Props props = SagaManager.mkProps(_system, super.testActor(), sagaInMemoryRepository, super.testActor(), "no");
         final TestActorRef<SagaManager> ref = TestActorRef.create(_system, props, "sagaManagerIncomplete");
-        expectMsgClass(Subscription.class);
-        expectMsgClass(Subscription.class);
+        expectMsgClass(Messages.Subscription.class);
+        expectMsgClass(Messages.Subscription.class);
         FormReceived msg = new FormReceived("3");
         msg.setJournalid("1");
         ref.tell(msg, super.testActor());
         expectMsgClass(ParseForm.class);
-        ref.tell(new IncompleteSubscriptionPleaseSendNew(msg.getAggregateType()),super.testActor());
-        expectMsg(new Subscription(msg.getAggregateType(),"1"));
+        ref.tell(Messages.IncompleteSubscriptionPleaseSendNew.newBuilder().setAggregateType(msg.getAggregateType()).build(),super.testActor());
+        expectMsg(Messages.Subscription.newBuilder().setAggregateType(msg.getAggregateType()).setFromJournalId(1).build());
     }
 }

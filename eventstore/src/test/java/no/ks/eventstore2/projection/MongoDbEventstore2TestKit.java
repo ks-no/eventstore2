@@ -11,6 +11,7 @@ import de.flapdoodle.embed.mongo.config.*;
 import de.flapdoodle.embed.mongo.distribution.Version;
 import de.flapdoodle.embed.process.config.IRuntimeConfig;
 import events.test.Order.Order;
+import events.test.form.Form;
 import no.ks.eventstore2.Eventstore2TestKit;
 import no.ks.eventstore2.ProtobufHelper;
 import org.junit.After;
@@ -63,6 +64,7 @@ public class MongoDbEventstore2TestKit extends Eventstore2TestKit {
         mongoClient = new MongoClient(new ServerAddress(mongodConfig.net().getServerAddress(), mongodConfig.net().getPort()));
         ProtobufHelper.registerDeserializeMethod(Order.SearchRequest.getDefaultInstance());
         ProtobufHelper.registerDeserializeMethod(Order.SearchResult.getDefaultInstance());
+        ProtobufHelper.registerDeserializeMethod(Form.FormReceived.getDefaultInstance());
     }
 
     @After

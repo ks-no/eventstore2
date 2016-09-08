@@ -8,6 +8,7 @@ import com.esotericsoftware.kryo.Kryo;
 import no.ks.eventstore2.command.CommandDispatcher;
 import no.ks.eventstore2.eventstore.*;
 import no.ks.eventstore2.formProcessorProject.*;
+import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
 import no.ks.eventstore2.saga.SagaInMemoryRepository;
 import no.ks.eventstore2.saga.SagaManager;
 import org.junit.AfterClass;
@@ -15,8 +16,9 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 
-public class FormProcessorIntegrationTest extends EmbeddedDatabaseTest {
+public class FormProcessorIntegrationTest extends MongoDbEventstore2TestKit {
 
     private static ActorSystem system;
 
@@ -34,6 +36,7 @@ public class FormProcessorIntegrationTest extends EmbeddedDatabaseTest {
     @BeforeClass
     public static void setup() {
         system = ActorSystem.create();
+        EventstoreSingelton.kryoSerializedEvents.add("FORM");
     }
 
     @AfterClass
@@ -45,7 +48,7 @@ public class FormProcessorIntegrationTest extends EmbeddedDatabaseTest {
     public void testFormStatusIsCorrectlyUpdatedOnFormReceived() throws Exception {
         new JavaTestKit(system) {{
 
-            final Props eventStoreProps = EventStore.mkProps(new H2JournalStorage(db, kryoClassRegistration));
+            final Props eventStoreProps = EventStore.mkProps(new MongoDBJournalV2(mongoClient.getDatabase("Journal"), kryoClassRegistration, Arrays.asList(new String[]{"FORM"}), null));
             final ActorRef eventStore = system.actorOf(eventStoreProps, "eventStore");
 
             ArrayList<Props> commandHandlerProps = new ArrayList<>();

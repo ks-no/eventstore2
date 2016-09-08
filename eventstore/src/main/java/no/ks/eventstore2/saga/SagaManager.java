@@ -8,6 +8,7 @@ import akka.cluster.singleton.ClusterSingletonManager;
 import akka.cluster.singleton.ClusterSingletonManagerSettings;
 import akka.cluster.singleton.ClusterSingletonProxy;
 import akka.cluster.singleton.ClusterSingletonProxySettings;
+import eventstore.Messages;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.TakeBackup;
 import no.ks.eventstore2.TakeSnapshot;
@@ -145,18 +146,22 @@ public class SagaManager extends UntypedActor {
                 ((UpgradeSagaRepoStore) o).getSagaRepository().readAllStatesToNewRepository(repository);
                 repository.saveState("Saga", "upgradedH2Db", (byte) 1);
             }
-        } else if (o instanceof IncompleteSubscriptionPleaseSendNew) {
-            String aggregateType = ((IncompleteSubscriptionPleaseSendNew) o).getAggregateType();
+        } else if (o instanceof Messages.IncompleteSubscriptionPleaseSendNew) {
+            String aggregateType = ((Messages.IncompleteSubscriptionPleaseSendNew) o).getAggregateType();
             log.debug("Sending new subscription on '{}' from latest journalid '{}'", aggregateType, latestJournalidReceived);
             if (latestJournalidReceived.get(aggregateType) == null) {
                 throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
             }
-            Subscription subscription = new Subscription(aggregateType, String.valueOf(latestJournalidReceived.get(aggregateType)));
+            Messages.Subscription subscription = Messages.Subscription.newBuilder()
+                    .setAggregateType(aggregateType)
+                    .setFromJournalId(latestJournalidReceived.get(aggregateType)).build();
             eventstore.tell(subscription, self());
         } else if (o instanceof TakeBackup) {
                 repository.doBackup(((TakeBackup) o).getBackupdir(), "backupSagaRepo" + format.format(new Date()));
         } else if (o instanceof AcknowledgePreviousEventsProcessed) {
                 sender().tell(new Success(), self());
+        } else if (o instanceof Messages.AcknowledgePreviousEventsProcessed) {
+            sender().tell(Messages.Success.getDefaultInstance(), self());
         } else if (o instanceof TakeSnapshot) {
             for (String aggregate : latestJournalidReceived.keySet()) {
                 log.info("Saving latestJournalId {} for sagaManager aggregate {}", latestJournalidReceived.get(aggregate), aggregate);
@@ -164,8 +169,8 @@ public class SagaManager extends UntypedActor {
             }
         } else if (o instanceof DistributedPubSubMediator.SubscribeAck){
             log.info("Subscribing for eventstore restartmessages");
-        } else if( o instanceof CompleteSubscriptionRegistered) {
-            inSubscribe.remove(((CompleteSubscriptionRegistered) o).getAggregateType());
+        } else if( o instanceof Messages.CompleteSubscriptionRegistered) {
+            inSubscribe.remove(((Messages.CompleteSubscriptionRegistered) o).getAggregateType());
         } else if("shutdown".equals(o)){
             log.info("shutting down sagamanager");
             removeOldActorsWithWrongState();
@@ -297,7 +302,7 @@ public class SagaManager extends UntypedActor {
             }
             for (String aggregate : aggregates) {
                 inSubscribe.put(aggregate, true);
-                eventstore.tell(new Subscription(aggregate, String.valueOf(latestJournalidReceived.get(aggregate))), self());
+                eventstore.tell(Messages.Subscription.newBuilder().setAggregateType(aggregate).setFromJournalId(latestJournalidReceived.get(aggregate)).build(), self());
             }
         }
     }

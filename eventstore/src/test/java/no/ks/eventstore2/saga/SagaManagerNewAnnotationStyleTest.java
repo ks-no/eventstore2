@@ -3,6 +3,7 @@ package no.ks.eventstore2.saga;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
+import eventstore.Messages;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.Eventstore2TestKit;
 import no.ks.eventstore2.Handler;
@@ -25,8 +26,8 @@ public class SagaManagerNewAnnotationStyleTest extends Eventstore2TestKit{
 
         sagaManager.tell(new TestEvent("a test id"), super.testActor());
         //TODO: make sagaManagerFactory accept package path for scanning as a parmeter, and then fix this test so that the manager only scans this path
-        expectMsgClass(Subscription.class);
-        expectMsgClass(Subscription.class);
+        expectMsgClass(Messages.Subscription.class);
+        expectMsgClass(Messages.Subscription.class);
         expectMsgClass(TestEvent.class);
         assertEquals(Saga.STATE_FINISHED, sagaInMemoryRepository.getState("SagaWithNewAnotation", "a test id"));
     }

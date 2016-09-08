@@ -3,6 +3,7 @@ package no.ks.eventstore2.saga;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
+import eventstore.Messages;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.Eventstore2TestKit;
 import no.ks.eventstore2.Handler;
@@ -25,8 +26,8 @@ public class SagaManagerPolymorphismEventTest extends Eventstore2TestKit{
         TestActorRef<SagaManager> sagaManager = TestActorRef.create(_system, sagaManagerProps, UUID.randomUUID().toString());
 
         sagaManager.tell(new SubEvent("a test id"), super.testActor());
-        expectMsgClass(Subscription.class);
-        expectMsgClass(Subscription.class);
+        expectMsgClass(Messages.Subscription.class);
+        expectMsgClass(Messages.Subscription.class);
         expectMsgClass(Success.class);
         assertEquals(Saga.STATE_FINISHED, sagaInMemoryRepository.getState("SagaHandlingASuperclassOfEvent", "a test id"));
     }

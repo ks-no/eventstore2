@@ -82,7 +82,7 @@ public class SagaMongoDBRepository extends SagaRepository{
     }
 
     @Override
-    public String loadLatestJournalID(final String aggregate) {
+    public long loadLatestJournalID(final String aggregate) {
         final DBCursor limit = MongoDbOperations.doDbOperation(new Callable<DBCursor>() {
             @Override
             public DBCursor call() throws Exception {
@@ -95,9 +95,9 @@ public class SagaMongoDBRepository extends SagaRepository{
                 return limit.hasNext();
             }
         })) {
-        	return null;
+        	return 0;
         }
-        return (String) MongoDbOperations.doDbOperation(new Callable<DBObject>() {
+        return (long) MongoDbOperations.doDbOperation(new Callable<DBObject>() {
             @Override
             public DBObject call() throws Exception {
                 return limit.next();
@@ -106,7 +106,7 @@ public class SagaMongoDBRepository extends SagaRepository{
     }
 
     @Override
-    public void saveLatestJournalId(final String aggregate, final String latestJournalId) {
+    public void saveLatestJournalId(final String aggregate, final long latestJournalId) {
         MongoDbOperations.doDbOperation(new Callable<Object>() {
             @Override
             public Object call() throws Exception {

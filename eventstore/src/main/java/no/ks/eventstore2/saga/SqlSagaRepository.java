@@ -65,12 +65,12 @@ public abstract class SqlSagaRepository extends SagaRepository {
 	}
 
 	@Override
-	public String loadLatestJournalID(String aggregate) {
-		return null;
+	public long loadLatestJournalID(String aggregate) {
+		return 0;
 	}
 
 	@Override
-	public void saveLatestJournalId(String aggregate, String latestJournalId) {
+	public void saveLatestJournalId(String aggregate, long latestJournalId) {
 
 	}
 

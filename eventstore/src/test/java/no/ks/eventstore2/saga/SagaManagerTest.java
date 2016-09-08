@@ -74,10 +74,10 @@ public class SagaManagerTest extends TestKit {
         expectMsgClass(Subscription.class);
         expectMsgClass(Subscription.class);
         FormReceived msg = new FormReceived("3");
-        msg.setJournalid("01");
+        msg.setJournalid("1");
         ref.tell(msg, super.testActor());
         expectMsgClass(ParseForm.class);
         ref.tell(new IncompleteSubscriptionPleaseSendNew(msg.getAggregateType()),super.testActor());
-        expectMsg(new Subscription(msg.getAggregateType(),"01"));
+        expectMsg(new Subscription(msg.getAggregateType(),"1"));
     }
 }

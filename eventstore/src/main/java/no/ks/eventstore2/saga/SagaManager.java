@@ -42,7 +42,7 @@ public class SagaManager extends UntypedActor {
 
     private Map<SagaCompositeId, ActorRef> sagas = new HashMap<SagaCompositeId, ActorRef>();
 
-    private Map<String, String> latestJournalidReceived = new HashMap<String, String>();
+    private Map<String, Long> latestJournalidReceived = new HashMap<>();
     private Map<String, Boolean> inSubscribe = new HashMap<>();
 
     private final Cancellable snapshotSchedule = getContext().system().scheduler().schedule(
@@ -124,7 +124,8 @@ public class SagaManager extends UntypedActor {
             log.debug("SagaManager received event {}", o);
         }
         if (o instanceof Event) {
-            latestJournalidReceived.put(((Event) o).getAggregateType(), ((Event) o).getJournalid());
+            final String journalid = ((Event) o).getJournalid();
+            latestJournalidReceived.put(((Event) o).getAggregateType(), Long.valueOf(journalid != null? journalid : "0"));
         }
         if (o instanceof Event) {
             log.debug("SagaManager processing event {}", o);
@@ -150,7 +151,7 @@ public class SagaManager extends UntypedActor {
             if (latestJournalidReceived.get(aggregateType) == null) {
                 throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
             }
-            Subscription subscription = new Subscription(aggregateType, latestJournalidReceived.get(aggregateType));
+            Subscription subscription = new Subscription(aggregateType, String.valueOf(latestJournalidReceived.get(aggregateType)));
             eventstore.tell(subscription, self());
         } else if (o instanceof TakeBackup) {
                 repository.doBackup(((TakeBackup) o).getBackupdir(), "backupSagaRepo" + format.format(new Date()));
@@ -291,12 +292,12 @@ public class SagaManager extends UntypedActor {
     private void subscribe() {
         if(inSubscribe.size() == 0) {
             for (String aggregate : aggregates) {
-                latestJournalidReceived.put(aggregate, repository.loadLatestJournalID(aggregate));
+                latestJournalidReceived.put(aggregate, Long.valueOf(repository.loadLatestJournalID(aggregate)));
                 log.info("SagaManager loaded aggregate {} latestJournalid {}", aggregate, latestJournalidReceived.get(aggregate));
             }
             for (String aggregate : aggregates) {
                 inSubscribe.put(aggregate, true);
-                eventstore.tell(new Subscription(aggregate, latestJournalidReceived.get(aggregate)), self());
+                eventstore.tell(new Subscription(aggregate, String.valueOf(latestJournalidReceived.get(aggregate))), self());
             }
         }
     }

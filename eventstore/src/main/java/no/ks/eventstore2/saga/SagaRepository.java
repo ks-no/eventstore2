@@ -15,9 +15,9 @@ public abstract class SagaRepository {
 
     public abstract void doBackup(String backupdir, String backupfilename);
 
-    public abstract String loadLatestJournalID(String aggregate);
+    public abstract long loadLatestJournalID(String aggregate);
 
-    public abstract void saveLatestJournalId(String aggregate, String latestJournalId);
+    public abstract void saveLatestJournalId(String aggregate, long latestJournalId);
 
     public abstract void saveStates(List<State> list);
 }

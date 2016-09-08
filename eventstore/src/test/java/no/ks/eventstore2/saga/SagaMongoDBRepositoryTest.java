@@ -49,7 +49,7 @@ public class SagaMongoDBRepositoryTest extends MongoDbEventstore2TestKit {
 
     @Test
     public void testSaveLatestJournalId() throws Exception {
-        repo.saveLatestJournalId("agg","1");
-        assertEquals("1", repo.loadLatestJournalID("agg"));
+        repo.saveLatestJournalId("agg",1l);
+        assertEquals(1, repo.loadLatestJournalID("agg"));
     }
 }

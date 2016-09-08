@@ -6,7 +6,11 @@ import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
+import events.test.Order.Order;
+import events.test.form.Form;
 import eventstore.Messages;
+import no.ks.eventstore2.ProtobufHelper;
+import no.ks.eventstore2.eventstore.EventstoreSingelton;
 import no.ks.eventstore2.eventstore.IncompleteSubscriptionPleaseSendNew;
 import no.ks.eventstore2.eventstore.Subscription;
 import no.ks.eventstore2.formProcessorProject.*;
@@ -26,6 +30,20 @@ public class SagaManagerTest extends TestKit {
     public SagaManagerTest() {
         super(_system);
         sagaInMemoryRepository = new SagaInMemoryRepository();
+        ProtobufHelper.registerDeserializeMethod(Order.SearchRequest.getDefaultInstance());
+        ProtobufHelper.registerDeserializeMethod(Order.SearchResult.getDefaultInstance());
+        ProtobufHelper.registerDeserializeMethod(Form.FormReceived.getDefaultInstance());
+        EventstoreSingelton.kryoSerializedEvents.add("FORM");
+    }
+
+    @Test
+    public void testIncomingEventWrapperWithNewIdIsDispatchedToNewSaga() throws Exception {
+        final Props props = getSagaManagerProps();
+        final TestActorRef<SagaManager> ref = TestActorRef.create(_system, props, "sagaManager_proto2");
+
+        Messages.EventWrapper formReceived = ProtobufHelper.newEventWrapper("FORM","1",Form.FormReceived.getDefaultInstance());
+        ref.tell(formReceived, super.testActor());
+        expectMsgClass(ParseForm.class);
     }
 
     @Test
@@ -37,6 +55,7 @@ public class SagaManagerTest extends TestKit {
         ref.tell(formReceived, super.testActor());
         expectMsgClass(ParseForm.class);
     }
+
 
     @Test
     public void testIncomingEventWithExistingIdIsDispatchedToExistingSaga() throws Exception {

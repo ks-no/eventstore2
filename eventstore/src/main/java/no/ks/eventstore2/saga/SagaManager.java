@@ -8,13 +8,16 @@ import akka.cluster.singleton.ClusterSingletonManager;
 import akka.cluster.singleton.ClusterSingletonManagerSettings;
 import akka.cluster.singleton.ClusterSingletonProxy;
 import akka.cluster.singleton.ClusterSingletonProxySettings;
+import com.google.protobuf.Message;
 import eventstore.Messages;
 import no.ks.eventstore2.Event;
+import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.TakeBackup;
 import no.ks.eventstore2.TakeSnapshot;
 import no.ks.eventstore2.eventstore.*;
 import no.ks.eventstore2.projection.Subscriber;
 import no.ks.eventstore2.reflection.HandlerFinder;
+import no.ks.eventstore2.reflection.HandlerFinderProtobuf;
 import no.ks.eventstore2.response.Success;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -137,6 +140,21 @@ public class SagaManager extends UntypedActor {
                 ActorRef sagaRef = getOrCreateSaga(mapping.getSagaClass(), sagaId);
                 sagaRef.tell(event, self());
             }
+        } else if(o instanceof Messages.EventWrapper){
+            latestJournalidReceived.put(((Messages.EventWrapper) o).getAggregateType(), ((Messages.EventWrapper) o).getJournalid());
+            log.debug("SagaManager processing event {}", o);
+            Set<SagaEventMapping> sagaClassesForEvent = getSagaClassesForEventWrapper((Messages.EventWrapper)o);
+            for (SagaEventMapping mapping : sagaClassesForEvent) {
+                String sagaId;
+                if(mapping.isUseAggregateRootID()){
+                    sagaId = ((Messages.EventWrapper) o).getAggregateRootId();
+                } else {
+                    sagaId = (String) mapping.getPropertyMethod().invoke(ProtobufHelper.unPackAny(((Messages.EventWrapper) o).getProtoSerializationType(), ((Messages.EventWrapper) o).getEvent()));
+                }
+                ActorRef sagaRef = getOrCreateSaga(mapping.getSagaClass(), sagaId);
+                sagaRef.tell(o, self());
+            }
+
         } else if (o instanceof NewEventstoreStarting) {
             subscribe();
         } else if (o instanceof UpgradeSagaRepoStore) {
@@ -188,7 +206,7 @@ public class SagaManager extends UntypedActor {
 
     private static Set<String> aggregates = new HashSet<String>();
 
-    private static Map<Class<? extends Event>, ArrayList<SagaEventMapping>> eventToSagaMap = new HashMap<Class<? extends Event>, ArrayList<SagaEventMapping>>();
+    private static Map<Class<?>, ArrayList<SagaEventMapping>> eventToSagaMap = new HashMap<>();
 
     private void registerSagas() {
         ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
@@ -234,11 +252,33 @@ public class SagaManager extends UntypedActor {
         Map<Class<? extends Event>, Method> eventHandlers = HandlerFinder.getEventHandlers(sagaClass);
         for (Class<? extends Event> eventClass : eventHandlers.keySet()) {
             try {
-                Method eventPropertyMethod = eventClass.getMethod(propertyfy(eventPropertyMethodName));
+                Method eventPropertyMethod = null;
+                if(sagaEventIdProperty.useAggregateRootId()){
+                    eventPropertyMethod = eventClass.getMethod(propertyfy("aggregateRootId"));
+                } else {
+                    eventPropertyMethod = eventClass.getMethod(propertyfy(eventPropertyMethodName));
+                }
                 if (!String.class.equals(eventPropertyMethod.getReturnType())) {
                     throw new InvalidSagaConfigurationException("Event " + eventClass.getName() + "s " + eventPropertyMethodName + " eventPropertyMethod does not return String, which is required for saga " + sagaClass);
                 }
                 registerEventToSaga(eventClass, sagaClass, eventPropertyMethod);
+            } catch (NoSuchMethodException e) {
+                throw new InvalidSagaConfigurationException("Event " + eventClass.getName() + " does not implement the java property " + eventPropertyMethodName + " which is required for saga " + sagaClass, e);
+            }
+        }
+
+        Map<Class<? extends Message>, Method> eventHandlersProto = HandlerFinderProtobuf.getEventHandlers(sagaClass);
+        for (Class<? extends Message> eventClass : eventHandlersProto.keySet()) {
+            try {
+                if(sagaEventIdProperty.useAggregateRootId()){
+                    registerEventProtoToSaga(eventClass, sagaClass, sagaEventIdProperty.useAggregateRootId());
+                } else {
+                    Method eventPropertyMethod = eventClass.getMethod(propertyfy(eventPropertyMethodName));
+                    if (!String.class.equals(eventPropertyMethod.getReturnType())) {
+                        throw new InvalidSagaConfigurationException("Event " + eventClass.getName() + "s " + eventPropertyMethodName + " eventPropertyMethod does not return String, which is required for saga " + sagaClass);
+                    }
+                    registerEventProtoToSaga(eventClass, sagaClass, eventPropertyMethod);
+                }
             } catch (NoSuchMethodException e) {
                 throw new InvalidSagaConfigurationException("Event " + eventClass.getName() + " does not implement the java property " + eventPropertyMethodName + " which is required for saga " + sagaClass, e);
             }
@@ -272,6 +312,18 @@ public class SagaManager extends UntypedActor {
         Collections.addAll(SagaManager.aggregates, aggregates);
     }
 
+    private Set<SagaEventMapping> getSagaClassesForEventWrapper(Messages.EventWrapper o) {
+        Set<SagaEventMapping> handlingSagas = new HashSet<SagaEventMapping>();
+
+        Class<?> clazz = ProtobufHelper.getClassForSerialization(o.getProtoSerializationType());
+
+        if (eventToSagaMap.containsKey(clazz)) {
+            handlingSagas.addAll(eventToSagaMap.get(clazz));
+        }
+
+        return handlingSagas;
+    }
+
     private Set<SagaEventMapping> getSagaClassesForEvent(Class<? extends Event> eventClass) {
         Set<SagaEventMapping> handlingSagas = new HashSet<SagaEventMapping>();
 
@@ -289,9 +341,23 @@ public class SagaManager extends UntypedActor {
 
     private void registerEventToSaga(Class<? extends Event> eventClass, Class<? extends Saga> sagaClass, Method propertyMethod) {
         if (eventToSagaMap.get(eventClass) == null) {
-            eventToSagaMap.put(eventClass, new ArrayList<SagaEventMapping>());
+            eventToSagaMap.put(eventClass, new ArrayList<>());
         }
         eventToSagaMap.get(eventClass).add(new SagaEventMapping(sagaClass, propertyMethod));
+    }
+
+    private void registerEventProtoToSaga(Class<? extends Message> eventClass, Class<? extends Saga> sagaClass, Method propertyMethod) {
+        if (eventToSagaMap.get(eventClass) == null) {
+            eventToSagaMap.put(eventClass, new ArrayList<>());
+        }
+        eventToSagaMap.get(eventClass).add(new SagaEventMapping(sagaClass, propertyMethod));
+    }
+
+    private void registerEventProtoToSaga(Class<? extends Message> eventClass, Class<? extends Saga> sagaClass, boolean useAggregateRootID) {
+        if (eventToSagaMap.get(eventClass) == null) {
+            eventToSagaMap.put(eventClass, new ArrayList<>());
+        }
+        eventToSagaMap.get(eventClass).add(new SagaEventMapping(sagaClass, useAggregateRootID));
     }
 
     private void subscribe() {

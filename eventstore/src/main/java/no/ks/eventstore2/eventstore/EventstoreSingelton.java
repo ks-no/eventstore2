@@ -26,6 +26,8 @@ import java.util.Set;
 
 public class EventstoreSingelton extends UntypedActor {
 
+    public static Set<String> kryoSerializedEvents = new HashSet<>();
+
     private Logger log = LoggerFactory.getLogger(EventstoreSingelton.class);
 
     private HashMultimap<String, ActorRef> aggregateSubscribers = HashMultimap.create();
@@ -101,9 +103,18 @@ public class EventstoreSingelton extends UntypedActor {
         } else if(o instanceof Subscription) {
             tryToFillSubscription(sender(), (Subscription) o);
         } else if(o instanceof Messages.Subscription) {
-            tryToFillSubscription(sender(), (Messages.Subscription) o);
+            if(kryoSerializedEvents.contains(((Messages.Subscription) o).getAggregateType())){
+                tryToFillSubscription(sender(), new Subscription(((Messages.Subscription) o).getAggregateType(), String.valueOf(((Messages.Subscription) o).getFromJournalId())));
+            } else {
+                tryToFillSubscription(sender(), (Messages.Subscription) o);
+            }
         }else if(o instanceof Messages.LiveSubscription){
-            tryToFillSubscription(sender(), (Messages.LiveSubscription) o);
+            if(kryoSerializedEvents.contains(((Messages.LiveSubscription) o).getAggregateType())){
+                tryToFillSubscription(sender(), new LiveSubscription(((Messages.LiveSubscription) o).getAggregateType()));
+            } else {
+                tryToFillSubscription(sender(), (Messages.LiveSubscription) o);
+            }
+
         } else if (o instanceof StoreEvents) {
             storeEvents((StoreEvents) o);
             publishEvents((StoreEvents) o);

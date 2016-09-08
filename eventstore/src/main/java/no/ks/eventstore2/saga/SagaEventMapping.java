@@ -4,11 +4,19 @@ import java.lang.reflect.Method;
 
 public class SagaEventMapping {
     private final Class<? extends Saga> sagaClass;
+    private final boolean useAggregateRootID;
     private final Method propertyMethod;
 
     public SagaEventMapping(Class<? extends Saga> sagaClass, Method propertyMethod) {
         this.sagaClass = sagaClass;
         this.propertyMethod = propertyMethod;
+        this.useAggregateRootID = false;
+    }
+
+    public SagaEventMapping(Class<? extends Saga> sagaClass, boolean useAggregateRootID) {
+        propertyMethod = null;
+        this.sagaClass = sagaClass;
+        this.useAggregateRootID = useAggregateRootID;
     }
 
     public Class<? extends Saga> getSagaClass() {
@@ -38,5 +46,9 @@ public class SagaEventMapping {
         int result = sagaClass != null ? sagaClass.hashCode() : 0;
         result = 31 * result + (propertyMethod != null ? propertyMethod.hashCode() : 0);
         return result;
+    }
+
+    public boolean isUseAggregateRootID() {
+        return useAggregateRootID;
     }
 }

@@ -4,9 +4,13 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.google.protobuf.Message;
+import eventstore.Messages;
 import no.ks.eventstore2.Event;
+import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.reflection.HandlerFinder;
 
+import no.ks.eventstore2.reflection.HandlerFinderProtobuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +30,7 @@ public abstract class Saga extends UntypedActor {
 	protected ActorRef commandDispatcher;
     protected SagaRepository repository;
 	private Map<Class<? extends Event>, Method> handleEventMap;
+	private Map<Class<? extends Message>, Method> handleEventProtobufMap = new HashMap<>();
 
 	public Saga(String id, ActorRef commandDispatcher, SagaRepository repository) {
 		this.id = id;
@@ -47,14 +52,29 @@ public abstract class Saga extends UntypedActor {
 		init();
     }
 
+    private Messages.EventWrapper currentEventWrapper= null;
+
+    protected Messages.EventWrapper eventWrapper(){
+		return currentEventWrapper;
+	}
+
 	@Override
 	public void onReceive(Object o) {
 		try{
             if(o instanceof Event){
                 log.debug("Received event {}", o);
+				currentEventWrapper = null;
                 Method method = HandlerFinder.findHandlingMethod(handleEventMap, (Event) o);
                 method.invoke(this,o);
             }
+			if(o instanceof Messages.EventWrapper){
+				log.debug("Received event {}", o);
+				currentEventWrapper = (Messages.EventWrapper) o;
+
+				final Message message = ProtobufHelper.unPackAny(((Messages.EventWrapper) o).getProtoSerializationType(), ((Messages.EventWrapper) o).getEvent());
+				Method method = HandlerFinderProtobuf.findHandlingMethod(handleEventProtobufMap, message);
+				method.invoke(this, message);
+			}
         } catch(Exception e){
             log.error("Saga threw exception when handling message: ", e);
             throw new RuntimeException("Saga threw exception when handling message: ", e);
@@ -124,6 +144,7 @@ public abstract class Saga extends UntypedActor {
 			}
 
             handleEventMap.putAll(HandlerFinder.getEventHandlers(this.getClass()));
+			handleEventProtobufMap.putAll(HandlerFinderProtobuf.getEventHandlers(this.getClass()));
 
 		} catch (Exception e) {
 			throw new RuntimeException(e);

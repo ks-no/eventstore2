@@ -15,10 +15,10 @@ public class ProtobufHelper {
 
     private static Map<String, Class> deserializeClasses = new HashMap<>();
 
+    static Map<String, Parser<? extends Message>> deserializeMethods = new HashMap<>();
+
     private ProtobufHelper() {
     }
-
-    static Map<String, Parser<? extends Message>> deserializeMethods = new HashMap<>();
 
     public static void registerDeserializeMethod(Message message){
         deserializeMethods.put(message.getDescriptorForType().getFullName(), message.getParserForType());
@@ -30,6 +30,14 @@ public class ProtobufHelper {
             return (T) deserializeMethods.get(type).parseFrom(message);
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    public static <T extends Message> T unPackAny(String type, Any any){
+        try {
+            return (T) any.unpack(deserializeClasses.get(type));
+        } catch (InvalidProtocolBufferException e) {
+            throw new RuntimeException();
         }
     }
 
@@ -65,5 +73,9 @@ public class ProtobufHelper {
                 .setOccurredOn(occuredon)
                 .setEvent(Any.parseFrom(data.getData()))
                 .build();
+    }
+
+    public static Class<?> getClassForSerialization(String protoSerializationType) {
+        return deserializeClasses.get(protoSerializationType);
     }
 }

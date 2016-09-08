@@ -3,6 +3,8 @@ package no.ks.eventstore2;
 import akka.actor.ActorSystem;
 import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
+import events.test.Order.Order;
+import events.test.form.Form;
 
 public class Eventstore2TestKit extends TestKit{
 
@@ -12,5 +14,8 @@ public class Eventstore2TestKit extends TestKit{
 	public Eventstore2TestKit() {
 		super(_system);
         System.setProperty("CONSTRETTO_TAGS", "ITEST");
+		ProtobufHelper.registerDeserializeMethod(Order.SearchRequest.getDefaultInstance());
+		ProtobufHelper.registerDeserializeMethod(Order.SearchResult.getDefaultInstance());
+		ProtobufHelper.registerDeserializeMethod(Form.FormReceived.getDefaultInstance());
     }
 }

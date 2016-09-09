@@ -97,12 +97,16 @@ public class SagaMongoDBRepository extends SagaRepository{
         })) {
         	return 0;
         }
-        return (long) MongoDbOperations.doDbOperation(new Callable<DBObject>() {
+        final Object latestJournalID = MongoDbOperations.doDbOperation(new Callable<DBObject>() {
             @Override
             public DBObject call() throws Exception {
                 return limit.next();
             }
         }).get("latestJournalID");
+        if(latestJournalID instanceof String){
+            return Long.parseLong((String) latestJournalID);
+        }
+        return (long) latestJournalID;
     }
 
     @Override

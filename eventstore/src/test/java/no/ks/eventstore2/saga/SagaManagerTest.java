@@ -70,6 +70,18 @@ public class SagaManagerTest extends TestKit {
     }
 
     @Test
+    public void testIncomingEventWrapperWithExistingIdIsDispatchedToExistingSaga() throws Exception {
+        final Props props = getSagaManagerProps();
+        final TestActorRef<SagaManager> ref = TestActorRef.create(_system, props, "sagaManager1_proto");
+
+        ref.tell(ProtobufHelper.newEventWrapper("FORM", "2", -1, Form.FormReceived.getDefaultInstance()), super.testActor());
+        expectMsgClass(ParseForm.class);
+        FormParsed formParsed = new FormParsed("2");
+        ref.tell(formParsed, super.testActor());
+        expectMsgClass(DeliverForm.class);
+    }
+
+    @Test
     public void testSagaStateSurvivesExceptionAndRestart() throws Exception {
         final Props props = getSagaManagerProps();
         final TestActorRef<SagaManager> ref = TestActorRef.create(_system, props, "sagaManager2");

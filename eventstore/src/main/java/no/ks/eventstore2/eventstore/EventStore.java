@@ -146,10 +146,12 @@ public class EventStore extends UntypedActor {
                     o instanceof Messages.RemoveSubscription ||
                     o instanceof TakeSnapshot ||
                     o instanceof AcknowledgePreviousEventsProcessed
-                        || o instanceof RetreiveAggregateEvents
                         || o instanceof Messages.AcknowledgePreviousEventsProcessed){
-
-                log.info("Sending to singelton  message {} from {}", o, sender());
+                if(!(o instanceof AcknowledgePreviousEventsProcessed
+                        || o instanceof RetreiveAggregateEvents
+                        || o instanceof Messages.AcknowledgePreviousEventsProcessed
+                        || o instanceof Messages.RetreiveAggregateEvents))
+                    log.info("Sending to singelton  message {} from {}", o, sender());
                 eventstoresingeltonProxy.tell(o, sender());
             }
         } catch (Exception e) {

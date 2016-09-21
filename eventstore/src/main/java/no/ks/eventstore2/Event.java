@@ -1,5 +1,6 @@
 package no.ks.eventstore2;
 
+import eventstore.Messages;
 import org.joda.time.DateTime;
 
 import java.io.Serializable;
@@ -54,4 +55,6 @@ public abstract class Event implements Serializable {
     public void setVersion(int version) {
         this.version = version;
     }
+
+    public Messages.EventWrapper upgradeToProto(){return null;}
 }

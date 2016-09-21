@@ -35,6 +35,11 @@ public class H2JournalStorage extends AbstractJournalStorage {
     }
 
     @Override
+    public Future<Messages.EventWrapperBatch> loadEventWrappersForAggregateIdAsync(String aggregateType, String aggregateRootId, long fromJournalId) {
+        throw new RuntimeException("NotImplemented");
+    }
+
+    @Override
     public Messages.EventWrapperBatch loadEventWrappersForAggregateId(String aggregateType, String aggregateRootId, long fromJournalId) {
         throw new RuntimeException("NotImplemented");
     }

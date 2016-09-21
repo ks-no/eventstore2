@@ -2,12 +2,14 @@ package no.ks.eventstore2.eventstore;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.google.protobuf.Any;
+import com.google.protobuf.Message;
 import com.mongodb.client.MongoDatabase;
 import events.Aggevents.Agg;
 import events.test.Order.Order;
 import events.test.form.Form;
 import eventstore.Messages;
 import no.ks.eventstore2.ProtobufHelper;
+import no.ks.eventstore2.events.OldEventShouldBeUpgradedToOrderSearchResult;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
 import org.junit.After;
 import org.junit.Before;
@@ -27,7 +29,9 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
     private KryoClassRegistration kryoClassRegistration = new KryoClassRegistration() {
         @Override
         public void registerClasses(Kryo kryo) {
+            kryo.register(ArrayList.class, 25);
             kryo.register(AggEvent.class, 1001);
+            kryo.register(OldEventShouldBeUpgradedToOrderSearchResult.class, 1002);
         }
     };
     private MongoDBJournalV2 journal;
@@ -41,7 +45,7 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
         ProtobufHelper.registerDeserializeMethod(Order.SearchRequest.getDefaultInstance());
         ProtobufHelper.registerDeserializeMethod(Form.FormReceived.getDefaultInstance());
         MongoDatabase db = mongoClient.getDatabase("Journal");
-        journal = new MongoDBJournalV2(db, kryoClassRegistration, Arrays.asList(new String[]{"agg1", "agg3", "agg2"}), 10, null);
+        journal = new MongoDBJournalV2(db, kryoClassRegistration, Arrays.asList(new String[]{"agg1", "agg3", "agg2", "ORDER"}), 10, null);
     }
 
     @Override
@@ -168,5 +172,38 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
         }
         assertEquals(NUMBER_OF_AGGREGATES * NUMBER_OF_VERSIONS, mongoClient.getDB("Journal").getCollection("agg1").find().size());
         assertEquals(NUMBER_OF_AGGREGATES * NUMBER_OF_VERSIONS, events.size());
+    }
+
+    @Test
+    public void UpgradeOldAggregateType() throws Exception {
+        final ArrayList<String> results = new ArrayList<>();
+        results.add("Result1");
+        results.add("Result2");
+        final String rootId = UUID.randomUUID().toString();
+        for(int i = 0; i< 250; i++) {
+            journal.saveEvent(new OldEventShouldBeUpgradedToOrderSearchResult(rootId, results));
+        }
+        journal.upgradeToProto("ORDER");
+        final Messages.EventWrapperBatch batch = journal.loadEventWrappersForAggregateId("ORDER", rootId, 0);
+        assertEquals(10, batch.getEventsCount());
+        assertEquals(rootId, batch.getEvents(0).getAggregateRootId());
+        final Order.SearchResult message = ProtobufHelper.unPackAny(batch.getEvents(0).getProtoSerializationType(), batch.getEvents(0).getEvent());
+        assertEquals("Result1", message.getResult(0));
+        assertEquals("Result2", message.getResult(1));
+
+    }
+
+    @Test
+    public void UpgradeOldAggregateTypeTwice() throws Exception {
+        final ArrayList<String> results = new ArrayList<>();
+        results.add("Result1");
+        results.add("Result2");
+        final String rootId = UUID.randomUUID().toString();
+        for(int i = 0; i< 250; i++) {
+            journal.saveEvent(new OldEventShouldBeUpgradedToOrderSearchResult(rootId, results));
+        }
+        journal.upgradeToProto("ORDER");
+        journal.upgradeToProto("ORDER");
+
     }
 }

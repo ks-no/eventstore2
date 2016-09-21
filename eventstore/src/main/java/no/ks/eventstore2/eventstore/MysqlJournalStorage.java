@@ -34,6 +34,11 @@ public class MysqlJournalStorage extends AbstractJournalStorage {
     }
 
     @Override
+    public Future<Messages.EventWrapperBatch> loadEventWrappersForAggregateIdAsync(String aggregateType, String aggregateRootId, long fromJournalId) {
+        throw new UnsupportedOperationException("Please implement save event on MysqlJournalStorage");
+    }
+
+    @Override
     public Messages.EventWrapperBatch loadEventWrappersForAggregateId(String aggregateType, String aggregateRootId, long fromJournalId) {
         throw new UnsupportedOperationException("Please implement save event on MysqlJournalStorage");
     }

@@ -100,6 +100,25 @@ public class EventStore extends UntypedActor {
 
     }
 
+    private void readAggregateEvents(Messages.RetreiveAggregateEventsAsync retreiveAggregateEvents) {
+        final ActorRef sender = sender();
+        final ActorRef self = self();
+        final Future<Messages.EventWrapperBatch> future = storage.loadEventWrappersForAggregateIdAsync(retreiveAggregateEvents.getAggregateType(), retreiveAggregateEvents.getAggregateRootId(), retreiveAggregateEvents.getFromJournalId());
+        future.onSuccess(new OnSuccess<Messages.EventWrapperBatch>() {
+            @Override
+            public void onSuccess(Messages.EventWrapperBatch result) throws Throwable {
+                sender.tell(result, self);
+            }
+        }, getContext().dispatcher());
+        future.onFailure(new OnFailure() {
+                             @Override
+                             public void onFailure(Throwable failure) throws Throwable {
+                                 log.error("failed to read events from journalstorage {} ", retreiveAggregateEvents, failure);
+                             }
+                         }, getContext().dispatcher()
+        );
+    }
+
     public void onReceive(Object o) throws Exception {
         log.debug("Received message {}", o);
         try {
@@ -130,6 +149,8 @@ public class EventStore extends UntypedActor {
                 tryToFillSubscription(sender(), subscription);
             } else if (o instanceof RetrieveAggregateEventsAsync) {
                 readAggregateEvents((RetrieveAggregateEventsAsync) o);
+            } else if (o instanceof Messages.RetreiveAggregateEventsAsync) {
+                readAggregateEvents((Messages.RetreiveAggregateEventsAsync) o);
             } else if (o instanceof String ||
                     o instanceof Subscription ||
                     o instanceof Messages.Subscription ||

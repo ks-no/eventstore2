@@ -6,9 +6,12 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.CompatibleFieldSerializer;
 import com.esotericsoftware.shaded.org.objenesis.strategy.SerializingInstantiatorStrategy;
+import com.mongodb.MongoNamespace;
 import com.mongodb.WriteConcern;
+import com.mongodb.async.SingleResultCallback;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.IndexOptions;
@@ -274,6 +277,38 @@ public class MongoDBJournalV2 implements JournalStorage {
         return loadEventsAndHandle(aggregateType, loadEvents, journalid, eventReadLimit);
     }
 
+    public void upgradeToProto(String aggregateType) {
+        Boolean upgraded = false;
+        final MongoCursor<String> iterator = db.listCollectionNames().iterator();
+        while(iterator.hasNext()){
+            if((aggregateType + "_old").equals(iterator.next()))
+                upgraded = true;
+        }
+        if(upgraded) {
+            log.info("Aggregate {} already upgraded", aggregateType);
+            return;
+        }
+        db.getCollection(aggregateType).renameCollection(new MongoNamespace(db.getName(), aggregateType + "_old"));
+
+        long count = 0;
+        boolean readall = false;
+        while(!readall) {
+            final ArrayList<Event> events = new ArrayList<>();
+            final ArrayList<Messages.EventWrapper> eventWrappers = new ArrayList<>();
+            readall = loadEventsAndHandle(aggregateType + "_old", event -> {
+                events.add(event);
+                eventWrappers.add(event.upgradeToProto());
+            }
+            ,String.valueOf(count));
+            if(events.size() > 0)
+                count = Long.parseLong(events.get(events.size()-1).getJournalid());
+            else
+                return;
+            saveEvents(eventWrappers);
+            log.info("Upgraded events to journalid {} for aggregateType {}", count, aggregateType);
+        }
+    }
+
     class Counter {
 
         int i = 0;
@@ -373,6 +408,26 @@ public class MongoDBJournalV2 implements JournalStorage {
         final Future<EventBatch> theFuture = promise.future();
         dbObjects.forEach(document -> events.add(deSerialize(((Binary) document.get("d")).getData())), (result, t) -> promise.success(new EventBatch(aggregateType, aggregateId, events, events.size() != eventReadLimit)));
         return theFuture;
+    }
+
+    @Override
+    public Future<Messages.EventWrapperBatch> loadEventWrappersForAggregateIdAsync(final String aggregateType, final String aggregateRootId, final long fromJournalId) {
+        final Document query = new Document("rid", aggregateRootId);
+        query.append("jid", new Document("$gt", fromJournalId));
+
+        final com.mongodb.async.client.FindIterable<Document> dbObjects = MongoDbOperations.doDbOperation(() -> dbasync.getCollection(aggregateType).find(query).sort(new Document("jid", 1)).limit(eventReadLimit));
+
+        final Promise<Messages.EventWrapperBatch> promise = Futures.promise();
+
+        dbObjects.map(document -> deSerialize(document,aggregateType))
+                .into(new ArrayList<>(), (SingleResultCallback<ArrayList>) (list, throwable) -> promise.success(Messages.EventWrapperBatch.newBuilder()
+                .addAllEvents(list)
+                .setAggregateType(aggregateType)
+                .setReadAllEvents(list.size() != eventReadLimit)
+                .setAggregateRootId(aggregateRootId)
+                .build()));
+
+        return promise.future();
     }
 
     @Override

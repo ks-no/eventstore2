@@ -158,6 +158,7 @@ public class EventStore extends UntypedActor {
                     o instanceof StoreEvents ||
                     o instanceof Event ||
                     o instanceof Messages.EventWrapper ||
+                    o instanceof Messages.EventWrapperBatch ||
                     o instanceof AcknowledgePreviousEventsProcessed ||
                     o instanceof RetreiveAggregateEvents ||
                     o instanceof Messages.RetreiveAggregateEvents ||

@@ -19,9 +19,6 @@ import static akka.pattern.Patterns.ask;
 import static junit.framework.Assert.assertNotNull;
 import static no.ks.eventstore2.projection.CallProjection.call;
 
-/**
- * Created by roopan on 07.09.16.
- */
 public class ProjectionProtobufTest extends TestKit {
 
     static ActorSystem _system = ActorSystem.create("TestSys", ConfigFactory
@@ -37,7 +34,7 @@ public class ProjectionProtobufTest extends TestKit {
         List<Props> factories = new ArrayList<>();
         factories.add(Props.create(FormStatuses.class, super.testActor()));
 
-        final TestActorRef<ProjectionProtobufManager> ref = TestActorRef.create(_system, ProjectionProtobufManager.mkProps(super.testActor(), factories), "projectionProtobufManager");
+        final TestActorRef<ProjectionManager> ref = TestActorRef.create(_system, ProjectionManager.mkProps(super.testActor(), factories), "projectionProtobufManager");
 
         Future<Object> getProjectionref = ask(ref, call("getProjectionRef", FormStatuses.class), 3000);
 

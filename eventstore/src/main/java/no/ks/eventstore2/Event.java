@@ -56,5 +56,5 @@ public abstract class Event implements Serializable {
         this.version = version;
     }
 
-    public Messages.EventWrapper upgradeToProto(){return null;}
+    public Messages.EventWrapper upgradeToProto(){throw new RuntimeException("UpgradeToProto not implemented in " + this.getClass().toString());}
 }

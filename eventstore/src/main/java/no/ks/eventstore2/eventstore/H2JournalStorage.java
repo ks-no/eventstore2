@@ -63,6 +63,11 @@ public class H2JournalStorage extends AbstractJournalStorage {
     }
 
     @Override
+    public void saveEventsBatch(List<Messages.EventWrapper> events) {
+        throw new RuntimeException("NotImplemented");
+    }
+
+    @Override
     public boolean loadEventsAndHandle(String aggregateType, HandleEventMetadata handleEvent) {
         throw new RuntimeException("NotImplemented");
     }

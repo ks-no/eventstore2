@@ -213,7 +213,8 @@ public class MongoDBJournalV2 implements JournalStorage {
 
     }
 
-    public void saveEvents(ArrayList<Messages.EventWrapper> events) {
+    @Override
+    public void saveEventsBatch(List<Messages.EventWrapper> events) {
         if (events == null || events.size() == 0) {
             return;
         }
@@ -304,7 +305,7 @@ public class MongoDBJournalV2 implements JournalStorage {
                 count = Long.parseLong(events.get(events.size()-1).getJournalid());
             else
                 return;
-            saveEvents(eventWrappers);
+            saveEventsBatch(eventWrappers);
             log.info("Upgraded events to journalid {} for aggregateType {}", count, aggregateType);
         }
     }

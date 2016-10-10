@@ -79,11 +79,11 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
         final ArrayList<Messages.EventWrapper> events = new ArrayList<>();
         events.add(ProtobufHelper.newEventWrapper("agg1", "1", -1, Order.SearchRequest.newBuilder().setQuery("query").setPageNumber(4).build()));
         events.add(ProtobufHelper.newEventWrapper("agg1", "1", -1, Order.SearchResult.newBuilder().addResult("res1").addResult("res2").build()));
-        journal.saveEvents(events);
+        journal.saveEventsBatch(events);
         events.clear();
         events.add(ProtobufHelper.newEventWrapper("agg1", "1", -1, Order.SearchRequest.newBuilder().setQuery("query").setPageNumber(4).build()));
         events.add(ProtobufHelper.newEventWrapper("agg1", "1", -1, Order.SearchResult.newBuilder().addResult("res1").addResult("res2").build()));
-        journal.saveEvents(events);
+        journal.saveEventsBatch(events);
     }
 
     @Test

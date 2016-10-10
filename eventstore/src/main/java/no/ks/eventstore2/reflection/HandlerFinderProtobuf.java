@@ -1,6 +1,5 @@
 package no.ks.eventstore2.reflection;
 
-import akka.actor.UntypedActor;
 import com.google.protobuf.Message;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.SubscriberConfigurationException;
@@ -29,7 +28,7 @@ public class HandlerFinderProtobuf {
         return method;
     }
 
-    public static Map<Class<? extends Message>, Method> getEventHandlers(Class<? extends UntypedActor> clazz) {
+    public static Map<Class<? extends Message>, Method> getEventHandlers(Class<?> clazz) {
         return getHandlers(clazz, Message.class);
     }
 
@@ -37,7 +36,7 @@ public class HandlerFinderProtobuf {
         return getHandlers(clazz, Command.class);
     }
 
-    public static <T> Map<Class<? extends T>, Method> getHandlers(Class<? extends UntypedActor> clazz, Class<T> handlesClass) {
+    public static <T> Map<Class<? extends T>, Method> getHandlers(Class<?> clazz, Class<T> handlesClass) {
         HashMap<Class<? extends T>, Method> handlers = new HashMap<Class<? extends T>, Method>();
         for (Method method : clazz.getMethods()) {
             Handler handlerAnnotation = method.getAnnotation(Handler.class);

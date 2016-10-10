@@ -12,8 +12,11 @@ import akka.dispatch.OnSuccess;
 import akka.japi.Procedure;
 import com.google.protobuf.Message;
 import eventstore.Messages;
+import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.RestartActorException;
-import no.ks.eventstore2.eventstore.*;
+import no.ks.eventstore2.eventstore.EventStore;
+import no.ks.eventstore2.eventstore.NewEventstoreStarting;
+import no.ks.eventstore2.eventstore.RefreshSubscription;
 import no.ks.eventstore2.reflection.HandlerFinderProtobuf;
 import no.ks.eventstore2.response.NoResult;
 import org.slf4j.Logger;
@@ -22,14 +25,12 @@ import scala.Option;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
 import scala.util.Failure;
+
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 
-/**
- * Created by roopan on 07.09.16.
- */
 public class ProjectionProtobuf extends UntypedActor {
 
     protected final Logger log = LoggerFactory.getLogger(this.getClass());
@@ -43,7 +44,11 @@ public class ProjectionProtobuf extends UntypedActor {
     private List<ProjectionProtobuf.PendingCall> pendingCalls = new ArrayList<ProjectionProtobuf.PendingCall>();
     private Cancellable subscribeTimeout;
     private Cancellable removeSubscriptionTimeout;
+    private Messages.EventWrapper currentMessage;
 
+    protected Messages.EventWrapper currentMessage() {
+        return currentMessage;
+    }
 
     @Override
     public void preStart() {
@@ -85,7 +90,7 @@ public class ProjectionProtobuf extends UntypedActor {
 
     protected void setInSubscribe() {
         subscribePhase = true;
-        context().parent().tell(ProjectionProtobufManager.IN_SUBSCRIBE, self());
+        context().parent().tell(ProjectionManager.IN_SUBSCRIBE, self());
         resetSubscribeTimeout();
     }
 
@@ -220,9 +225,10 @@ public class ProjectionProtobuf extends UntypedActor {
 
         }
         try {
-            if (o instanceof Message) {
+            if (o instanceof Messages.EventWrapper) {
                 latestJournalidReceived = ((Messages.EventWrapper) o).getJournalid();
-                dispatchToCorrectEventHandler((Message) o);
+                currentMessage = (Messages.EventWrapper) o;
+                dispatchToCorrectEventHandler(ProtobufHelper.unPackAny(((Messages.EventWrapper) o).getProtoSerializationType(), ((Messages.EventWrapper) o).getEvent()));
             } else if (o instanceof NewEventstoreStarting) {
                 preStart();
             } else if (o instanceof Call && !subscribePhase) {
@@ -235,14 +241,12 @@ public class ProjectionProtobuf extends UntypedActor {
                 if (latestJournalidReceived < 0) {
                     throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
                 }
-                eventStore.tell(Messages.IncompleteSubscriptionPleaseSendNew.newBuilder().setAggregateType(((IncompleteSubscriptionPleaseSendNew) o).getAggregateType()).build(), self());
-                //eventStore.tell(new AsyncSubscription(((IncompleteSubscriptionPleaseSendNew) o).getAggregateType(), latestJournalidReceived), self());
+                eventStore.tell(Messages.AsyncSubscription.newBuilder().setAggregateType(((Messages.IncompleteSubscriptionPleaseSendNew) o).getAggregateType()).build(), self());
 
             }else if (o instanceof Messages.CompleteAsyncSubscriptionPleaseSendSyncSubscription){
                 log.info("AsyncSubscription complete, sending sync subscription");
                 resetSubscribeTimeout();
-                //eventStore.tell(new Messages.Subscription(((CompleteAsyncSubscriptionPleaseSendSyncSubscription) o).getAggregateType(), latestJournalidReceived), self());
-                eventStore.tell(Messages.CompleteAsyncSubscriptionPleaseSendSyncSubscription.newBuilder().setAggregateType( ((CompleteAsyncSubscriptionPleaseSendSyncSubscription)o).getAggregateType()).build(),self());
+                eventStore.tell(Messages.Subscription.newBuilder().setAggregateType( ((Messages.CompleteAsyncSubscriptionPleaseSendSyncSubscription)o).getAggregateType()).setFromJournalId(latestJournalidReceived).build(),self());
 
             } else if (o instanceof Messages.CompleteSubscriptionRegistered) {
                 log.info("Subscription on {} is complete", ((Messages.CompleteSubscriptionRegistered) o).getAggregateType());

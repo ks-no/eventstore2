@@ -129,5 +129,4 @@ public class EventStoreProtoTest extends MongoDbEventstore2TestKit {
         eventstore.tell(Messages.AcknowledgePreviousEventsProcessed.getDefaultInstance(),super.testActor());
         expectMsgClass(Messages.Success.class);
     }
-
 }

@@ -5,10 +5,14 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
+import events.test.Order.Order;
+import events.test.form.Form;
+import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.eventstore.CompleteSubscriptionRegistered;
 import no.ks.eventstore2.saga.Saga;
 import no.ks.eventstore2.saga.SagaInMemoryRepository;
 import no.ks.eventstore2.util.IdUtil;
+import org.junit.Before;
 
 public class EventStoreTestKit extends TestKit {
 
@@ -36,4 +40,12 @@ public class EventStoreTestKit extends TestKit {
     protected EventReceiver createEventReceiver() {
         return (EventReceiver) TestActorRef.create(actorSystem, Props.create(EventReceiver.class), IdUtil.createUUID()).underlyingActor();
     }
+
+    @Before
+    public void setUp() throws Exception {
+        ProtobufHelper.registerDeserializeMethod(Order.SearchRequest.getDefaultInstance());
+        ProtobufHelper.registerDeserializeMethod(Order.SearchResult.getDefaultInstance());
+        ProtobufHelper.registerDeserializeMethod(Form.FormReceived.getDefaultInstance());
+    }
+
 }

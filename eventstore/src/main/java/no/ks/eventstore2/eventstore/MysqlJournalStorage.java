@@ -59,6 +59,11 @@ public class MysqlJournalStorage extends AbstractJournalStorage {
     }
 
     @Override
+    public void saveEventsBatch(List<Messages.EventWrapper> events) {
+        throw new UnsupportedOperationException("Please implement save event on MysqlJournalStorage");
+    }
+
+    @Override
     public boolean loadEventsAndHandle(String aggregateType, HandleEventMetadata handleEvent) {
         throw new RuntimeException("NotImplemented");
     }

@@ -24,7 +24,7 @@ public class ProjectionManager extends UntypedActor {
     public static final String IN_SUBSCRIBE = "insubscribe";
     public static final String SUBSCRIBE_FINISHED = "subscribe_finished";
 
-    private Map<Class<? extends Projection>, ActorRef> projections = new HashMap<Class<? extends Projection>, ActorRef>();
+    private Map<Class<? extends UntypedActor>, ActorRef> projections = new HashMap<>();
     private Set<ActorRef> inSubscribePhase = new HashSet<>();
     private ActorRef errorListener;
     private Cluster cluster;

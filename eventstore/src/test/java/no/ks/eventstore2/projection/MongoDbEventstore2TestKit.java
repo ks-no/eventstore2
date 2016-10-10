@@ -62,9 +62,7 @@ public class MongoDbEventstore2TestKit extends Eventstore2TestKit {
     @Before
     public void setUp() throws Exception {
         mongoClient = new MongoClient(new ServerAddress(mongodConfig.net().getServerAddress(), mongodConfig.net().getPort()));
-        ProtobufHelper.registerDeserializeMethod(Order.SearchRequest.getDefaultInstance());
-        ProtobufHelper.registerDeserializeMethod(Order.SearchResult.getDefaultInstance());
-        ProtobufHelper.registerDeserializeMethod(Form.FormReceived.getDefaultInstance());
+        super.setUp();
     }
 
     @After

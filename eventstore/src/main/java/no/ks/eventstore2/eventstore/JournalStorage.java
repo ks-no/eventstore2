@@ -10,6 +10,8 @@ public interface JournalStorage {
 
     void saveEvent(Event event);
 
+    void saveEventsBatch(List<Messages.EventWrapper> events);
+
     /**
      * Load events
      * @param aggregateType

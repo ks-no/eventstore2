@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 import static akka.pattern.Patterns.ask;
 
 import static no.ks.eventstore2.projection.CallProjection.call;
+import static org.junit.Assert.assertEquals;
 
 public class RestartProjectionTest extends EventStoreTestKit {
 
@@ -50,7 +51,7 @@ public class RestartProjectionTest extends EventStoreTestKit {
         projection.tell(createEvent(3), super.testActor());
         projection.tell(new CompleteSubscriptionRegistered(AggregateType.TEST_AGGREGATE),super.testActor());
         final List<TestEvent> events = (List<TestEvent>)Await.result(ask(projection, call("getEvents"), 3000), Duration.create(3, TimeUnit.SECONDS));
-        System.out.println(events);
+        assertEquals(4, events.size());
     }
 
     private TestEvent createEvent(long jid) {

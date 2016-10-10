@@ -130,6 +130,12 @@ public class EventstoreSingelton extends UntypedActor {
             publishEvent((Messages.EventWrapper) o);
             log.info("Published event {}", o);
 
+        } else if (o instanceof Messages.EventWrapperBatch) {
+            storeEvents((Messages.EventWrapperBatch) o);
+            publishEvents((Messages.EventWrapperBatch) o);
+            for (Messages.EventWrapper event : ((Messages.EventWrapperBatch) o).getEventsList()) {
+                log.info("Published event {}", event);
+            }
         } else if (o instanceof RetreiveAggregateEvents) {
             readAggregateEvents((RetreiveAggregateEvents) o);
         } else if (o instanceof Messages.RetreiveAggregateEvents) {
@@ -255,6 +261,12 @@ public class EventstoreSingelton extends UntypedActor {
         }
     }
 
+    private void publishEvents(Messages.EventWrapperBatch events) {
+        for (Messages.EventWrapper event : events.getEventsList()) {
+            publishEvent(event);
+        }
+    }
+
     private void publishEvent(Messages.EventWrapper eventWrapper) {
         Set<ActorRef> actorRefs = aggregateSubscribers.get(eventWrapper.getAggregateType());
         if (actorRefs == null) {
@@ -303,6 +315,10 @@ public class EventstoreSingelton extends UntypedActor {
             event.setCreated(new DateTime());
         }
         storage.saveEvents(o.getEvents());
+    }
+
+    private void storeEvents(Messages.EventWrapperBatch eventWrapperBatch) {
+        storage.saveEventsBatch(eventWrapperBatch.getEventsList());
     }
 
     private void sendEvent(Messages.EventWrapper eventWrapper, Set<ActorRef> subscribers) {

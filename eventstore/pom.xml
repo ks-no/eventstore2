@@ -42,7 +42,7 @@
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
-            <version>3.0.0</version>
+            <version>3.1.0</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -170,7 +170,7 @@
             <plugin>
                 <groupId>com.github.os72</groupId>
                 <artifactId>protoc-jar-maven-plugin</artifactId>
-                <version>3.0.0.1</version>
+                <version>3.1.0</version>
                 <executions>
                     <execution>
                         <id>mainproto</id>
@@ -180,7 +180,7 @@
                         </goals>
                         <configuration>
                             <includeStdTypes>true</includeStdTypes>
-                            <protocVersion>3.0.0</protocVersion>
+                            <protocVersion>3.1.0</protocVersion>
                             <inputDirectories>
                                 <include>src/main/protobuf</include>
                             </inputDirectories>
@@ -193,7 +193,7 @@
                             <goal>run</goal>
                         </goals>
                         <configuration>
-                            <protocVersion>3.0.0</protocVersion>
+                            <protocVersion>3.1.0</protocVersion>
                             <includeStdTypes>true</includeStdTypes>
                             <addSources>test</addSources>
                             <outputDirectory>target/generated-test-sources</outputDirectory>

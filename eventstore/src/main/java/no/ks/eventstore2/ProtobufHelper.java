@@ -136,4 +136,8 @@ public class ProtobufHelper {
     public static Class<?> getClassForSerialization(String protoSerializationType) {
         return deserializeClasses.get(protoSerializationType);
     }
+
+    public static String toLog(Messages.EventWrapper eventWrapper) {
+        return "Wrapper: " + eventWrapper + " event: " + ProtobufHelper.unPackAny(eventWrapper.getProtoSerializationType(),eventWrapper.getEvent());
+    }
 }

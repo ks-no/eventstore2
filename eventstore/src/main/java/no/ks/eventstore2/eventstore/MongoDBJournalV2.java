@@ -65,14 +65,18 @@ public class MongoDBJournalV2 implements JournalStorage {
         this.aggregates = new HashSet<>(aggregates);
         metaCollection = db.getCollection("journalMetadata");
         for (String aggregate : aggregates) {
-            db.getCollection(aggregate).createIndex(new Document("jid",1), new IndexOptions().unique(true));
-            db.getCollection(aggregate).createIndex(new Document("rid",1));
-            db.getCollection(aggregate).createIndex(new Document("rid",1).append("v",1),new IndexOptions().unique(true));
+            createIndexes(db, aggregate);
             db.getCollection(aggregate).withWriteConcern(WriteConcern.JOURNALED);
         }
 
         counters = db.getCollection("counters");
 
+    }
+
+    private void createIndexes(MongoDatabase db, String aggregate) {
+        db.getCollection(aggregate).createIndex(new Document("jid",1), new IndexOptions().unique(true));
+        db.getCollection(aggregate).createIndex(new Document("rid",1));
+        db.getCollection(aggregate).createIndex(new Document("rid",1).append("v",1),new IndexOptions().unique(true));
     }
 
     public Kryo getKryo() {
@@ -293,7 +297,7 @@ public class MongoDBJournalV2 implements JournalStorage {
             return;
         }
         db.getCollection(aggregateType).renameCollection(new MongoNamespace(db.getName(), aggregateType + "_old"));
-
+        createIndexes(db, aggregateType);
         long count = 0;
         boolean readall = false;
         while(!readall) {

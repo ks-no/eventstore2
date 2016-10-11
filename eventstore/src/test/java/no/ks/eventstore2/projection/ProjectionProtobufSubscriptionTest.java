@@ -69,4 +69,12 @@ public class ProjectionProtobufSubscriptionTest extends MongoDbEventstore2TestKi
             return "TestAggregate";
         }
     }
+
+    @Test
+    public void name() throws Exception {
+        final Order.SearchRequest defaultInstance = Order.SearchRequest.newBuilder().setQuery("Query er lang").build();
+
+        System.out.println("PRINT:" + ProtobufHelper.toLog(ProtobufHelper.newEventWrapper("TestAggregate", "id", 1, defaultInstance)));
+
+    }
 }

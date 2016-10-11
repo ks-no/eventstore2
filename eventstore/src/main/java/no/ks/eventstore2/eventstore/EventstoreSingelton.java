@@ -11,6 +11,7 @@ import akka.cluster.pubsub.DistributedPubSubMediator;
 import com.google.common.collect.HashMultimap;
 import eventstore.Messages;
 import no.ks.eventstore2.Event;
+import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.TakeBackup;
 import no.ks.eventstore2.TakeSnapshot;
 import no.ks.eventstore2.response.Success;
@@ -128,13 +129,13 @@ public class EventstoreSingelton extends UntypedActor {
         }else if (o instanceof Messages.EventWrapper) {
             storeEvent((Messages.EventWrapper) o);
             publishEvent((Messages.EventWrapper) o);
-            log.info("Published event {}", o);
+            log.info("Published event {}", ProtobufHelper.toLog((Messages.EventWrapper) o));
 
         } else if (o instanceof Messages.EventWrapperBatch) {
             storeEvents((Messages.EventWrapperBatch) o);
             publishEvents((Messages.EventWrapperBatch) o);
             for (Messages.EventWrapper event : ((Messages.EventWrapperBatch) o).getEventsList()) {
-                log.info("Published event {}", event);
+                log.info("Published event {}", ProtobufHelper.toLog(event));
             }
         } else if (o instanceof RetreiveAggregateEvents) {
             readAggregateEvents((RetreiveAggregateEvents) o);
@@ -323,13 +324,13 @@ public class EventstoreSingelton extends UntypedActor {
 
     private void sendEvent(Messages.EventWrapper eventWrapper, Set<ActorRef> subscribers) {
         for (ActorRef subscriber : subscribers) {
-            log.debug("Publishing event {} to {}", eventWrapper, subscriber);
+            log.debug("Publishing event {} to {}", ProtobufHelper.toLog(eventWrapper), subscriber);
             subscriber.tell(eventWrapper, self());
         }
     }
 
     private void sendEvent(Messages.EventWrapper event, ActorRef subscriber) {
-        log.debug("Publishing event {} to {}", event, subscriber);
+        log.debug("Publishing event {} to {}", ProtobufHelper.toLog(event), subscriber);
         subscriber.tell(event, self());
     }
 

@@ -105,7 +105,8 @@ public class MongoDBJournalV2 implements JournalStorage {
                     aggregateType,
                     d.getLong("v"),
                     d.getLong("occuredon"),
-                    (Binary) d.get("d"));
+                    (Binary) d.get("d"),
+                    d.getString("created_by_user"));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -149,7 +150,8 @@ public class MongoDBJournalV2 implements JournalStorage {
                 .append("correlationid", eventWrapper.getCorrelationId())
                 .append("occuredon", DateTime.now().getMillis())
                 .append("protoSerializationType", eventWrapper.getProtoSerializationType())
-                .append("d", eventWrapper.getEvent().toByteArray());
+                .append("d", eventWrapper.getEvent().toByteArray())
+                .append("created_by_user", eventWrapper.getCreatedByUser());
     }
 
     private Document getEventDBObject(Event event, long journalid) {
@@ -297,8 +299,13 @@ public class MongoDBJournalV2 implements JournalStorage {
             final ArrayList<Event> events = new ArrayList<>();
             final ArrayList<Messages.EventWrapper> eventWrappers = new ArrayList<>();
             readall = loadEventsAndHandle(aggregateType + "_old", event -> {
-                events.add(event);
-                eventWrappers.add(event.upgradeToProto());
+                        final Messages.EventWrapper eventWrapper = event.upgradeToProto();
+                if(eventWrapper != null) {
+                    events.add(event);
+                    eventWrappers.add(eventWrapper);
+                } else {
+                    log.error("failed to upgrade event {}", event);
+                }
             }
             ,String.valueOf(count));
             if(events.size() > 0)

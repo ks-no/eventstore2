@@ -14,6 +14,7 @@ message EventWrapper {
     int64 version = 6;
     int64 occurred_on = 7;
     google.protobuf.Any event = 8;
+    string created_by_user = 9;
 }
 
 message EventWrapperBatch {

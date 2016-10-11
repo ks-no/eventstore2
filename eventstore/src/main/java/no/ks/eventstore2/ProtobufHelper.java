@@ -51,6 +51,18 @@ public class ProtobufHelper {
                 .setEvent(Any.pack(event)).build();
     }
 
+    public static Messages.EventWrapper newEventWrapper(String aggregateType, String aggregateRootId, long version, Message event, String createdByUser) {
+        return Messages.EventWrapper.newBuilder()
+                .setAggregateType(aggregateType)
+                .setAggregateRootId(aggregateRootId)
+                .setVersion(version)
+                .setOccurredOn(DateTime.now().getMillis())
+                .setProtoSerializationType(event.getDescriptorForType().getFullName())
+                .setEvent(Any.pack(event))
+                .setCreatedByUser(createdByUser)
+                .build();
+    }
+
     public static Messages.EventWrapper newEventWrapper(String aggregateType, String aggregateRootId, long version, DateTime occuredon, Message event) {
         return Messages.EventWrapper.newBuilder()
                 .setAggregateType(aggregateType)
@@ -59,6 +71,18 @@ public class ProtobufHelper {
                 .setOccurredOn(occuredon.getMillis())
                 .setProtoSerializationType(event.getDescriptorForType().getFullName())
                 .setEvent(Any.pack(event)).build();
+    }
+
+    public static Messages.EventWrapper newEventWrapper(String aggregateType, String aggregateRootId, long version, DateTime occuredon, Message event, String createdByUser) {
+        return Messages.EventWrapper.newBuilder()
+                .setAggregateType(aggregateType)
+                .setAggregateRootId(aggregateRootId)
+                .setVersion(version)
+                .setOccurredOn(occuredon.getMillis())
+                .setProtoSerializationType(event.getDescriptorForType().getFullName())
+                .setEvent(Any.pack(event))
+                .setCreatedByUser(createdByUser)
+                .build();
     }
 
     public static Messages.EventWrapper newEventWrapper(String aggregateType, String aggregateRootId, Message event) {
@@ -71,8 +95,20 @@ public class ProtobufHelper {
                 .setEvent(Any.pack(event)).build();
     }
 
+    public static Messages.EventWrapper newEventWrapper(String aggregateType, String aggregateRootId, Message event, String createdByUser) {
+        return Messages.EventWrapper.newBuilder()
+                .setAggregateType(aggregateType)
+                .setAggregateRootId(aggregateRootId)
+                .setVersion(-1)
+                .setOccurredOn(DateTime.now().getMillis())
+                .setProtoSerializationType(event.getDescriptorForType().getFullName())
+                .setEvent(Any.pack(event))
+                .setCreatedByUser(createdByUser)
+                .build();
+    }
 
-    public static Messages.EventWrapper newEventWrapper(String correlationid, String protoSerializationType, String aggregateRootId, long journalid, String aggregateType, long version, long occuredon, Binary data) throws InvalidProtocolBufferException {
+
+    public static Messages.EventWrapper newEventWrapper(String correlationid, String protoSerializationType, String aggregateRootId, long journalid, String aggregateType, long version, long occuredon, Binary data, String createdByUser) throws InvalidProtocolBufferException {
         return Messages.EventWrapper.newBuilder()
                 .setCorrelationId(correlationid)
                 .setProtoSerializationType(protoSerializationType)
@@ -82,6 +118,7 @@ public class ProtobufHelper {
                 .setVersion(version)
                 .setOccurredOn(occuredon)
                 .setEvent(Any.parseFrom(data.getData()))
+                .setCreatedByUser(createdByUser)
                 .build();
     }
 

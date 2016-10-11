@@ -133,7 +133,7 @@ public class MongoDBJournalV2 implements JournalStorage {
     public void saveEvent(Messages.EventWrapper eventWrapper) {
         if(!aggregates.contains(eventWrapper.getAggregateType())) throw new RuntimeException("Aggregate " + eventWrapper.getAggregateType() + " not registered");
         final MongoCollection<Document> collection = db.getCollection(eventWrapper.getAggregateType());
-        final int journalid = getNextValueInSeq("journalid_" + eventWrapper.getAggregateType(), 1);
+        final int journalid = getNextValueInSeq("journalidproto_" + eventWrapper.getAggregateType(), 1);
         // if version is not set, find the next one
         long version = eventWrapper.getVersion();
         if(version  == -1){
@@ -225,7 +225,7 @@ public class MongoDBJournalV2 implements JournalStorage {
         final MongoCollection<Document> collection = db.getCollection(agg);
 
         final List<Document> dbObjectArrayList = new ArrayList<>();
-        long maxJournalId = getNextValueInSeq("journalid_" + agg, events.size());
+        long maxJournalId = getNextValueInSeq("journalidproto_" + agg, events.size());
         long jid = (maxJournalId - events.size())+1;
         final HashMap<String, Long> versions_for_aggregates = new HashMap<>();
         long version = -1;
@@ -241,9 +241,10 @@ public class MongoDBJournalV2 implements JournalStorage {
                 }
                 versions_for_aggregates.put(event.getAggregateRootId(), version);
                 log.debug("Saving event " + event);
+            } else {
+                version = event.getVersion();
             }
-
-            dbObjectArrayList.add(getEventDBObject(event, version, jid));
+            dbObjectArrayList.add(getEventDBObject(event, version, event.getJournalid() == 0 ? jid: event.getJournalid()));
             jid++;
         }
 
@@ -299,8 +300,9 @@ public class MongoDBJournalV2 implements JournalStorage {
             final ArrayList<Event> events = new ArrayList<>();
             final ArrayList<Messages.EventWrapper> eventWrappers = new ArrayList<>();
             readall = loadEventsAndHandle(aggregateType + "_old", event -> {
+                log.info("upgrading event {}", event);
                         final Messages.EventWrapper eventWrapper = event.upgradeToProto();
-                if(eventWrapper != null) {
+                if(eventWrapper != null && eventWrapper.getVersion() != -1) {
                     events.add(event);
                     eventWrappers.add(eventWrapper);
                 } else {
@@ -315,6 +317,7 @@ public class MongoDBJournalV2 implements JournalStorage {
             saveEventsBatch(eventWrappers);
             log.info("Upgraded events to journalid {} for aggregateType {}", count, aggregateType);
         }
+
     }
 
     class Counter {

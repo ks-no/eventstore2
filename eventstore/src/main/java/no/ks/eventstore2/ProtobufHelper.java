@@ -20,12 +20,12 @@ public class ProtobufHelper {
     private ProtobufHelper() {
     }
 
-    public static void registerDeserializeMethod(Message message){
+    public static void registerDeserializeMethod(Message message) {
         deserializeMethods.put(message.getDescriptorForType().getFullName(), message.getParserForType());
         deserializeClasses.put(message.getDescriptorForType().getFullName(), message.getClass());
     }
 
-    public static <T extends Message> T deserializeByteArray(String type, byte[] message){
+    public static <T extends Message> T deserializeByteArray(String type, byte[] message) {
         try {
             return (T) deserializeMethods.get(type).parseFrom(message);
         } catch (InvalidProtocolBufferException e) {
@@ -33,7 +33,7 @@ public class ProtobufHelper {
         }
     }
 
-    public static <T extends Message> T unPackAny(String type, Any any){
+    public static <T extends Message> T unPackAny(String type, Any any) {
         try {
             return (T) any.unpack(deserializeClasses.get(type));
         } catch (InvalidProtocolBufferException e) {
@@ -106,6 +106,19 @@ public class ProtobufHelper {
                 .setEvent(Any.pack(event)).build();
     }
 
+    public static Messages.EventWrapper newEventWrapper(String aggregateType, String aggregateRootId, Message event, String correlationid, String createdByUser) {
+        return Messages.EventWrapper.newBuilder()
+                .setAggregateType(aggregateType)
+                .setAggregateRootId(aggregateRootId)
+                .setVersion(-1)
+                .setOccurredOn(DateTime.now().getMillis())
+                .setProtoSerializationType(event.getDescriptorForType().getFullName())
+                .setEvent(Any.pack(event))
+                .setCorrelationId(correlationid)
+                .setCreatedByUser(createdByUser)
+                .build();
+    }
+
     public static Messages.EventWrapper newEventWrapper(String aggregateType, String aggregateRootId, Message event, String createdByUser) {
         return Messages.EventWrapper.newBuilder()
                 .setAggregateType(aggregateType)
@@ -138,6 +151,6 @@ public class ProtobufHelper {
     }
 
     public static String toLog(Messages.EventWrapper eventWrapper) {
-        return "Wrapper: " + eventWrapper + " event: " + ProtobufHelper.unPackAny(eventWrapper.getProtoSerializationType(),eventWrapper.getEvent());
+        return "Wrapper: " + eventWrapper + " event: " + ProtobufHelper.unPackAny(eventWrapper.getProtoSerializationType(), eventWrapper.getEvent());
     }
 }

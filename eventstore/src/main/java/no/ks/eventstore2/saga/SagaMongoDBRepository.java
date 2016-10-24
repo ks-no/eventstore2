@@ -106,6 +106,7 @@ public class SagaMongoDBRepository extends SagaRepository{
         if(latestJournalID instanceof String){
             return Long.parseLong((String) latestJournalID);
         }
+        if(latestJournalID == null) return 0L;
         return (long) latestJournalID;
     }
 

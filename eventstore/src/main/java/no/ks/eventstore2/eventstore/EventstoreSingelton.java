@@ -134,8 +134,12 @@ public class EventstoreSingelton extends UntypedActor {
         } else if (o instanceof Messages.EventWrapperBatch) {
             storeEvents((Messages.EventWrapperBatch) o);
             publishEvents((Messages.EventWrapperBatch) o);
-            for (Messages.EventWrapper event : ((Messages.EventWrapperBatch) o).getEventsList()) {
-                log.info("Published event {}", ProtobufHelper.toLog(event));
+            if(((Messages.EventWrapperBatch) o).getEventsCount() > 50) {
+                log.info("Published {} events in aggregate {}", ((Messages.EventWrapperBatch) o).getEventsCount(), ((Messages.EventWrapperBatch) o).getAggregateType());
+            } else {
+                for (Messages.EventWrapper event : ((Messages.EventWrapperBatch) o).getEventsList()) {
+                    log.info("Published event {}", ProtobufHelper.toLog(event));
+                }
             }
         } else if (o instanceof RetreiveAggregateEvents) {
             readAggregateEvents((RetreiveAggregateEvents) o);

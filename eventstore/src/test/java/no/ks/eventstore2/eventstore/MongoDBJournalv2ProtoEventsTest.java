@@ -11,6 +11,7 @@ import eventstore.Messages;
 import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.events.OldEventShouldBeUpgradedToOrderSearchResult;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
+import org.apache.commons.lang3.time.StopWatch;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -84,6 +85,23 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
         events.add(ProtobufHelper.newEventWrapper("agg1", "1", -1, Order.SearchRequest.newBuilder().setQuery("query").setPageNumber(4).build()));
         events.add(ProtobufHelper.newEventWrapper("agg1", "1", -1, Order.SearchResult.newBuilder().addResult("res1").addResult("res2").build()));
         journal.saveEventsBatch(events);
+    }
+
+    @Test
+    public void bulkInsertMultipleAggregates() throws Exception {
+        final ArrayList<Messages.EventWrapper> events = new ArrayList<>();
+        events.add(ProtobufHelper.newEventWrapper("agg1", "1", -1, Order.SearchRequest.newBuilder().setQuery("query").setPageNumber(4).build()));
+        events.add(ProtobufHelper.newEventWrapper("agg1", "2", -1, Order.SearchResult.newBuilder().addResult("res1").addResult("res2").build()));
+        journal.saveEventsBatch(events);
+        events.clear();
+        events.add(ProtobufHelper.newEventWrapper("agg1", "1", -1, Order.SearchRequest.newBuilder().setQuery("query").setPageNumber(4).build()));
+        events.add(ProtobufHelper.newEventWrapper("agg1", "2", -1, Order.SearchResult.newBuilder().addResult("res1").addResult("res2").build()));
+            journal.saveEventsBatch(events);
+
+        final Messages.EventWrapperBatch batch = journal.loadEventWrappersForAggregateId("agg1", "1", 0);
+        assertEquals(2, batch.getEventsCount());
+        final Messages.EventWrapperBatch batch2 = journal.loadEventWrappersForAggregateId("agg1", "2", 0);
+        assertEquals(2, batch2.getEventsCount());
     }
 
     @Test

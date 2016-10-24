@@ -244,7 +244,7 @@ public class MongoDBJournalV2 implements JournalStorage {
                     version = getNextLongVersion(collection, event.getAggregateRootId());
                 }
                 versions_for_aggregates.put(event.getAggregateRootId(), version);
-                log.debug("Saving event " + event);
+                log.debug("Saving event {}",event);
             } else {
                 version = event.getVersion();
             }
@@ -253,7 +253,7 @@ public class MongoDBJournalV2 implements JournalStorage {
         }
 
         MongoDbOperations.doDbOperation(() -> {
-            log.debug("Saving " + dbObjectArrayList);
+            log.debug("Saving {}",dbObjectArrayList);
             collection.insertMany(dbObjectArrayList);
             return null;
         }, 0, 500);

@@ -172,8 +172,12 @@ public class EventStore extends UntypedActor {
                 if(!(o instanceof AcknowledgePreviousEventsProcessed
                         || o instanceof RetreiveAggregateEvents
                         || o instanceof Messages.AcknowledgePreviousEventsProcessed
-                        || o instanceof Messages.RetreiveAggregateEvents))
+                        || o instanceof Messages.RetreiveAggregateEvents
+                        || o instanceof Messages.EventWrapperBatch))
                     log.info("Sending to singelton  message {} from {}", o, sender());
+                if(o instanceof Messages.EventWrapperBatch){
+                    log.info("Sending to singelton eventbatch for aggregate {} with {} events", ((Messages.EventWrapperBatch) o).getAggregateType(), ((Messages.EventWrapperBatch) o).getEventsCount());
+                }
                 eventstoresingeltonProxy.tell(o, sender());
             }
         } catch (Exception e) {

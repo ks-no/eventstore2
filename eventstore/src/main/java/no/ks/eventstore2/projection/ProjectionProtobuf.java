@@ -19,6 +19,7 @@ import no.ks.eventstore2.eventstore.NewEventstoreStarting;
 import no.ks.eventstore2.eventstore.RefreshSubscription;
 import no.ks.eventstore2.reflection.HandlerFinderProtobuf;
 import no.ks.eventstore2.response.NoResult;
+import org.apache.commons.lang3.ClassUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
@@ -184,7 +185,7 @@ public class ProjectionProtobuf extends UntypedActor {
         if (callName.equals(candidateMethod.getName()) && (methodParams.length == callParams.length)) {
             boolean assignable = true;
             for (int i = 0; i < callParams.length; i++) {
-                if (!methodParams[i].isAssignableFrom(callParams[i])) {
+                if (!ClassUtils.isAssignable(callParams[i],methodParams[i])) {
                     assignable = false;
                 }
             }

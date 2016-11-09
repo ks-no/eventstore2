@@ -242,7 +242,8 @@ public class ProjectionProtobuf extends UntypedActor {
                 if (latestJournalidReceived < 0) {
                     throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
                 }
-                eventStore.tell(Messages.AsyncSubscription.newBuilder().setAggregateType(((Messages.IncompleteSubscriptionPleaseSendNew) o).getAggregateType()).build(), self());
+
+                eventStore.tell(Messages.AsyncSubscription.newBuilder().setAggregateType(((Messages.IncompleteSubscriptionPleaseSendNew) o).getAggregateType()).setFromJournalId(latestJournalidReceived).build(), self());
 
             }else if (o instanceof Messages.CompleteAsyncSubscriptionPleaseSendSyncSubscription){
                 log.info("AsyncSubscription complete, sending sync subscription");

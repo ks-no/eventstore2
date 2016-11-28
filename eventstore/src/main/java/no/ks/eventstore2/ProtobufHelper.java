@@ -1,13 +1,11 @@
 package no.ks.eventstore2;
 
-import com.google.protobuf.Any;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.Message;
-import com.google.protobuf.Parser;
+import com.google.protobuf.*;
 import eventstore.Messages;
 import org.bson.types.Binary;
 import org.joda.time.DateTime;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,6 +21,11 @@ public class ProtobufHelper {
     public static void registerDeserializeMethod(Message message) {
         deserializeMethods.put(message.getDescriptorForType().getFullName(), message.getParserForType());
         deserializeClasses.put(message.getDescriptorForType().getFullName(), message.getClass());
+    }
+
+    public static void registerDeserializeMethod(Message message, String type) {
+        deserializeMethods.put(type, message.getParserForType());
+        deserializeClasses.put(type, message.getClass());
     }
 
     public static <T extends Message> T deserializeByteArray(String type, byte[] message) {
@@ -152,5 +155,25 @@ public class ProtobufHelper {
 
     public static String toLog(Messages.EventWrapper eventWrapper) {
         return "Wrapper: " + eventWrapper + " event: " + ProtobufHelper.unPackAny(eventWrapper.getProtoSerializationType(), eventWrapper.getEvent());
+    }
+
+    public static Timestamp toTimestamp(DateTime time){
+        long millis = time.getMillis();
+        return Timestamp.newBuilder().setSeconds(millis / 1000)
+         .setNanos((int) ((millis % 1000) * 1000000)).build();
+    }
+
+    public static DateTime fromTimestamp(Timestamp ts){
+        return new DateTime((ts.getSeconds() * 1000) + ts.getNanos() / 1000000);
+    }
+
+    public static Date fromTimestampToDate(Timestamp ts){
+        return new Date((ts.getSeconds() * 1000) + ts.getNanos() / 1000000);
+    }
+
+    public static Timestamp toTimestamp(Date now) {
+        long millis = now.getTime();
+        return Timestamp.newBuilder().setSeconds(millis / 1000)
+                .setNanos((int) ((millis % 1000) * 1000000)).build();
     }
 }

@@ -305,8 +305,12 @@ public class MongoDBJournalV2 implements JournalStorage {
             final ArrayList<Messages.EventWrapper> eventWrappers = new ArrayList<>();
             readall = loadEventsAndHandle(aggregateType + "_old", event -> {
                 log.info("upgrading event {}", event);
-                        final Messages.EventWrapper eventWrapper = event.upgradeToProto();
+                        Messages.EventWrapper eventWrapper = event.upgradeToProto();
                 if(eventWrapper != null && eventWrapper.getVersion() != -1) {
+                    if("BRUKER".equalsIgnoreCase(aggregateType)){
+                        //version is broken in bruker aggregate
+                        eventWrapper = eventWrapper.toBuilder().setVersion(-1).build();
+                    }
                     events.add(event);
                     eventWrappers.add(eventWrapper);
                 } else {
@@ -364,7 +368,13 @@ public class MongoDBJournalV2 implements JournalStorage {
                 if (!("" + document.get("jid")).equals(event.getJournalid())) {
                     log.error("Journalid in database dosen't match event db: {} event: {} : completeevent:{}", document.get("jid"), event.getJournalid(), event);
                 }
-                handleEvent.handleEvent(event);
+                Event upgradedEvent = event.upgrade();
+                while(!upgradedEvent.equals(upgradedEvent.upgrade())){
+                    upgradedEvent = upgradedEvent.upgrade();
+                }
+
+
+                handleEvent.handleEvent(upgradedEvent);
             } catch (Exception e) {
                 log.error("Failed to read serialized class" + document.toString(), e);
                 throw e;

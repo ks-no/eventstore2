@@ -14,6 +14,7 @@ public class ProtobufHelper {
     private static Map<String, Class> deserializeClasses = new HashMap<>();
 
     static Map<String, Parser<? extends Message>> deserializeMethods = new HashMap<>();
+    private static Map<Class<? extends Message>, String> classToType = new HashMap<>();
 
     private ProtobufHelper() {
     }
@@ -21,11 +22,17 @@ public class ProtobufHelper {
     public static void registerDeserializeMethod(Message message) {
         deserializeMethods.put(message.getDescriptorForType().getFullName(), message.getParserForType());
         deserializeClasses.put(message.getDescriptorForType().getFullName(), message.getClass());
+        classToType.put(message.getClass(), message.getDescriptorForType().getFullName());
     }
 
     public static void registerDeserializeMethod(Message message, String type) {
         deserializeMethods.put(type, message.getParserForType());
         deserializeClasses.put(type, message.getClass());
+        classToType.put(message.getClass(), type);
+    }
+
+    public static String getTypeForClass(Class<? extends Message> clazz){
+        return classToType.get(clazz);
     }
 
     public static <T extends Message> T deserializeByteArray(String type, byte[] message) {
@@ -50,7 +57,7 @@ public class ProtobufHelper {
                 .setAggregateRootId(aggregateRootId)
                 .setVersion(version)
                 .setOccurredOn(DateTime.now().getMillis())
-                .setProtoSerializationType(event.getDescriptorForType().getFullName())
+                .setProtoSerializationType(classToType.get(event.getClass()))
                 .setEvent(Any.pack(event)).build();
     }
 
@@ -60,7 +67,7 @@ public class ProtobufHelper {
                 .setAggregateRootId(aggregateRootId)
                 .setVersion(version)
                 .setOccurredOn(DateTime.now().getMillis())
-                .setProtoSerializationType(event.getDescriptorForType().getFullName())
+                .setProtoSerializationType(classToType.get(event.getClass()))
                 .setEvent(Any.pack(event))
                 .setCreatedByUser(createdByUser)
                 .build();
@@ -72,7 +79,7 @@ public class ProtobufHelper {
                 .setAggregateRootId(aggregateRootId)
                 .setVersion(version)
                 .setOccurredOn(occuredon.getMillis())
-                .setProtoSerializationType(event.getDescriptorForType().getFullName())
+                .setProtoSerializationType(classToType.get(event.getClass()))
                 .setEvent(Any.pack(event)).build();
     }
 
@@ -83,7 +90,7 @@ public class ProtobufHelper {
                 .setVersion(version)
                 .setOccurredOn(occuredon.getMillis())
                 .setJournalid(journalid)
-                .setProtoSerializationType(event.getDescriptorForType().getFullName())
+                .setProtoSerializationType(classToType.get(event.getClass()))
                 .setEvent(Any.pack(event)).build();
     }
 
@@ -93,7 +100,7 @@ public class ProtobufHelper {
                 .setAggregateRootId(aggregateRootId)
                 .setVersion(version)
                 .setOccurredOn(occuredon.getMillis())
-                .setProtoSerializationType(event.getDescriptorForType().getFullName())
+                .setProtoSerializationType(classToType.get(event.getClass()))
                 .setEvent(Any.pack(event))
                 .setCreatedByUser(createdByUser)
                 .build();
@@ -105,7 +112,7 @@ public class ProtobufHelper {
                 .setAggregateRootId(aggregateRootId)
                 .setVersion(-1)
                 .setOccurredOn(DateTime.now().getMillis())
-                .setProtoSerializationType(event.getDescriptorForType().getFullName())
+                .setProtoSerializationType(classToType.get(event.getClass()))
                 .setEvent(Any.pack(event)).build();
     }
 
@@ -115,7 +122,7 @@ public class ProtobufHelper {
                 .setAggregateRootId(aggregateRootId)
                 .setVersion(-1)
                 .setOccurredOn(DateTime.now().getMillis())
-                .setProtoSerializationType(event.getDescriptorForType().getFullName())
+                .setProtoSerializationType(classToType.get(event.getClass()))
                 .setEvent(Any.pack(event))
                 .setCorrelationId(correlationid)
                 .setCreatedByUser(createdByUser)
@@ -128,7 +135,7 @@ public class ProtobufHelper {
                 .setAggregateRootId(aggregateRootId)
                 .setVersion(-1)
                 .setOccurredOn(DateTime.now().getMillis())
-                .setProtoSerializationType(event.getDescriptorForType().getFullName())
+                .setProtoSerializationType(classToType.get(event.getClass()))
                 .setEvent(Any.pack(event))
                 .setCreatedByUser(createdByUser)
                 .build();

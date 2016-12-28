@@ -174,7 +174,18 @@ public class SagaManager extends UntypedActor {
                     .setAggregateType(aggregateType)
                     .setFromJournalId(latestJournalidReceived.get(aggregateType)).build();
             eventstore.tell(subscription, self());
-        } else if (o instanceof TakeBackup) {
+        } else if (o instanceof IncompleteSubscriptionPleaseSendNew) {
+            String aggregateType = ((Messages.IncompleteSubscriptionPleaseSendNew) o).getAggregateType();
+            log.debug("Sending new subscription on '{}' from latest journalid '{}'", aggregateType, latestJournalidReceived);
+            if (latestJournalidReceived.get(aggregateType) == null) {
+                throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
+            }
+            Messages.Subscription subscription = Messages.Subscription.newBuilder()
+                    .setAggregateType(aggregateType)
+                    .setFromJournalId(latestJournalidReceived.get(aggregateType)).build();
+            eventstore.tell(subscription, self());
+        }
+        else if (o instanceof TakeBackup) {
                 repository.doBackup(((TakeBackup) o).getBackupdir(), "backupSagaRepo" + format.format(new Date()));
         } else if (o instanceof AcknowledgePreviousEventsProcessed) {
                 sender().tell(new Success(), self());
@@ -189,6 +200,8 @@ public class SagaManager extends UntypedActor {
             log.info("Subscribing for eventstore restartmessages");
         } else if( o instanceof Messages.CompleteSubscriptionRegistered) {
             inSubscribe.remove(((Messages.CompleteSubscriptionRegistered) o).getAggregateType());
+        } else if( o instanceof CompleteSubscriptionRegistered) {
+            inSubscribe.remove(((CompleteSubscriptionRegistered) o).getAggregateType());
         } else if("shutdown".equals(o)){
             log.info("shutting down sagamanager");
             removeOldActorsWithWrongState();

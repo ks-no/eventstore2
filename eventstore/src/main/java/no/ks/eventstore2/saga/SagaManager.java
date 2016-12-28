@@ -175,7 +175,7 @@ public class SagaManager extends UntypedActor {
                     .setFromJournalId(latestJournalidReceived.get(aggregateType)).build();
             eventstore.tell(subscription, self());
         } else if (o instanceof IncompleteSubscriptionPleaseSendNew) {
-            String aggregateType = ((Messages.IncompleteSubscriptionPleaseSendNew) o).getAggregateType();
+            String aggregateType = ((IncompleteSubscriptionPleaseSendNew) o).getAggregateType();
             log.debug("Sending new subscription on '{}' from latest journalid '{}'", aggregateType, latestJournalidReceived);
             if (latestJournalidReceived.get(aggregateType) == null) {
                 throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");

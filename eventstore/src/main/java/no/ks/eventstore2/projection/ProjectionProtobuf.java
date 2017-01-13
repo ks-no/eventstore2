@@ -229,7 +229,12 @@ public class ProjectionProtobuf extends UntypedActor {
             if (o instanceof Messages.EventWrapper) {
                 latestJournalidReceived = ((Messages.EventWrapper) o).getJournalid();
                 currentMessage = (Messages.EventWrapper) o;
-                dispatchToCorrectEventHandler(ProtobufHelper.unPackAny(((Messages.EventWrapper) o).getProtoSerializationType(), ((Messages.EventWrapper) o).getEvent()));
+                try {
+                    dispatchToCorrectEventHandler(ProtobufHelper.unPackAny(((Messages.EventWrapper) o).getProtoSerializationType(), ((Messages.EventWrapper) o).getEvent()));
+                }catch(RuntimeException e){
+                    log.error("Failed to receive " + o, e);
+                    throw e;
+                }
             } else if (o instanceof NewEventstoreStarting) {
                 preStart();
             } else if (o instanceof Call && !subscribePhase) {

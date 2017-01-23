@@ -44,7 +44,7 @@ public class ProjectionManager extends UntypedActor {
 
     }
 
-    public static void restart(ActorRef projectionManager){
+    public static void restartManager(ActorRef projectionManager){
         projectionManager.tell("restart", ActorRef.noSender());
     }
 

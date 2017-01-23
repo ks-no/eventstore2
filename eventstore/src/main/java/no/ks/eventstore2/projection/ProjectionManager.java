@@ -44,6 +44,10 @@ public class ProjectionManager extends UntypedActor {
 
     }
 
+    public static void restart(ActorRef projectionManager){
+        projectionManager.tell("restart", ActorRef.noSender());
+    }
+
     @Override
     public void preStart() throws Exception {
         super.preStart();
@@ -76,7 +80,12 @@ public class ProjectionManager extends UntypedActor {
 
     @Override
     public void onReceive(Object o) throws Exception {
-        if (o instanceof ClusterEvent.ReachableMember) {
+        if ("restart".equals(o)) {
+            for (ActorRef actorRef : projections.values()) {
+                actorRef.tell("restart", self());
+                log.debug("Sending restart to actorref {}", actorRef);
+            }
+        } else if (o instanceof ClusterEvent.ReachableMember) {
             ClusterEvent.ReachableMember reachable = (ClusterEvent.ReachableMember) o;
             log.info("Member reachable: {}", reachable.member());
 

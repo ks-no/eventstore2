@@ -77,3 +77,14 @@ message RetreiveAggregateEventsAsync {
     string aggregateType = 3;
 }
 
+message GetSubscribers {
+}
+
+message Subscribers{
+    message Subscriber {
+        string actorRef = 1;
+        string aggregateType = 2;
+    }
+    repeated Subscriber subscribers = 1;
+}
+

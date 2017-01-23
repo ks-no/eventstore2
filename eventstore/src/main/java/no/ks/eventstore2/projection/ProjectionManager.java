@@ -108,6 +108,8 @@ public class ProjectionManager extends UntypedActor {
             inSubscribePhase.add(sender());
         } else if(SUBSCRIBE_FINISHED.equals(o)){
             inSubscribePhase.remove(sender());
+        } else if("getProjections".equals(o)){
+            sender().tell(projections, self());
         }
     }
 

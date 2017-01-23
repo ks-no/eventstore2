@@ -8,6 +8,7 @@ import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
 import akka.cluster.pubsub.DistributedPubSub;
 import akka.cluster.pubsub.DistributedPubSubMediator;
+import akka.serialization.Serialization;
 import com.google.common.collect.HashMultimap;
 import eventstore.Messages;
 import no.ks.eventstore2.Event;
@@ -85,7 +86,15 @@ public class EventstoreSingelton extends UntypedActor {
         if (o instanceof String && "fail".equals(o)) {
             throw new RuntimeException("Failing by force");
         }
-        if (o instanceof ClusterEvent.MemberRemoved) {
+        if (o instanceof Messages.GetSubscribers){
+            final Messages.Subscribers.Builder builder = Messages.Subscribers.newBuilder();
+            for (String aggregate : aggregateSubscribers.keySet()) {
+                for (ActorRef ref : aggregateSubscribers.get(aggregate)) {
+                    builder.addSubscribers(Messages.Subscribers.Subscriber.newBuilder().setActorRef(Serialization.serializedActorPath(ref)).setAggregateType(aggregate).build());
+                }
+            }
+            sender().tell(builder.build(), self());
+        } else if (o instanceof ClusterEvent.MemberRemoved) {
             ClusterEvent.MemberRemoved removed = (ClusterEvent.MemberRemoved) o;
             log.info("Member removed: {} status {}", removed.member(), removed.previousStatus());
             for (String aggregate : aggregateSubscribers.keySet()) {
@@ -173,8 +182,6 @@ public class EventstoreSingelton extends UntypedActor {
             aggregateSubscribers.remove(((Messages.RemoveSubscription) o).getAggregateType(), sender());
             log.info("Removed subscription for {} from ", o, sender());
             sender().tell(Messages.SubscriptionRemoved.newBuilder().setAggregateType(((Messages.RemoveSubscription) o).getAggregateType()).build(), self());
-        } else if(o instanceof ClusterEvent.ClusterMetricsChanged){
-
         } else {
             log.debug("Unhandled message {}", o);
         }

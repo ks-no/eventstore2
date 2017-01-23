@@ -167,6 +167,7 @@ public class EventStore extends UntypedActor {
                     o instanceof RemoveSubscription ||
                     o instanceof Messages.RemoveSubscription ||
                     o instanceof TakeSnapshot ||
+                    o instanceof Messages.GetSubscribers ||
                     o instanceof AcknowledgePreviousEventsProcessed
                         || o instanceof Messages.AcknowledgePreviousEventsProcessed){
                 if(!(o instanceof AcknowledgePreviousEventsProcessed

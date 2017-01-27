@@ -227,6 +227,9 @@ public class ProjectionProtobuf extends UntypedActor {
         }
         try {
             if (o instanceof Messages.EventWrapper) {
+                if(latestJournalidReceived+1 != ((Messages.EventWrapper) o).getJournalid()){
+                    log.info("Fikk feil latestJournalid forrige {} nå {}", latestJournalidReceived, ((Messages.EventWrapper) o).getJournalid());
+                }
                 latestJournalidReceived = ((Messages.EventWrapper) o).getJournalid();
                 currentMessage = (Messages.EventWrapper) o;
                 dispatchToCorrectEventHandler(ProtobufHelper.unPackAny(((Messages.EventWrapper) o).getProtoSerializationType(), ((Messages.EventWrapper) o).getEvent()));

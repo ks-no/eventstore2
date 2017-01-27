@@ -43,7 +43,7 @@ public class MongoDbEventstore2TestKit extends Eventstore2TestKit {
                 .build();
         runtime = MongodStarter.getInstance(runtimeConfig);
 
-        mongodConfig = new MongodConfigBuilder().version(Version.Main.V3_0).cmdOptions(new MongoCmdOptionsBuilder()
+        mongodConfig = new MongodConfigBuilder().version(Version.Main.V3_2).cmdOptions(new MongoCmdOptionsBuilder()
                 .useNoPrealloc(false)
                 .useSmallFiles(true)
                 .useNoJournal(false)

@@ -10,7 +10,7 @@ public interface JournalStorage {
 
     void saveEvent(Event event);
 
-    void saveEventsBatch(List<Messages.EventWrapper> events);
+    List<Messages.EventWrapper> saveEventsBatch(List<Messages.EventWrapper> events);
 
     /**
      * Load events
@@ -72,7 +72,7 @@ public interface JournalStorage {
 
     void saveEvents(List<? extends Event> events);
 
-    void saveEvent(Messages.EventWrapper eventWrapper);
+    Messages.EventWrapper saveEvent(Messages.EventWrapper eventWrapper);
 
     Future<Messages.EventWrapperBatch> loadEventWrappersForAggregateIdAsync(String aggregateType, String aggregateRootId, long fromJournalId);
 

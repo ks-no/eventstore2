@@ -30,7 +30,7 @@ public class H2JournalStorage extends AbstractJournalStorage {
     }
 
     @Override
-    public void saveEvent(Messages.EventWrapper eventWrapper) {
+    public Messages.EventWrapper saveEvent(Messages.EventWrapper eventWrapper) {
         throw new RuntimeException("NotImplemented");
     }
 
@@ -63,7 +63,7 @@ public class H2JournalStorage extends AbstractJournalStorage {
     }
 
     @Override
-    public void saveEventsBatch(List<Messages.EventWrapper> events) {
+    public List<Messages.EventWrapper> saveEventsBatch(List<Messages.EventWrapper> events) {
         throw new RuntimeException("NotImplemented");
     }
 

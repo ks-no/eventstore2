@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 
@@ -136,13 +137,13 @@ public class EventstoreSingelton extends UntypedActor {
             publishEvent((Event) o);
             log.info("Published event {}: {}", o, ((Event) o).getLogMessage());
         }else if (o instanceof Messages.EventWrapper) {
-            storeEvent((Messages.EventWrapper) o);
-            publishEvent((Messages.EventWrapper) o);
+            Messages.EventWrapper storedEvent = storeEvent((Messages.EventWrapper) o);
+            publishEvent(storedEvent);
             log.info("Published event {}", ProtobufHelper.toLog((Messages.EventWrapper) o));
 
         } else if (o instanceof Messages.EventWrapperBatch) {
-            storeEvents((Messages.EventWrapperBatch) o);
-            publishEvents((Messages.EventWrapperBatch) o);
+            Messages.EventWrapperBatch storedEvents = storeEvents((Messages.EventWrapperBatch) o);
+            publishEvents(storedEvents);
             if(((Messages.EventWrapperBatch) o).getEventsCount() > 50) {
                 log.info("Published {} events in aggregate {}", ((Messages.EventWrapperBatch) o).getEventsCount(), ((Messages.EventWrapperBatch) o).getAggregateType());
             } else {
@@ -313,8 +314,8 @@ public class EventstoreSingelton extends UntypedActor {
         log.info("Current subscribers " + aggregateSubscribers);
     }
 
-    private void storeEvent(Messages.EventWrapper eventWrapper) {
-        storage.saveEvent(eventWrapper);
+    private Messages.EventWrapper storeEvent(Messages.EventWrapper eventWrapper) {
+        return storage.saveEvent(eventWrapper);
     }
 
     public void storeEvent(final Event event) {
@@ -329,8 +330,9 @@ public class EventstoreSingelton extends UntypedActor {
         storage.saveEvents(o.getEvents());
     }
 
-    private void storeEvents(Messages.EventWrapperBatch eventWrapperBatch) {
-        storage.saveEventsBatch(eventWrapperBatch.getEventsList());
+    private Messages.EventWrapperBatch storeEvents(Messages.EventWrapperBatch eventWrapperBatch) {
+        final List<Messages.EventWrapper> eventWrappers = storage.saveEventsBatch(eventWrapperBatch.getEventsList());
+        return eventWrapperBatch.toBuilder().clearEvents().addAllEvents(eventWrappers).build();
     }
 
     private void sendEvent(Messages.EventWrapper eventWrapper, Set<ActorRef> subscribers) {

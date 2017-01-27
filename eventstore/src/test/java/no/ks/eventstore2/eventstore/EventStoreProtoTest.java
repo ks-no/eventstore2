@@ -4,6 +4,7 @@ import akka.actor.Actor;
 import akka.actor.ActorSystem;
 import akka.testkit.TestActorRef;
 import com.esotericsoftware.kryo.Kryo;
+import com.google.protobuf.Any;
 import com.mongodb.client.MongoDatabase;
 import com.typesafe.config.ConfigFactory;
 import events.test.Order.Order;
@@ -11,6 +12,7 @@ import eventstore.Messages;
 import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
 import no.ks.eventstore2.response.Success;
+import org.joda.time.DateTime;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -128,5 +130,35 @@ public class EventStoreProtoTest extends MongoDbEventstore2TestKit {
         eventstore.tell(ProtobufHelper.newEventWrapper("agg", "1", -1, Order.SearchRequest.newBuilder().build()),super.testActor());
         eventstore.tell(Messages.AcknowledgePreviousEventsProcessed.getDefaultInstance(),super.testActor());
         expectMsgClass(Messages.Success.class);
+    }
+
+    @Test
+    public void testSavingEventPublishedEventWithJournalid() throws Exception {
+        TestActorRef<Actor> actorTestActorRef = TestActorRef.create(_system, EventStore.mkProps(mongodbJournal));
+        actorTestActorRef.tell(Messages.LiveSubscription.newBuilder().setAggregateType("agg").build(),super.testActor());
+        expectMsgClass(Messages.CompleteSubscriptionRegistered.class);
+        Messages.EventWrapper agg = ProtobufHelper.newEventWrapper("agg", "1", -1, Order.SearchRequest.newBuilder().build());
+        actorTestActorRef.tell(agg, super.testActor());
+
+        expectMsg(ProtobufHelper.newEventWrapper("agg", "1", 0, 1, new DateTime(agg.getOccurredOn()), Order.SearchRequest.newBuilder().build()));
+        agg = ProtobufHelper.newEventWrapper("agg", "1", -1, Order.SearchRequest.newBuilder().build());
+        actorTestActorRef.tell(agg, super.testActor());
+        expectMsg(ProtobufHelper.newEventWrapper("agg", "1", 1, 2, new DateTime(agg.getOccurredOn()), Order.SearchRequest.newBuilder().build()));
+    }
+
+    @Test
+    public void testSavingEventsPublishedEventsWithJournalid() throws Exception {
+        TestActorRef<Actor> actorTestActorRef = TestActorRef.create(_system, EventStore.mkProps(mongodbJournal));
+        actorTestActorRef.tell(Messages.LiveSubscription.newBuilder().setAggregateType("agg").build(),super.testActor());
+        expectMsgClass(Messages.CompleteSubscriptionRegistered.class);
+
+        Messages.EventWrapper agg = ProtobufHelper.newEventWrapper("agg", "1", -1, Order.SearchRequest.newBuilder().build());
+        Messages.EventWrapper agg2 = ProtobufHelper.newEventWrapper("agg", "1", -1, Order.SearchRequest.newBuilder().build());
+        actorTestActorRef.tell(Messages.EventWrapperBatch.newBuilder().setAggregateType("agg").setAggregateRootId("1").addEvents(agg).addEvents(agg2).build(), super.testActor());
+
+        expectMsg(ProtobufHelper.newEventWrapper("agg", "1", 0, 1, new DateTime(agg.getOccurredOn()), Order.SearchRequest.newBuilder().build()));
+
+        actorTestActorRef.tell(agg, super.testActor());
+        expectMsg(ProtobufHelper.newEventWrapper("agg", "1", 1, 2, new DateTime(agg2.getOccurredOn()), Order.SearchRequest.newBuilder().build()));
     }
 }

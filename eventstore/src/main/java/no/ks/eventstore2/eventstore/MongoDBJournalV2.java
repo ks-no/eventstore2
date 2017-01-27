@@ -29,10 +29,7 @@ import scala.concurrent.Future;
 import scala.concurrent.Promise;
 
 import java.io.ByteArrayOutputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -134,7 +131,7 @@ public class MongoDBJournalV2 implements JournalStorage {
         MongoDbOperations.doDbOperation(() -> {collection.insertOne(getEventDBObject(event, journalid)); return null;}, 3, 500);
     }
 
-    public void saveEvent(Messages.EventWrapper eventWrapper) {
+    public Messages.EventWrapper saveEvent(Messages.EventWrapper eventWrapper) {
         if(!aggregates.contains(eventWrapper.getAggregateType())) throw new RuntimeException("Aggregate " + eventWrapper.getAggregateType() + " not registered");
         final MongoCollection<Document> collection = db.getCollection(eventWrapper.getAggregateType());
         final int journalid = getNextValueInSeq("journalidproto_" + eventWrapper.getAggregateType(), 1);
@@ -143,14 +140,15 @@ public class MongoDBJournalV2 implements JournalStorage {
         if(version  == -1){
             version = getNextLongVersion(collection, eventWrapper.getAggregateRootId());
         }
-        final long v = version;
-        MongoDbOperations.doDbOperation(() -> {collection.insertOne(getEventDBObject(eventWrapper, v, journalid)); return null;}, 3, 500);
+        final Messages.EventWrapper eventWrapperWithversionAndJournalid = eventWrapper.toBuilder().setVersion(version).setJournalid(journalid).build();
+        MongoDbOperations.doDbOperation(() -> {collection.insertOne(getEventDBObject(eventWrapperWithversionAndJournalid)); return null;}, 3, 500);
+        return eventWrapperWithversionAndJournalid;
     }
 
-    private Document getEventDBObject(Messages.EventWrapper eventWrapper, long version, long journalid) {
-        return new Document("jid", journalid)
+    private Document getEventDBObject(Messages.EventWrapper eventWrapper) {
+        return new Document("jid", eventWrapper.getJournalid())
                 .append("rid", eventWrapper.getAggregateRootId())
-                .append("v", version)
+                .append("v", eventWrapper.getVersion())
                 .append("correlationid", eventWrapper.getCorrelationId())
                 .append("occuredon", DateTime.now().getMillis())
                 .append("protoSerializationType", eventWrapper.getProtoSerializationType())
@@ -220,10 +218,11 @@ public class MongoDBJournalV2 implements JournalStorage {
     }
 
     @Override
-    public void saveEventsBatch(List<Messages.EventWrapper> events) {
+    public List<Messages.EventWrapper> saveEventsBatch(List<Messages.EventWrapper> events) {
         if (events == null || events.size() == 0) {
-            return;
+            return Collections.emptyList();
         }
+        List<Messages.EventWrapper> result = new ArrayList<>();
         String agg = events.get(0).getAggregateType();
         if(!aggregates.contains(agg)) throw new RuntimeException("Aggregate "+ agg + " not registered");
         final MongoCollection<Document> collection = db.getCollection(agg);
@@ -248,7 +247,9 @@ public class MongoDBJournalV2 implements JournalStorage {
             } else {
                 version = event.getVersion();
             }
-            dbObjectArrayList.add(getEventDBObject(event, version, event.getJournalid() == 0 ? jid: event.getJournalid()));
+            final Messages.EventWrapper eventWrapperWithversionAndJournalid = event.toBuilder().setVersion(version).setJournalid(event.getJournalid() == 0 ? jid: event.getJournalid()).build();
+            dbObjectArrayList.add(getEventDBObject(eventWrapperWithversionAndJournalid));
+            result.add(eventWrapperWithversionAndJournalid);
             jid++;
         }
 
@@ -257,6 +258,7 @@ public class MongoDBJournalV2 implements JournalStorage {
             collection.insertMany(dbObjectArrayList);
             return null;
         }, 0, 500);
+        return result;
     }
 
     private int getNextValueInSeq(final String counterName, final int numbers) {

@@ -29,7 +29,7 @@ public class MysqlJournalStorage extends AbstractJournalStorage {
     }
 
     @Override
-    public void saveEvent(Messages.EventWrapper eventWrapper) {
+    public Messages.EventWrapper saveEvent(Messages.EventWrapper eventWrapper) {
         throw new UnsupportedOperationException("Please implement save event on MysqlJournalStorage");
     }
 
@@ -59,7 +59,7 @@ public class MysqlJournalStorage extends AbstractJournalStorage {
     }
 
     @Override
-    public void saveEventsBatch(List<Messages.EventWrapper> events) {
+    public List<Messages.EventWrapper> saveEventsBatch(List<Messages.EventWrapper> events) {
         throw new UnsupportedOperationException("Please implement save event on MysqlJournalStorage");
     }
 

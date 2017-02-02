@@ -9,11 +9,15 @@ import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.gridfs.GridFSBucket;
 import com.mongodb.client.gridfs.GridFSBuckets;
 import com.mongodb.client.gridfs.model.GridFSFile;
+import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.UpdateOptions;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.bson.Document;
+import org.bson.conversions.Bson;
 
 import java.io.ByteArrayInputStream;
+import java.util.ArrayList;
+import java.util.UUID;
 
 public abstract class MongoDbProtobufProjection extends ProjectionProtobufSnapshot {
 
@@ -40,10 +44,9 @@ public abstract class MongoDbProtobufProjection extends ProjectionProtobufSnapsh
             try {
                 MongoCollection<Document> collection = mongodatabase.getCollection("snapshot");
                 if (latestJournalidReceived != 0) {
-                    collection.updateOne(new Document("_id", getId()), new Document("$set", new Document("jid", latestJournalidReceived).append("dataVersion", getSnapshotDataVersion()).append("projectionId", simpleName)), new UpdateOptions().upsert(true));
-
-                    saveDataToGridFS(data);
-
+                    final String fileid = UUID.randomUUID().toString();
+                    collection.updateOne(new Document("_id", getId()), new Document("$set", new Document("jid", latestJournalidReceived).append("dataVersion", getSnapshotDataVersion()).append("projectionId", simpleName).append("fileid", fileid)), new UpdateOptions().upsert(true));
+                    saveDataToGridFS(data, fileid);
                     log.info("{} Saved snapshot for event {}", simpleName, latestJournalidReceived);
                 }
             } catch (Exception e) {
@@ -74,7 +77,12 @@ public abstract class MongoDbProtobufProjection extends ProjectionProtobufSnapsh
             if (document != null)  {
                 Long latestJournalIdSnapshoted = document.getLong("jid");
 
-                Document fileQuery = new Document("filename", getId());
+                final String fileid = document.getString("fileid");
+                if(fileid == null) {
+                    log.error("Snapshot har ikke fileid");
+                    return;
+                }
+                Document fileQuery = new Document("filename", getId() + fileid);
                 GridFSFile file = gridFS.find(fileQuery).limit(1).first();
                 if (file != null) {
                     final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -95,8 +103,18 @@ public abstract class MongoDbProtobufProjection extends ProjectionProtobufSnapsh
         }
     }
 
-    protected void saveDataToGridFS(byte[] data) {
-        gridFS.uploadFromStream(getId(), new ByteArrayInputStream(data));
+    protected void saveDataToGridFS(byte[] data, String fileid) {
+        Bson fileQuery = Filters.regex("filename", getId() + ".*");
+        try {
+            final ArrayList<GridFSFile> es = new ArrayList<>();
+            gridFS.find(fileQuery).into(es);
+            for (GridFSFile e : es) {
+                gridFS.delete(e.getObjectId());
+            }
+        } catch (Exception e) {
+            log.error("failed to delete old gridfsfile", e);
+        }
+        gridFS.uploadFromStream(getId() + fileid, new ByteArrayInputStream(data));
     }
 
     private String getId() {

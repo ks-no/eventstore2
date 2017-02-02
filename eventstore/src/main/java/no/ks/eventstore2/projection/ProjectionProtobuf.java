@@ -223,7 +223,6 @@ public class ProjectionProtobuf extends UntypedActor {
             eventStore.tell(Messages.RemoveSubscription.newBuilder().setAggregateType(getSubscribe().getAggregateType()).build(),getSelf());
             startRemoveSubscriptionTimeout();
             getContext().become(restarting);
-
         }
         try {
             if (o instanceof Messages.EventWrapper) {
@@ -234,7 +233,7 @@ public class ProjectionProtobuf extends UntypedActor {
                 currentMessage = (Messages.EventWrapper) o;
                 dispatchToCorrectEventHandler(ProtobufHelper.unPackAny(((Messages.EventWrapper) o).getProtoSerializationType(), ((Messages.EventWrapper) o).getEvent()));
             } else if (o instanceof NewEventstoreStarting) {
-                self().tell("restart",self());
+                preStart();
             } else if (o instanceof Call && !subscribePhase) {
                 handleCall((Call) o);
             }else if (o instanceof RefreshSubscription){ //TODO

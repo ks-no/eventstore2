@@ -234,7 +234,7 @@ public class ProjectionProtobuf extends UntypedActor {
                 currentMessage = (Messages.EventWrapper) o;
                 dispatchToCorrectEventHandler(ProtobufHelper.unPackAny(((Messages.EventWrapper) o).getProtoSerializationType(), ((Messages.EventWrapper) o).getEvent()));
             } else if (o instanceof NewEventstoreStarting) {
-                preStart();
+                self().tell("restart",self());
             } else if (o instanceof Call && !subscribePhase) {
                 handleCall((Call) o);
             }else if (o instanceof RefreshSubscription){ //TODO

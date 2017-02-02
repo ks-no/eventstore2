@@ -57,6 +57,11 @@ public abstract class MongoDbProtobufProjection extends ProjectionProtobufSnapsh
     public void loadSnapshot() {
         log.info("{} loading snapshot for event {}", getClass().getSimpleName(), latestJournalidReceived);
 
+        if(latestJournalidReceived != 0){
+
+            log.error("Snapshot allerede lastet laster ikke på nytt.", new RuntimeException());
+            return;
+        }
 
         try {
             MongoCollection<Document> collection = mongodatabase.getCollection("snapshot");

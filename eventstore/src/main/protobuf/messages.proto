@@ -77,6 +77,12 @@ message RetreiveAggregateEventsAsync {
     string aggregateType = 3;
 }
 
+message RetreiveCorrelationIdEventsAsync {
+    string correlationId = 1;
+    int64 fromJournalId = 2;
+    string aggregateType = 3;
+}
+
 message GetSubscribers {
 }
 

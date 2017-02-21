@@ -458,6 +458,25 @@ public class MongoDBJournalV2 implements JournalStorage {
     }
 
     @Override
+    public Future<Messages.EventWrapperBatch> loadEventWrappersForCorrelationIdAsync(final String aggregateType, final String correlationId, final long fromJournalId) {
+        final Document query = new Document("correlationid", correlationId);
+        query.append("jid", new Document("$gt", fromJournalId));
+
+        final com.mongodb.async.client.FindIterable<Document> dbObjects = MongoDbOperations.doDbOperation(() -> dbasync.getCollection(aggregateType).find(query).sort(new Document("jid", 1)).limit(eventReadLimit));
+
+        final Promise<Messages.EventWrapperBatch> promise = Futures.promise();
+
+        dbObjects.map(document -> deSerialize(document,aggregateType))
+                .into(new ArrayList<>(), (SingleResultCallback<ArrayList>) (list, throwable) -> promise.success(Messages.EventWrapperBatch.newBuilder()
+                        .addAllEvents(list)
+                        .setAggregateType(aggregateType)
+                        .setReadAllEvents(list.size() != eventReadLimit)
+                        .build()));
+
+        return promise.future();
+    }
+
+    @Override
     public Messages.EventWrapperBatch loadEventWrappersForAggregateId(String aggregateType, String aggregateRootId, long fromJournalId) {
         final Document query = new Document("rid", aggregateRootId);
         query.append("jid", new Document("$gt", fromJournalId));

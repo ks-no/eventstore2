@@ -119,6 +119,25 @@ public class EventStore extends UntypedActor {
         );
     }
 
+    private void readAggregateEvents(Messages.RetreiveCorrelationIdEventsAsync retreiveAggregateEvents) {
+        final ActorRef sender = sender();
+        final ActorRef self = self();
+        final Future<Messages.EventWrapperBatch> future = storage.loadEventWrappersForCorrelationIdAsync(retreiveAggregateEvents.getAggregateType(), retreiveAggregateEvents.getCorrelationId(), retreiveAggregateEvents.getFromJournalId());
+        future.onSuccess(new OnSuccess<Messages.EventWrapperBatch>() {
+            @Override
+            public void onSuccess(Messages.EventWrapperBatch result) throws Throwable {
+                sender.tell(result, self);
+            }
+        }, getContext().dispatcher());
+        future.onFailure(new OnFailure() {
+                             @Override
+                             public void onFailure(Throwable failure) throws Throwable {
+                                 log.error("failed to read events from journalstorage {} ", retreiveAggregateEvents, failure);
+                             }
+                         }, getContext().dispatcher()
+        );
+    }
+
     public void onReceive(Object o) throws Exception {
         log.debug("Received message {}", o);
         try {
@@ -151,6 +170,8 @@ public class EventStore extends UntypedActor {
                 readAggregateEvents((RetrieveAggregateEventsAsync) o);
             } else if (o instanceof Messages.RetreiveAggregateEventsAsync) {
                 readAggregateEvents((Messages.RetreiveAggregateEventsAsync) o);
+            } else if (o instanceof Messages.RetreiveCorrelationIdEventsAsync) {
+                readAggregateEvents((Messages.RetreiveCorrelationIdEventsAsync) o);
             } else if (o instanceof String ||
                     o instanceof Subscription ||
                     o instanceof Messages.Subscription ||

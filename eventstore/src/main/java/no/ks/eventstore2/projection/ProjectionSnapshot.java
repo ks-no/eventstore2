@@ -12,7 +12,6 @@ public abstract class ProjectionSnapshot extends Projection {
     @Override
     public void preStart() {
         loadSnapshot();
-        subscribe();
         super.preStart();
     }
 

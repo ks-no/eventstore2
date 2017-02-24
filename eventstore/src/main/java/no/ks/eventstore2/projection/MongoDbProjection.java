@@ -2,25 +2,35 @@ package no.ks.eventstore2.projection;
 
 
 import akka.actor.ActorRef;
-import com.mongodb.*;
-import com.mongodb.gridfs.GridFS;
-import com.mongodb.gridfs.GridFSDBFile;
-import com.mongodb.gridfs.GridFSInputFile;
-import no.ks.eventstore2.store.MongoDbStore;
-import org.apache.commons.io.IOUtils;
+import com.mongodb.BasicDBObject;
+import com.mongodb.MongoClient;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.gridfs.GridFSBucket;
+import com.mongodb.client.gridfs.GridFSBuckets;
+import com.mongodb.client.gridfs.model.GridFSFile;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.UpdateOptions;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
+import java.util.UUID;
 
 public abstract class MongoDbProjection extends ProjectionSnapshot {
 
-    private MongoDbStore store;
-    private GridFS gridFS;
+    private final MongoDatabase mongodatabase;
+    private GridFSBucket gridFS;
 
     private static String nodename = System.getProperty("nodename") != null ? System.getProperty("nodename") : "local";
 
     public MongoDbProjection(ActorRef eventStore, MongoClient client) {
         super(eventStore);
-        this.store = new MongoDbStore(client, nodename + "_SnapshotRepository");
-        gridFS = new GridFS(store.getDb(), nodename + "_snapshot_data");
-        store.getCollection("snapshot").createIndex(new BasicDBObject("dataVersion", 1).append("projectionId", 1));
+        mongodatabase = client.getDatabase(nodename + "_SnapshotRepository");
+        gridFS = GridFSBuckets.create(mongodatabase, nodename + "_snapshot_data");
+        mongodatabase.getCollection("snapshot").createIndex(new BasicDBObject("dataVersion", 1).append("projectionId", 1));
     }
 
     @Override
@@ -30,26 +40,17 @@ public abstract class MongoDbProjection extends ProjectionSnapshot {
 
         final byte[] data = serializeData();
         log.info("{} serialized data, storing to db", simpleName);
-        context().dispatcher().execute(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    DBCollection collection = store.getCollection("snapshot");
-                    if (latestJournalidReceived != null) {
-                        DBObject update = new BasicDBObject("_id", getId())
-                                .append("jid", latestJournalidReceived)
-                                .append("dataVersion", getSnapshotDataVersion())
-                                .append("projectionId", simpleName);
-
-                        collection.save(update);
-
-                        saveDataToGridFS(data);
-
-                        log.info("{} Saved snapshot for event {}", simpleName, latestJournalidReceived);
-                    }
-                } catch (Exception e) {
-                    log.error("Failed to write snapshot", e);
+        context().dispatcher().execute(() -> {
+            try {
+                MongoCollection<Document> collection = mongodatabase.getCollection("snapshot");
+                if (latestJournalidReceived != null) {
+                    final String fileid = UUID.randomUUID().toString();
+                    collection.updateOne(new Document("_id", getId()), new Document("$set", new Document("jid", latestJournalidReceived).append("dataVersion", getSnapshotDataVersion()).append("projectionId", simpleName).append("fileid", fileid)), new UpdateOptions().upsert(true));
+                    saveDataToGridFS(data, fileid);
+                    log.info("{} Saved snapshot for event {}", simpleName, latestJournalidReceived);
                 }
+            } catch (Exception e) {
+                log.error("Failed to write snapshot", e);
             }
         });
     }
@@ -59,23 +60,34 @@ public abstract class MongoDbProjection extends ProjectionSnapshot {
     public void loadSnapshot() {
         log.info("{} loading snapshot for event {}", getClass().getSimpleName(), latestJournalidReceived);
 
-        DBCursor dbObjects = null;
+        if(latestJournalidReceived != null){
+
+            log.error("Snapshot allerede lastet laster ikke på nytt.", new RuntimeException());
+            return;
+        }
+
         try {
-            DBCollection collection = store.getCollection("snapshot");
-            BasicDBObject query = new BasicDBObject("projectionId", getClass().getSimpleName())
+            MongoCollection<Document> collection = mongodatabase.getCollection("snapshot");
+            Document query = new Document("projectionId", getClass().getSimpleName())
                     .append("dataVersion", getSnapshotDataVersion());
 
 
-            dbObjects = collection.find(query);
+            Document document = collection.find(query).limit(1).first();
 
-            if (dbObjects.hasNext()) {
-                DBObject next = dbObjects.next();
-                String latestJournalIdSnapshoted = (String)next.get("jid");
+            if (document != null)  {
+                String latestJournalIdSnapshoted = document.getString("jid");
 
-                BasicDBObject fileQuery = new BasicDBObject("_id", getId());
-                GridFSDBFile file = gridFS.findOne(fileQuery);
+                final String fileid = document.getString("fileid");
+                if(fileid == null) {
+                    log.error("Snapshot har ikke fileid");
+                    return;
+                }
+                Document fileQuery = new Document("filename", getId() + fileid);
+                GridFSFile file = gridFS.find(fileQuery).limit(1).first();
                 if (file != null) {
-                    deSerializeData(IOUtils.toByteArray(file.getInputStream()));
+                    final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                    gridFS.downloadToStream(file.getObjectId(), outputStream);
+                    deSerializeData(outputStream.toByteArray());
                 }
 
                 if (latestJournalIdSnapshoted != null) {
@@ -87,18 +99,22 @@ public abstract class MongoDbProjection extends ProjectionSnapshot {
             log.error("Failed to load snapshot for {}", getClass().getSimpleName(), e);
             latestJournalidReceived = null;
         } finally {
-            if (dbObjects != null) {
-                dbObjects.close();
-            }
+
         }
     }
 
-    protected void saveDataToGridFS(byte[] data) {
-        gridFS.remove(new BasicDBObject("_id", getId()));
-
-        GridFSInputFile file = gridFS.createFile(data);
-        file.setId(getId());
-        file.save();
+    protected void saveDataToGridFS(byte[] data, String fileid) {
+        Bson fileQuery = Filters.regex("filename", getId() + ".*");
+        try {
+            final ArrayList<GridFSFile> es = new ArrayList<>();
+            gridFS.find(fileQuery).into(es);
+            for (GridFSFile e : es) {
+                gridFS.delete(e.getObjectId());
+            }
+        } catch (Exception e) {
+            log.error("failed to delete old gridfsfile", e);
+        }
+        gridFS.uploadFromStream(getId() + fileid, new ByteArrayInputStream(data));
     }
 
     private String getId() {

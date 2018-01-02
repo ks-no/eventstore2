@@ -46,8 +46,8 @@ public class ProtobufHelper {
     public static <T extends Message> T unPackAny(String type, Any any) {
         try {
             return (T) any.unpack(deserializeClasses.get(type));
-        } catch (InvalidProtocolBufferException e) {
-            throw new RuntimeException();
+        } catch (Exception e) {
+            throw new RuntimeException("Klarte ikke å pakke opp type " + type + " any " + any,e);
         }
     }
 

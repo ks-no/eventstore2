@@ -20,7 +20,7 @@
 
         <akka.version>2.4.17</akka.version>
         <commons-io.version>2.4</commons-io.version>
-        <embed-mongo.version>1.50.5</embed-mongo.version>
+        <embed-mongo.version>2.0.1</embed-mongo.version>
         <guava.version>19.0</guava.version>
         <h2.version>1.4.191</h2.version>
         <joda-time.version>2.9.2</joda-time.version>
@@ -29,7 +29,7 @@
         <kryo-serializers.version>0.26</kryo-serializers.version>
         <leveldbjni.version>1.8</leveldbjni.version>
         <logback.version>1.1.6</logback.version>
-        <mongodb.version>3.6.0</mongodb.version>
+        <mongodb.version>3.6.1</mongodb.version>
         <slf4j.version>1.7.19</slf4j.version>
         <spring.version>4.2.5.RELEASE</spring.version>
         <zip4j.version>1.3.2</zip4j.version>

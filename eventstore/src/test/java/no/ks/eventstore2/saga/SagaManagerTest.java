@@ -5,6 +5,7 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
+import com.google.common.cache.LoadingCache;
 import com.typesafe.config.ConfigFactory;
 import events.test.Order.Order;
 import events.test.form.Form;
@@ -87,7 +88,7 @@ public class SagaManagerTest extends TestKit {
         final TestActorRef<SagaManager> ref = TestActorRef.create(_system, props, "sagaManager2");
         FormReceived formReceived = new FormReceived("2");
         ref.tell(formReceived, super.testActor());
-        ((HashMap <SagaCompositeId, ActorRef>)ReflectionTestUtils.getField(ref.underlyingActor(), "sagas")).get(new SagaCompositeId(FormProcess.class, "2")).tell("BOOM!", super.testActor());
+        ((LoadingCache<SagaCompositeId, ActorRef>)ReflectionTestUtils.getField(ref.underlyingActor(), "sagas")).invalidate(new SagaCompositeId(FormProcess.class, "2"));
         expectMsgClass(ParseForm.class);
         FormParsed formParsed = new FormParsed("2");
         ref.tell(formParsed, super.testActor());

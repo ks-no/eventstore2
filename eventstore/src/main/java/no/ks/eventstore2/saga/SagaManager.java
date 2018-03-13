@@ -8,6 +8,7 @@ import akka.cluster.singleton.ClusterSingletonManager;
 import akka.cluster.singleton.ClusterSingletonManagerSettings;
 import akka.cluster.singleton.ClusterSingletonProxy;
 import akka.cluster.singleton.ClusterSingletonProxySettings;
+import com.google.common.cache.*;
 import com.google.protobuf.Message;
 import eventstore.Messages;
 import no.ks.eventstore2.Event;
@@ -31,6 +32,7 @@ import java.beans.PropertyDescriptor;
 import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 public class SagaManager extends UntypedActor {
@@ -44,7 +46,7 @@ public class SagaManager extends UntypedActor {
 
     private SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
 
-    private Map<SagaCompositeId, ActorRef> sagas = new HashMap<SagaCompositeId, ActorRef>();
+    private LoadingCache<SagaCompositeId, ActorRef> sagas = null;
 
     private Map<String, Long> latestJournalidReceived = new HashMap<>();
     private Map<String, Boolean> inSubscribe = new HashMap<>();
@@ -53,6 +55,7 @@ public class SagaManager extends UntypedActor {
             Duration.create(1, TimeUnit.HOURS),
             Duration.create(2, TimeUnit.HOURS),
             getSelf(), new TakeSnapshot(), getContext().dispatcher(), null);
+    private ActorRef timeoutstore;
 
     public static Props mkProps(ActorSystem system, ActorRef commandDispatcher, SagaInMemoryRepository repository, ActorRef eventStore) {
         return mkProps(system, commandDispatcher, repository, eventStore, "no");
@@ -86,6 +89,19 @@ public class SagaManager extends UntypedActor {
     }
 
     public SagaManager(ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore, String packageScanPath) {
+        sagas = CacheBuilder.newBuilder().maximumSize(100000)
+                .removalListener((RemovalListener<SagaCompositeId, ActorRef>) removalNotification -> {
+                    log.debug("Removing actor {} because {}", removalNotification.getKey(), removalNotification.getCause());
+                    removalNotification.getValue().tell(PoisonPill.getInstance(), null);
+                }).build(new CacheLoader<SagaCompositeId, ActorRef>() {
+                    @Override
+                    public ActorRef load(SagaCompositeId k1) throws Exception {
+                        return getContext().actorOf(Props.create(k1.getClz(), k1.getId(), commandDispatcher, repository));
+                    }
+                });
+
+
+
         this.commandDispatcher = commandDispatcher;
         this.repository = repository;
         this.eventstore = eventstore;
@@ -94,6 +110,7 @@ public class SagaManager extends UntypedActor {
 
     @Override
     public void postStop() {
+        timeoutstore.tell(PoisonPill.getInstance(), self());
         snapshotSchedule.cancel();
         repository.close();
     }
@@ -112,6 +129,7 @@ public class SagaManager extends UntypedActor {
         }
         repository.open();
         subscribe();
+        timeoutstore = getContext().actorOf(TimeOutStore.mkProps(repository));
     }
 
     @Override
@@ -140,6 +158,12 @@ public class SagaManager extends UntypedActor {
                 ActorRef sagaRef = getOrCreateSaga(mapping.getSagaClass(), sagaId);
                 sagaRef.tell(event, self());
             }
+        } else if(o instanceof Messages.SendAwake){
+            timeoutstore.tell(Messages.ClearAwake.newBuilder().setSagaid(((Messages.SendAwake) o).getSagaid()).build(), self());
+            getOrCreateSaga((Class<? extends Saga>) Class.forName(((Messages.SendAwake) o).getSagaid().getClazz()), ((Messages.SendAwake) o).getSagaid().getId())
+                    .tell("awake",self());
+        } else if(o instanceof Messages.ClearAwake || o instanceof Messages.ScheduleAwake){
+            timeoutstore.tell(o,sender());
         } else if(o instanceof Messages.EventWrapper){
             latestJournalidReceived.put(((Messages.EventWrapper) o).getAggregateType(), ((Messages.EventWrapper) o).getJournalid());
             log.debug("SagaManager processing event {}", o);
@@ -208,12 +232,8 @@ public class SagaManager extends UntypedActor {
         }
     }
 
-    private ActorRef getOrCreateSaga(Class<? extends Saga> clz, String sagaId) {
+    private ActorRef getOrCreateSaga(Class<? extends Saga> clz, String sagaId) throws ExecutionException {
         SagaCompositeId compositeId = new SagaCompositeId(clz, sagaId);
-        if (!sagas.containsKey(compositeId)) {
-            ActorRef sagaRef = getContext().actorOf(Props.create(clz, sagaId, commandDispatcher, repository));
-            sagas.put(compositeId, sagaRef);
-        }
         return sagas.get(compositeId);
     }
 
@@ -387,10 +407,6 @@ public class SagaManager extends UntypedActor {
     }
 
     private void removeOldActorsWithWrongState() {
-        for (SagaCompositeId sagaCompositeId : sagas.keySet()) {
-            log.debug("Removing actor {}", sagas.get(sagaCompositeId).path());
-            sagas.get(sagaCompositeId).tell(PoisonPill.getInstance(), null);
-        }
-        sagas = new HashMap<SagaCompositeId, ActorRef>();
+        sagas.invalidateAll();
     }
 }

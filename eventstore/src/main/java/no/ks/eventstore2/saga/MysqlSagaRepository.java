@@ -1,6 +1,9 @@
 package no.ks.eventstore2.saga;
 
+import org.joda.time.DateTime;
+
 import javax.sql.DataSource;
+import java.util.List;
 
 public class MysqlSagaRepository extends SqlSagaRepository {
 
@@ -23,4 +26,18 @@ public class MysqlSagaRepository extends SqlSagaRepository {
 		return "select state from saga where id= ? and clazz = ?";
 	}
 
+	@Override
+	public void storeScheduleAwake(String sagaid, String sagaclass, DateTime when) {
+
+	}
+
+	@Override
+	public void clearAwake(String sagaid, String sagaclass) {
+
+	}
+
+	@Override
+	public List<SagaCompositeId> whoNeedsToWake() {
+		return null;
+	}
 }

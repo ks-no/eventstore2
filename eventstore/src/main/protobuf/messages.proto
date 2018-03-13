@@ -94,3 +94,20 @@ message Subscribers{
     repeated Subscriber subscribers = 1;
 }
 
+message SagaCompositeId{
+    string clazz = 1;
+    string id = 2;
+}
+
+message ScheduleAwake{
+    SagaCompositeId sagaid = 1;
+    google.protobuf.Timestamp awake = 2;
+}
+
+message SendAwake{
+    SagaCompositeId sagaid = 1;
+}
+
+message ClearAwake{
+    SagaCompositeId sagaid = 1;
+}

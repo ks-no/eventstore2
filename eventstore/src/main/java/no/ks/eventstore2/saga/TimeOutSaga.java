@@ -1,16 +1,15 @@
 package no.ks.eventstore2.saga;
 
 import akka.actor.ActorRef;
-import akka.actor.Cancellable;
+import eventstore.Messages;
+import no.ks.eventstore2.ProtobufHelper;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.duration.Duration;
 
 import java.util.concurrent.TimeUnit;
 
 public abstract class TimeOutSaga extends Saga {
-
-    private Cancellable cancellable;
 
     private final Logger log = LoggerFactory.getLogger(this.getClass());
 
@@ -34,18 +33,31 @@ public abstract class TimeOutSaga extends Saga {
         super.transitionState(state);
     }
 
-    private void clearAwake(){
-        if (cancellable != null){
-            cancellable.cancel();
-            log.debug("{} {} cleared awake", getSelf(), id);
-        }
+    private void clearAwake() {
+        getContext().parent().tell(Messages.ClearAwake.newBuilder().setSagaid(getSagaCompositeId()).build(), self());
+        log.debug("{} {} cleared awake", getSelf(), id);
     }
 
     protected abstract void awake();
 
     protected void scheduleAwake(int time, TimeUnit timeUnit) {
-        clearAwake();
-        log.debug("{} {} scheduling awake in {} {}",getSelf(), id, time, timeUnit);
-        cancellable = getContext().system().scheduler().scheduleOnce(Duration.create(time, timeUnit), self(), "awake", getContext().system().dispatcher(),self());
+        log.debug("{} {} scheduling awake in {} {}", getSelf(), id, time, timeUnit);
+        final DateTime now = DateTime.now();
+        if (TimeUnit.SECONDS.equals(timeUnit))
+            now.plusSeconds(time);
+        if (TimeUnit.MILLISECONDS.equals(timeUnit))
+            now.plusMillis(time);
+        if (TimeUnit.MINUTES.equals(timeUnit))
+            now.plusMinutes(time);
+        if (TimeUnit.HOURS.equals(timeUnit))
+            now.plusHours(time);
+        if (TimeUnit.DAYS.equals(timeUnit))
+            now.plusDays(time);
+        Messages.SagaCompositeId sagaid = getSagaCompositeId();
+        getContext().parent().tell(Messages.ScheduleAwake.newBuilder().setAwake(ProtobufHelper.toTimestamp(now)).setSagaid(sagaid).build(), self());
+    }
+
+    private Messages.SagaCompositeId getSagaCompositeId() {
+        return Messages.SagaCompositeId.newBuilder().setClazz(getClass().getName()).setId(id).build();
     }
 }

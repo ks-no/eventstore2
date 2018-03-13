@@ -30,4 +30,19 @@ public class SagaCompositeId {
             return result;
         }
 
+    public Class<?> getClz() {
+        return clz;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    @Override
+    public String toString() {
+        return "SagaCompositeId{" +
+                "clz=" + clz +
+                ", id='" + id + '\'' +
+                '}';
+    }
 }

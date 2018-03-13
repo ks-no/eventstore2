@@ -1,7 +1,10 @@
 package no.ks.eventstore2.saga;
 
 import com.mongodb.DB;
+import com.mongodb.client.MongoDatabase;
+import no.ks.eventstore2.formProcessorProject.FormProcess;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
+import org.joda.time.DateTime;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -10,12 +13,12 @@ import static junit.framework.Assert.assertEquals;
 public class SagaMongoDBRepositoryTest extends MongoDbEventstore2TestKit {
 
     private SagaMongoDBRepository repo;
-    private DB db;
+    private MongoDatabase db;
 
     @Before
     public void setUp() throws Exception {
         super.setUp();
-        db = mongoClient.getDB("SagaStore");
+        db = mongoClient.getDatabase("SagaStore");
         repo = new SagaMongoDBRepository(db);
     }
 
@@ -27,7 +30,7 @@ public class SagaMongoDBRepositoryTest extends MongoDbEventstore2TestKit {
 
     @Test
     public void testStateUpdateGenerateOneDocument() throws Exception {
-        db = mongoClient.getDB("SagaStore2");
+        db = mongoClient.getDatabase("SagaStore2");
         repo = new SagaMongoDBRepository(db);
         repo.saveState("FormProcess", "id5", (byte) 45);
         repo.saveState("FormProcess", "id5", (byte) 45);
@@ -51,5 +54,13 @@ public class SagaMongoDBRepositoryTest extends MongoDbEventstore2TestKit {
     public void testSaveLatestJournalId() throws Exception {
         repo.saveLatestJournalId("agg",1l);
         assertEquals(1, repo.loadLatestJournalID("agg"));
+    }
+
+    @Test
+    public void saveAwake() {
+        repo.storeScheduleAwake("id", FormProcess.class.getName(), DateTime.now().minusMinutes(1));
+        assertEquals(1,repo.whoNeedsToWake().size());
+        repo.clearAwake("id",  FormProcess.class.getName());
+        assertEquals(0,repo.whoNeedsToWake().size());
     }
 }

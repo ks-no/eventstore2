@@ -3,6 +3,7 @@ package no.ks.eventstore2.saga;
 import akka.actor.ActorRef;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.formProcessorProject.FormParsed;
+import no.ks.eventstore2.formProcessorProject.FormReceived;
 import no.ks.eventstore2.projection.Subscriber;
 
 import java.util.concurrent.TimeUnit;
@@ -18,6 +19,11 @@ public class SagaTimerUt extends TimeOutSaga{
     @Handler
     public void handleEvent(FormParsed event){
         scheduleAwake(0, TimeUnit.SECONDS);
+    }
+
+    @Handler
+    public void handleEvent(FormReceived event){
+        scheduleAwake(120, TimeUnit.SECONDS);
     }
 
     @Override

@@ -42,18 +42,23 @@ public abstract class TimeOutSaga extends Saga {
 
     protected void scheduleAwake(int time, TimeUnit timeUnit) {
         log.debug("{} {} scheduling awake in {} {}", getSelf(), id, time, timeUnit);
-        final DateTime now = DateTime.now();
-        if (TimeUnit.SECONDS.equals(timeUnit))
-            now.plusSeconds(time);
-        if (TimeUnit.MILLISECONDS.equals(timeUnit))
-            now.plusMillis(time);
-        if (TimeUnit.MINUTES.equals(timeUnit))
-            now.plusMinutes(time);
-        if (TimeUnit.HOURS.equals(timeUnit))
-            now.plusHours(time);
-        if (TimeUnit.DAYS.equals(timeUnit))
-            now.plusDays(time);
+        DateTime now = DateTime.now();
+        if (TimeUnit.SECONDS.equals(timeUnit)) {
+            now = now.plusSeconds(time);
+        } else if (TimeUnit.MILLISECONDS.equals(timeUnit)) {
+            now = now.plusMillis(time);
+        } else if (TimeUnit.MINUTES.equals(timeUnit)) {
+            now = now.plusMinutes(time);
+        } else if (TimeUnit.HOURS.equals(timeUnit)) {
+            now = now.plusHours(time);
+        } else if (TimeUnit.DAYS.equals(timeUnit)) {
+            now = now.plusDays(time);
+        } else {
+            log.error("No valid DateTime units for " + timeUnit);
+            return;
+        }
         Messages.SagaCompositeId sagaid = getSagaCompositeId();
+        log.debug("Sending awake for " + now.toString());
         getContext().parent().tell(Messages.ScheduleAwake.newBuilder().setAwake(ProtobufHelper.toTimestamp(now)).setSagaid(sagaid).build(), self());
     }
 

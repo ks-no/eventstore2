@@ -63,4 +63,12 @@ public class SagaMongoDBRepositoryTest extends MongoDbEventstore2TestKit {
         repo.clearAwake("id",  FormProcess.class.getName());
         assertEquals(0,repo.whoNeedsToWake().size());
     }
+
+    @Test
+    public void awakeInFutureDosentTrigger() {
+        repo.storeScheduleAwake("id", FormProcess.class.getName(), DateTime.now().plusMinutes(5));
+        assertEquals(0,repo.whoNeedsToWake().size());
+        repo.clearAwake("id",  FormProcess.class.getName());
+        assertEquals(0,repo.whoNeedsToWake().size());
+    }
 }

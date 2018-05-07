@@ -39,4 +39,9 @@ public class FutureCallProjection extends Projection {
             }
         }, ec);
     }
+
+    public int getInt(final int test){
+        return test;
+    }
 }
+

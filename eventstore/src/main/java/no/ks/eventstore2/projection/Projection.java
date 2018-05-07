@@ -18,6 +18,7 @@ import no.ks.eventstore2.reflection.HandlerFinder;
 import no.ks.eventstore2.response.NoResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.ClassUtils;
 import scala.Option;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
@@ -232,7 +233,7 @@ public abstract class Projection extends UntypedActor {
         if (callName.equals(candidateMethod.getName()) && (methodParams.length == callParams.length)) {
             boolean assignable = true;
             for (int i = 0; i < callParams.length; i++) {
-                if (!methodParams[i].isAssignableFrom(callParams[i])) {
+                if (!ClassUtils.isAssignable(methodParams[i], callParams[i])) {
                     assignable = false;
                 }
             }

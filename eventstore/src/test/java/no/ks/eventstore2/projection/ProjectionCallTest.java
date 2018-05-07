@@ -145,4 +145,15 @@ public class ProjectionCallTest extends TestKit {
         assertEquals(RuntimeException.class, ((Failure)result).exception().getClass());
 
     }
+
+    @Test
+    public void checkIntIntegerMethodCall() throws Exception {
+        final Integer value = new Integer(10);
+        TestActorRef<Actor> projection = TestActorRef.create(_system, Props.create(FutureCallProjection.class, super.testActor()));
+        expectMsgClass(Subscription.class);
+        projection.tell(new CompleteSubscriptionRegistered("agg"), ActorRef.noSender());
+        final Future<Object> getString = ask(projection, call("getInt", value), 3000);
+        final Object result = Await.result(getString, Duration.create(3, TimeUnit.SECONDS));
+        assertEquals(10, result);
+    }
 }

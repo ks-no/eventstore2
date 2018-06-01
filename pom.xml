@@ -51,5 +51,44 @@
         </snapshotRepository>
     </distributionManagement>
 
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.0.0-M1</version>
+                <executions>
+                    <execution>
+                        <id>default-cli</id>
+                        <configuration>
+                            <rules>
+                                <requireReleaseVersion/>
+                                <requireReproducibleBuilds
+                                        implementation="org.scijava.maven.plugin.enforcer.RequireReproducibleBuilds">
 
+                                </requireReproducibleBuilds>
+                            </rules>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>validate-snap</id>
+                        <configuration>
+                            <rules>
+                                <requireSnapshotVersion>
+                                    <failWhenParentIsRelease>false</failWhenParentIsRelease>
+                                </requireSnapshotVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.scijava</groupId>
+                        <artifactId>scijava-maven-plugin</artifactId>
+                        <version>1.0.0</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+        </plugins>
+    </build>
 </project>

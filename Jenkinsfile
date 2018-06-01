@@ -1,1 +1,3 @@
-libPipeline("develop")
+libPipeline(
+        branch: "develop"
+)

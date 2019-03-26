@@ -5,6 +5,7 @@ import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
 import events.test.Order.Order;
 import events.test.form.Form;
+import no.ks.events.svarut.Order.EventstoreOrder;
 import org.junit.Before;
 
 public class Eventstore2TestKit extends TestKit{
@@ -21,6 +22,8 @@ public class Eventstore2TestKit extends TestKit{
 	public void setUp() throws Exception {
 		ProtobufHelper.registerDeserializeMethod(Order.SearchRequest.getDefaultInstance());
 		ProtobufHelper.registerDeserializeMethod(Order.SearchResult.getDefaultInstance());
+		ProtobufHelper.registerDeserializeMethod(EventstoreOrder.SearchRequest.getDefaultInstance());
+		ProtobufHelper.registerDeserializeMethod(EventstoreOrder.SearchResult.getDefaultInstance());
 		ProtobufHelper.registerDeserializeMethod(Form.FormReceived.getDefaultInstance());
 	}
 }

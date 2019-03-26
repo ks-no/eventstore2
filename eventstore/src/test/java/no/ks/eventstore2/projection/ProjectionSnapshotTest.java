@@ -8,21 +8,25 @@ import akka.testkit.TestActorRef;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import com.esotericsoftware.kryo.serializers.MapSerializer;
+import com.esotericsoftware.kryo.serializers.CollectionSerializer;
+import com.google.protobuf.Message;
 import com.mongodb.MongoClient;
-import no.ks.eventstore2.Event;
+import no.ks.events.svarut.Order.EventstoreOrder;
 import no.ks.eventstore2.Handler;
+import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.TakeSnapshot;
-import no.ks.eventstore2.eventstore.Subscription;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static no.ks.eventstore2.projection.CallProjection.call;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.core.Is.is;
+import static org.hamcrest.core.IsCollectionContaining.hasItem;
+import static org.hamcrest.core.IsNot.not;
+import static org.junit.Assert.*;
 
 public class ProjectionSnapshotTest extends MongoDbEventstore2TestKit {
 
@@ -30,50 +34,74 @@ public class ProjectionSnapshotTest extends MongoDbEventstore2TestKit {
 
 
     @Test
-    public void test_that_a_projection_can_save_and_load_snapshot() throws Exception {
-
-        TestActorRef<Actor> testActor = TestActorRef.create(_system, Props.create(TestProjection.class, super.testActor(), mongoClient), UUID.randomUUID().toString());
-        expectMsgClass(Subscription.class);
-        testActor.tell(new TestEvent(), super.testActor());
-        testActor.tell(new TakeSnapshot(), super.testActor());
+    public void test_that_a_projection_can_save_and_load_snapshot() {
+        Message event1 = saveEvent();
+        TestActorRef<Actor> testActor = TestActorRef.create(_system, Props.create(TestProjection.class, eventstoreConnection, mongoClient), UUID.randomUUID().toString());
+        testActor.tell(call("assertSearchRequest", event1), super.testActor());
+        expectMsg("SEARCH_REQUEST_OK");
 
         TestProjection testProjection = (TestProjection) testActor.underlyingActor();
+        int count = testProjection.handledRequestEvents.size();
 
-        assertTrue(testProjection.testEventRecieved);
-        assertTrue(testProjection.data.size() == 1);
+        testActor.tell(new TakeSnapshot(), testActor);
+        Message event2 = saveEvent();
 
-        TestActorRef<Actor> testActorReader = TestActorRef.create(_system, Props.create(TestProjection.class, super.testActor(), mongoClient), UUID.randomUUID().toString());
-        expectMsg(new Subscription("TestAggregate","000000001"));
+        TestActorRef<Actor> testActorReader = TestActorRef.create(_system, Props.create(TestProjection.class, eventstoreConnection, mongoClient), UUID.randomUUID().toString());
+        testActorReader.tell(call("assertSearchRequest", event2), super.testActor());
+        expectMsg("SEARCH_REQUEST_OK");
 
         TestProjection testProjectionRead = (TestProjection) testActorReader.underlyingActor();
-        assertTrue(testProjectionRead.data.size() == 1);
+        assertThat(testProjectionRead.snapshotData.size(), is(count));
+        assertThat(testProjectionRead.snapshotData, hasItem(equalTo(event1)));
+        assertThat(testProjectionRead.snapshotData, not(hasItem(equalTo(event2))));
+        assertThat(testProjectionRead.handledRequestEvents.size(), is(1));
+        assertThat(testProjectionRead.handledRequestEvents, not(hasItem(equalTo(event1))));
+        assertThat(testProjectionRead.handledRequestEvents, hasItem(equalTo(event2)));
+    }
 
-        Event event = testProjection.data.get("1");
-        assertEquals("TestAggregate", event.getAggregateType());
-        assertEquals("000000001", event.getJournalid());
+    private Message saveEvent() {
+        EventstoreOrder.SearchRequest request = EventstoreOrder.SearchRequest.newBuilder()
+                .setQuery(UUID.randomUUID().toString())
+                .setPageNumber(ThreadLocalRandom.current().nextInt(100) + 1)
+                .setResultPerPage(ThreadLocalRandom.current().nextInt(100) + 1)
+                .build();
+        journal.saveEvent(ProtobufHelper.newEventWrapper("order", UUID.randomUUID().toString(), request));
+        return request;
     }
 
 
-
-    @Subscriber("TestAggregate")
+    @Subscriber("Order")
     private static class TestProjection extends MongoDbProjection {
 
-        public boolean testEventRecieved = false;
-        private Map<String, Event> data = new HashMap<String, Event>();
+        private List<EventstoreOrder.SearchRequest> handledRequestEvents = new ArrayList<>();
+        private List<EventstoreOrder.SearchRequest> snapshotData = new ArrayList<>();
 
-        public TestProjection(ActorRef eventStore, MongoClient client) throws Exception {
-            super(eventStore, client);
-            MapSerializer serializer = new MapSerializer();
-            kryo.register(HashMap.class, serializer);
-            kryo.register(HashMap.class, 10);
-            kryo.register(TestEvent.class, 20);
+        public TestProjection(ActorRef eventstoreConnection, MongoClient client) throws Exception {
+            super(eventstoreConnection, client);
+            CollectionSerializer serializer = new CollectionSerializer();
+            kryo.register(ArrayList.class, serializer);
+            kryo.register(ArrayList.class, 10);
+            kryo.register(EventstoreOrder.SearchRequest.class, 20);
+        }
+
+        public String assertSearchRequest(EventstoreOrder.SearchRequest expectedEvent) {
+            long matches = handledRequestEvents.stream().filter(e ->
+                    e.getQuery().equals(expectedEvent.getQuery())
+                            && e.getPageNumber() == expectedEvent.getPageNumber()
+                            && e.getResultPerPage() == expectedEvent.getResultPerPage()
+            ).count();
+
+            if (matches == 1) {
+                return "SEARCH_REQUEST_OK";
+            }
+            return "SEARCH_REQUEST_FAILURE";
         }
 
         @Override
         protected byte[] serializeData() {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             Output output = new Output(outputStream);
-            kryo.writeClassAndObject(output, data);
+            kryo.writeClassAndObject(output, handledRequestEvents);
             output.close();
             return outputStream.toByteArray();
         }
@@ -86,36 +114,13 @@ public class ProjectionSnapshotTest extends MongoDbEventstore2TestKit {
         @Override
         protected void deSerializeData(byte[] bytes) {
             Input input = new Input(bytes);
-            data = (Map<String, Event>) kryo.readClassAndObject(input);
+            snapshotData = (List<EventstoreOrder.SearchRequest>) kryo.readClassAndObject(input);
         }
 
         @Handler
-        public void handleEvent(TestEvent event){
-            testEventRecieved = true;
-            data.put("1",event);
+        public void handleEvent(EventstoreOrder.SearchRequest event) {
+            handledRequestEvents.add(event);
         }
 
-    }
-    private static class TestEvent extends Event {
-		private static final long serialVersionUID = 1L;
-
-		TestEvent() {
-            setJournalid("000000001");
-        }
-
-        @Override
-        public String getLogMessage() {
-            return null;
-        }
-
-        @Override
-        public String getAggregateRootId() {
-            return null;
-        }
-        
-        @Override
-    	public String getAggregateType() {
-    		return "TestAggregate";
-    	}
     }
 }

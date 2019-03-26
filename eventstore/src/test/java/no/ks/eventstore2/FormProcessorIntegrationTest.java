@@ -14,9 +14,13 @@ import no.ks.eventstore2.saga.SagaManager;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import scala.concurrent.Await;
+import scala.concurrent.duration.Duration;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class FormProcessorIntegrationTest extends MongoDbEventstore2TestKit {
 
@@ -40,8 +44,8 @@ public class FormProcessorIntegrationTest extends MongoDbEventstore2TestKit {
     }
 
     @AfterClass
-    public static void teardown() {
-        system.shutdown();
+    public static void teardown() throws TimeoutException, InterruptedException {
+        Await.ready(system.terminate(), Duration.create(30, TimeUnit.SECONDS));
     }
 
     @Test

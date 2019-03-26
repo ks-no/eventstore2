@@ -2,7 +2,7 @@ package no.ks.eventstore2.formProcessorProject;
 
 import akka.actor.ActorRef;
 import no.ks.eventstore2.projection.ListensTo;
-import no.ks.eventstore2.projection.Projection;
+import no.ks.eventstore2.projection.ProjectionOld;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 @ListensTo(value = {FormReceived.class, FormParsed.class, FormDelivered.class}, aggregates = "FORM")
-public class FormStatuses extends Projection {
+public class FormStatuses extends ProjectionOld {
 
     Map<String, FormStatus> statuses = new LinkedHashMap<String, FormStatus>();
 

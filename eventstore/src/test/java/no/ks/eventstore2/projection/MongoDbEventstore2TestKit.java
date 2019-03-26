@@ -21,7 +21,7 @@ import org.junit.BeforeClass;
 
 import java.util.function.Consumer;
 
-public class MongoDbEventstore2TestKit extends Eventstore2TestKit {
+public class MongoDbEventstore2TestKit extends EventstoreEventstore2TestKit {
 
     protected MongoClient mongoClient;
     private static MongodExecutable mongodExecutable = null;

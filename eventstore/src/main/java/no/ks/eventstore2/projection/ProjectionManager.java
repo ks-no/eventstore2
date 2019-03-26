@@ -38,7 +38,7 @@ public class ProjectionManager extends UntypedActor {
 
         for (Props prop : props) {
             ActorRef projectionRef = getContext().actorOf(prop, prop.actorClass().getSimpleName());
-            projections.put((Class<? extends Projection>) prop.actorClass(), projectionRef);
+            projections.put((Class<? extends ProjectionOld>) prop.actorClass(), projectionRef);
             inSubscribePhase.add(projectionRef);
         }
 

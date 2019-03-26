@@ -31,7 +31,7 @@ public class ProjectionSubscriptionTest extends MongoDbEventstore2TestKit{
 
 
     @Subscriber("TestAggregate")
-    private static class TestProjection extends Projection {
+    private static class TestProjection extends ProjectionOld {
 
         public boolean testEventRecieved = false;
         private Map<String, Event> data = new HashMap<String, Event>();

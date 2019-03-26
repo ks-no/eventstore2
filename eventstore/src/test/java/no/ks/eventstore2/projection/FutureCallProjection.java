@@ -9,7 +9,7 @@ import java.util.concurrent.Callable;
 
 import static akka.dispatch.Futures.future;
 
-public class FutureCallProjection extends Projection {
+public class FutureCallProjection extends ProjectionOld {
 
     public FutureCallProjection(ActorRef eventStore) {
         super(eventStore);

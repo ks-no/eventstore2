@@ -5,7 +5,7 @@ import no.ks.eventstore2.Event;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.eventstore.Subscription;
 
-public class FailingProjection extends Projection {
+public class FailingProjection extends ProjectionOld {
 
     boolean failed = false;
 

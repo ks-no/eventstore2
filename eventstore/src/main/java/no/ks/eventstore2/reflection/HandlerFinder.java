@@ -4,6 +4,7 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
+import eventstore.EventRecord;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.SubscriberConfigurationException;
@@ -16,6 +17,17 @@ public class HandlerFinder {
     private HandlerFinder() {}
 
     public static Method findHandlingMethod(Map<Class<? extends Event>, Method> handlers, Event event) {
+        Method method = null;
+
+        Class<?> theclass = event.getClass();
+        while (method == null && theclass != Object.class){
+            method = handlers.get(theclass);
+            theclass = theclass.getSuperclass();
+        }
+        return method;
+    }
+
+    public static Method findHandlingMethod(Map<Class<? extends Event>, Method> handlers, EventRecord event) {
         Method method = null;
 
         Class<?> theclass = event.getClass();

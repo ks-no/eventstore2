@@ -3,7 +3,7 @@ package no.ks.eventstore2.testapplication;
 import akka.actor.ActorRef;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.ask.Asker;
-import no.ks.eventstore2.projection.Projection;
+import no.ks.eventstore2.projection.ProjectionOld;
 import no.ks.eventstore2.projection.Subscriber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Subscriber(AggregateType.TEST_AGGREGATE)
-public class TestProjection extends Projection {
+public class TestProjection extends ProjectionOld {
 
     private static Logger log = LoggerFactory.getLogger(TestProjection.class);
 

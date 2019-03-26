@@ -26,9 +26,9 @@ public abstract class MongoDbProjection extends ProjectionSnapshot {
 
     private static String nodename = System.getProperty("nodename") != null ? System.getProperty("nodename") : "local";
 
-    public MongoDbProjection(ActorRef eventStore, MongoClient client) {
-        super(eventStore);
-        mongodatabase = client.getDatabase(nodename + "_SnapshotRepository");
+    public MongoDbProjection(ActorRef eventstoreConnection, MongoClient mongoClient) {
+        super(eventstoreConnection);
+        mongodatabase = mongoClient.getDatabase(nodename + "_SnapshotRepository");
         gridFS = GridFSBuckets.create(mongodatabase, nodename + "_snapshot_data");
         mongodatabase.getCollection("snapshot").createIndex(new BasicDBObject("dataVersion", 1).append("projectionId", 1));
     }
@@ -75,7 +75,7 @@ public abstract class MongoDbProjection extends ProjectionSnapshot {
             Document document = collection.find(query).limit(1).first();
 
             if (document != null)  {
-                String latestJournalIdSnapshoted = document.getString("jid");
+                Long latestJournalIdSnapshoted = document.getLong("jid");
 
                 final String fileid = document.getString("fileid");
                 if(fileid == null) {

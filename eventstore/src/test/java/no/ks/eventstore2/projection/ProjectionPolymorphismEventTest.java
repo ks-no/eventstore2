@@ -45,7 +45,7 @@ public class ProjectionPolymorphismEventTest extends Eventstore2TestKit {
     }
 
     @Subscriber("TestAggregate")
-    private static class TestProjection extends Projection {
+    private static class TestProjection extends ProjectionOld {
 
 
         public boolean testEventRecieved = false;

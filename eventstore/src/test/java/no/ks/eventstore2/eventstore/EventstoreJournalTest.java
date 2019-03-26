@@ -7,6 +7,7 @@ import events.Aggevents.Agg;
 import events.test.Order.Order;
 import events.test.form.Form;
 import eventstore.Messages;
+import no.ks.eventstore2.Eventstore2TestKit;
 import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.events.OldEventShouldBeUpgradedToOrderSearchResult;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
@@ -25,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.*;
 
-public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
+public class EventstoreJournalTest extends Eventstore2TestKit {
 
 
     private KryoClassRegistration kryoClassRegistration = new KryoClassRegistration() {
@@ -36,7 +37,7 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
             kryo.register(OldEventShouldBeUpgradedToOrderSearchResult.class, 1002);
         }
     };
-    private MongoDBJournalV2 journal;
+    private EventstoreJournalStorage journal;
 
 
     @Before
@@ -46,24 +47,18 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
         ProtobufHelper.registerDeserializeMethod(Agg.Aggevent.getDefaultInstance());
         ProtobufHelper.registerDeserializeMethod(Order.SearchRequest.getDefaultInstance());
         ProtobufHelper.registerDeserializeMethod(Form.FormReceived.getDefaultInstance());
-        MongoDatabase db = mongoClient.getDatabase("Journal");
-        journal = new MongoDBJournalV2(db, kryoClassRegistration, Arrays.asList(new String[]{"agg1", "agg3", "agg2", "ORDER"}), 10, null);
-    }
-
-    @Override
-    @After
-    public void tearDown() throws Exception {
-        super.tearDown();
-
+        journal = new EventstoreJournalStorage(_system);
+        journal.open();
     }
 
     @Test
     public void testSaveAndRetrieveEvent() throws Exception {
         final Order.SearchRequest searchRequest = Order.SearchRequest.newBuilder().setQuery("Select all requests").setPageNumber(5).build();
-        Messages.EventWrapper eventWrapper = ProtobufHelper.newEventWrapper("agg1", UUID.randomUUID().toString(), searchRequest);
+        Messages.EventWrapper eventWrapper = ProtobufHelper.newEventWrapper("order", UUID.randomUUID().toString(), searchRequest);
+//        Messages.EventWrapper eventWrapper = ProtobufHelper.newEventWrapper(UUID.randomUUID().toString(), searchRequest);
         journal.saveEvent(eventWrapper);
         final List<Messages.EventWrapper> events = new ArrayList<>();
-        journal.loadEventsAndHandle("agg1", new HandleEventMetadata() {
+        journal.loadEventsAndHandle("events.test.Order", new HandleEventMetadata() {
             @Override
             public void handleEvent(Messages.EventWrapper event) {
                 events.add(event);
@@ -105,42 +100,42 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
         assertEquals(2, batch2.getEventsCount());
     }
 
-    @Test
-    public void testSaveAndReceiveEventsFromKey() throws Exception {
-        journal.saveEvent(ProtobufHelper.newEventWrapper("agg3", "1", 0, Order.SearchRequest.newBuilder().build()));
-        journal.saveEvent(ProtobufHelper.newEventWrapper("agg3", "1", 1, Order.SearchRequest.newBuilder().build()));
-        final List<Messages.EventWrapper> events = new ArrayList<>();
-        journal.loadEventsAndHandle("agg3", new HandleEventMetadata() {
-            @Override
-            public void handleEvent(Messages.EventWrapper event) {
-                events.add(event);
-            }
-        }, 1, 1000);
-        assertEquals(1, events.size());
-        assertEquals("agg3", events.get(0).getAggregateType());
-    }
-
-    @Test
-    public void testEventReadLimit() throws Exception {
-        for (int i = 0; i < 15; i++) {
-            journal.saveEvent(ProtobufHelper.newEventWrapper("agg2", "1", -1, Order.SearchRequest.newBuilder().build()));
-        }
-        final List<Messages.EventWrapper> events = new ArrayList<>();
-        journal.loadEventsAndHandle("agg2", new HandleEventMetadata() {
-            @Override
-            public void handleEvent(Messages.EventWrapper event) {
-                events.add(event);
-            }
-        }, 0, 10);
-        assertEquals(10, events.size());
-        journal.loadEventsAndHandle("agg2", new HandleEventMetadata() {
-            @Override
-            public void handleEvent(Messages.EventWrapper event) {
-                events.add(event);
-            }
-        }, events.get(events.size() - 1).getJournalid(), 10);
-        assertEquals(15, events.size());
-    }
+//    @Test
+//    public void testSaveAndReceiveEventsFromKey() throws Exception {
+//        journal.saveEvent(ProtobufHelper.newEventWrapper("agg3", "1", 0, Order.SearchRequest.newBuilder().build()));
+//        journal.saveEvent(ProtobufHelper.newEventWrapper("agg3", "1", 1, Order.SearchRequest.newBuilder().build()));
+//        final List<Messages.EventWrapper> events = new ArrayList<>();
+//        journal.loadEventsAndHandle("agg3", new HandleEventMetadata() {
+//            @Override
+//            public void handleEvent(Messages.EventWrapper event) {
+//                events.add(event);
+//            }
+//        }, 1, 1000);
+//        assertEquals(1, events.size());
+//        assertEquals("agg3", events.get(0).getAggregateType());
+//    }
+//
+//    @Test
+//    public void testEventReadLimit() throws Exception {
+//        for (int i = 0; i < 15; i++) {
+//            journal.saveEvent(ProtobufHelper.newEventWrapper("agg2", "1", -1, Order.SearchRequest.newBuilder().build()));
+//        }
+//        final List<Messages.EventWrapper> events = new ArrayList<>();
+//        journal.loadEventsAndHandle("agg2", new HandleEventMetadata() {
+//            @Override
+//            public void handleEvent(Messages.EventWrapper event) {
+//                events.add(event);
+//            }
+//        }, 0, 10);
+//        assertEquals(10, events.size());
+//        journal.loadEventsAndHandle("agg2", new HandleEventMetadata() {
+//            @Override
+//            public void handleEvent(Messages.EventWrapper event) {
+//                events.add(event);
+//            }
+//        }, events.get(events.size() - 1).getJournalid(), 10);
+//        assertEquals(15, events.size());
+//    }
 
     @Test
     public void testWritingSameVersionShouldFail() throws Exception {
@@ -168,7 +163,7 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
             futures.add(executorService.submit(() -> {
                 String aggregateRootId = UUID.randomUUID().toString();
                 for (int i = 0; i < NUMBER_OF_VERSIONS; i++) {
-                    journal.saveEvent(ProtobufHelper.newEventWrapper("agg1", aggregateRootId, -1, Order.SearchRequest.newBuilder().build()));
+                    journal.saveEvent(ProtobufHelper.newEventWrapper("order", aggregateRootId, -1, Order.SearchRequest.newBuilder().build()));
                 }
                 return aggregateRootId;
             }));
@@ -185,44 +180,11 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
                 events.add(event);
             }
         };
-        boolean finished = journal.loadEventsAndHandle("agg1", loadEvents);
+        boolean finished = journal.loadEventsAndHandle("events.test.Order", loadEvents);
         while(!finished){
-            finished = journal.loadEventsAndHandle("agg1", loadEvents, events.get(events.size()-1).getJournalid());
+//            finished = journal.loadEventsAndHandle("events.test.Order", loadEvents, events.get(events.size()-1).getJournalid());
+            finished = journal.loadEventsAndHandle("events.test.Order", loadEvents, events.size());
         }
-        assertEquals(NUMBER_OF_AGGREGATES * NUMBER_OF_VERSIONS, mongoClient.getDB("Journal").getCollection("agg1").find().size());
         assertEquals(NUMBER_OF_AGGREGATES * NUMBER_OF_VERSIONS, events.size());
-    }
-
-    @Test
-    public void UpgradeOldAggregateType() throws Exception {
-        final ArrayList<String> results = new ArrayList<>();
-        results.add("Result1");
-        results.add("Result2");
-        final String rootId = UUID.randomUUID().toString();
-        for(int i = 0; i< 250; i++) {
-            journal.saveEvent(new OldEventShouldBeUpgradedToOrderSearchResult(rootId, results));
-        }
-        journal.upgradeToProto("ORDER");
-        final Messages.EventWrapperBatch batch = journal.loadEventWrappersForAggregateId("ORDER", rootId, 0);
-        assertEquals(10, batch.getEventsCount());
-        assertEquals(rootId, batch.getEvents(0).getAggregateRootId());
-        final Order.SearchResult message = ProtobufHelper.unPackAny(batch.getEvents(0).getProtoSerializationType(), batch.getEvents(0).getEvent());
-        assertEquals("Result1", message.getResult(0));
-        assertEquals("Result2", message.getResult(1));
-
-    }
-
-    @Test
-    public void UpgradeOldAggregateTypeTwice() throws Exception {
-        final ArrayList<String> results = new ArrayList<>();
-        results.add("Result1");
-        results.add("Result2");
-        final String rootId = UUID.randomUUID().toString();
-        for(int i = 0; i< 250; i++) {
-            journal.saveEvent(new OldEventShouldBeUpgradedToOrderSearchResult(rootId, results));
-        }
-        journal.upgradeToProto("ORDER");
-        journal.upgradeToProto("ORDER");
-
     }
 }

@@ -18,11 +18,13 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <akka.version>2.4.17</akka.version>
+        <events.version>1.0.1</events.version>
+        <akka.version>2.5.21</akka.version>
         <commons-io.version>2.4</commons-io.version>
         <embed-mongo.version>2.0.1</embed-mongo.version>
         <guava.version>19.0</guava.version>
         <h2.version>1.4.191</h2.version>
+        <jackson.version>2.9.2</jackson.version>
         <joda-time.version>2.9.2</joda-time.version>
         <junit.version>4.12</junit.version>
         <kryo.version>2.22</kryo.version>
@@ -39,6 +41,11 @@
         <versions-maven-plugin.version>2.2</versions-maven-plugin.version>
     </properties>
     <dependencies>
+        <dependency>
+            <groupId>no.ks.fiks.svarut</groupId>
+            <artifactId>events</artifactId>
+            <version>${events.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
@@ -122,6 +129,11 @@
             <version>${akka.version}</version>
         </dependency>
         <dependency>
+            <groupId>com.geteventstore</groupId>
+            <artifactId>eventstore-client_2.11</artifactId>
+            <version>6.0.0</version>
+        </dependency>
+        <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>${guava.version}</version>
@@ -169,6 +181,16 @@
             <version>${spring.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
@@ -212,12 +234,12 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>2.13</version>
+                <version>3.0.0</version>
                 <dependencies>
                     <dependency>
                         <groupId>com.puppycrawl.tools</groupId>
                         <artifactId>checkstyle</artifactId>
-                        <version>6.1.1</version>
+                        <version>8.18</version>
                     </dependency>
                 </dependencies>
                 <executions>

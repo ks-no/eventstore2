@@ -1,93 +1,129 @@
 package no.ks.eventstore2.projection;
 
+import akka.ConfigurationException;
 import akka.actor.ActorRef;
+import akka.actor.Cancellable;
 import akka.actor.Status;
 import akka.actor.UntypedActor;
+import akka.cluster.pubsub.DistributedPubSub;
+import akka.cluster.pubsub.DistributedPubSubMediator;
 import akka.dispatch.OnFailure;
 import akka.dispatch.OnSuccess;
-import com.google.protobuf.Any;
-import com.google.protobuf.Message;
-import eventstore.*;
-import eventstore.j.SettingsBuilder;
-import no.ks.eventstore2.ProtobufHelper;
-import no.ks.eventstore2.eventstore.JsonMetadataBuilder;
-import no.ks.eventstore2.reflection.HandlerFinderProtobuf;
+import akka.japi.Procedure;
+import no.ks.eventstore2.Event;
+import no.ks.eventstore2.RestartActorException;
+import no.ks.eventstore2.eventstore.RemoveSubscription;
+import no.ks.eventstore2.eventstore.*;
+import no.ks.eventstore2.reflection.HandlerFinder;
 import no.ks.eventstore2.response.NoResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.ClassUtils;
 import scala.Option;
 import scala.concurrent.Future;
+import scala.concurrent.duration.Duration;
 import scala.util.Failure;
 
 import java.lang.reflect.Method;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
-public abstract class Projection extends UntypedActor {
-
-    private static final String SVARUT_CATEGORY_PREFIX = "ce-no.ks.events.svarut.";
+public abstract class ProjectionOld extends UntypedActor {
 
     protected final Logger log = LoggerFactory.getLogger(this.getClass());
-    private final ActorRef connection;
-    private Map<Class<? extends Message>, Method> handleEventMap = null;
+    protected ActorRef eventStore;
+    private Map<Class<? extends Event>, Method> handleEventMap = null;
 
-    protected Long latestJournalidReceived;
-    private Messages.EventWrapper currentMessage;
+    protected String latestJournalidReceived;
+
     private boolean subscribePhase = false;
 
-    private List<PendingCall> pendingCalls = new ArrayList<>();
+    private List<PendingCall> pendingCalls = new ArrayList<PendingCall>();
+    private Cancellable subscribeTimeout;
+    private Cancellable removeSubscriptionTimeout;
+
+    private Procedure<Object> restarting = message -> {
+        if (message instanceof SubscriptionRemoved) {
+            throw new RestartActorException("Restaring actor");
+        } else {
+            log.debug("Got message {} while restarting", message);
+        }
+    };
 
     //TODO; constructor vs preStart, and how do we handle faling actor creations? Pass exception to parent and shutdown actor system?
-    public Projection(ActorRef connection) {
-        this.connection = connection;
+    public ProjectionOld(ActorRef eventStore) {
+        this.eventStore = eventStore;
         init();
     }
 
     @Override
     public void preStart() {
         log.debug(getSelf().path().toString());
+        try {
+            ActorRef mediator =
+                    DistributedPubSub.get(getContext().system()).mediator();
+
+            mediator.tell(new DistributedPubSubMediator.Subscribe(EventStore.EVENTSTOREMESSAGES, getSelf()),
+                    getSelf());
+        } catch (ConfigurationException e){
+            log.info("Not subscribing to eventstore event, no cluster system");
+        }
         subscribe();
     }
 
     @Override
-    public void preRestart(Throwable reason, Option<Object> message) {
-
+    public void preRestart(Throwable reason, Option<Object> message) throws Exception {
+        removeSubscriptionTimeout.cancel();
     }
 
     @Override
     public void onReceive(Object o) {
+        if("restart".equals(o)){
+            eventStore.tell(new RemoveSubscription(getSubscribe().getAggregateType()), getSelf());
+            startRemoveSubscriptionTimeout();
+
+            getContext().become(restarting);
+
+        }
         try {
-            if (o instanceof ResolvedEvent) {
-                ResolvedEvent event = (ResolvedEvent) o;
-                log.debug("Handling event: {}", o);
-                latestJournalidReceived = event.linkEvent().number().value();
-
-                Any anyEvent = Any.parseFrom(event.data().data().value().toArray());
-                Messages.EventWrapper eventWrapper = JsonMetadataBuilder.readMetadataAsWrapper(event.data().metadata().value().toArray())
-                        .setEvent(anyEvent)
-                        .build();
-                currentMessage = eventWrapper;
-
-                dispatchToCorrectEventHandler(ProtobufHelper.unPackAny(eventWrapper.getProtoSerializationType(), anyEvent));
+            if (o instanceof Event) {
+                latestJournalidReceived = ((Event) o).getJournalid();
+                dispatchToCorrectEventHandler((Event) o);
+            } else if (o instanceof NewEventstoreStarting) { // TODO: Kan fjernes
+                preStart();
             } else if (o instanceof Call && !subscribePhase) {
                 handleCall((Call) o);
-            } else if (o instanceof LiveProcessingStarted$) {
-//                if (o instanceof CompleteAsyncSubscriptionPleaseSendSyncSubscription) {
-//                    log.info("AsyncSubscription complete, sending sync subscription");
-//                    eventStore.tell(new Subscription(((CompleteAsyncSubscriptionPleaseSendSyncSubscription) o).getAggregateType(), latestJournalidReceived), self());
-//                } else {
-//                    log.info("Subscription on {} is complete", ((CompleteSubscriptionRegistered) o).getAggregateType());
-//                    setSubscribeFinished();
-//                }
-                setSubscribeFinished();
-                for (PendingCall pendingCall : pendingCalls) {
-                    self().tell(pendingCall.getCall(), pendingCall.getSender());
+            }else if (o instanceof RefreshSubscription){
+                subscribe();
+            } else if (o instanceof IncompleteSubscriptionPleaseSendNew) {
+                log.debug("Sending new subscription on {} from {}", ((IncompleteSubscriptionPleaseSendNew) o).getAggregateType(), latestJournalidReceived);
+                resetSubscribeTimeout();
+                if (latestJournalidReceived == null) {
+                    throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
                 }
-                pendingCalls.clear();
-                log.info("Live processing started!");
+                eventStore.tell(new AsyncSubscription(((IncompleteSubscriptionPleaseSendNew) o).getAggregateType(), latestJournalidReceived), self());
+            } else if (o instanceof CompleteSubscriptionRegistered) {
+                if (o instanceof CompleteAsyncSubscriptionPleaseSendSyncSubscription) {
+                    log.info("AsyncSubscription complete, sending sync subscription");
+                    resetSubscribeTimeout();
+                    eventStore.tell(new Subscription(((CompleteAsyncSubscriptionPleaseSendSyncSubscription) o).getAggregateType(), latestJournalidReceived), self());
+                } else {
+                    log.info("Subscription on {} is complete", ((CompleteSubscriptionRegistered) o).getAggregateType());
+                    setSubscribeFinished();
+                    for (PendingCall pendingCall : pendingCalls) {
+                        self().tell(pendingCall.getCall(), pendingCall.getSender());
+                    }
+                    pendingCalls.clear();
+                }
             } else if (o instanceof Call && subscribePhase) {
                 log.debug("Adding call {} to pending calls", o);
                 pendingCalls.add(new PendingCall((Call) o, sender()));
+            }else if (o instanceof DistributedPubSubMediator.SubscribeAck){
+                log.info("Subscribing for eventstore restartmessages");
+            } else if("stillInSubscribe?".equals(o)){
+                log.error("We are still in subscribe somethings wrong, resubscribing");
+                subscribePhase = false;
+                preStart();
             }
         } catch (Exception e) {
             getContext().parent().tell(new ProjectionFailedError(self(), e, o), self());
@@ -96,24 +132,41 @@ public abstract class Projection extends UntypedActor {
         }
     }
 
+    private void startRemoveSubscriptionTimeout() {
+        removeSubscriptionTimeout = getContext().system().scheduler().scheduleOnce(Duration.create(10, TimeUnit.SECONDS), self(), "stillInSubscribe?", getContext().system().dispatcher(),self());
+    }
+
     private void setSubscribeFinished() {
         subscribePhase = false;
         context().parent().tell(ProjectionManager.SUBSCRIBE_FINISHED, self());
+        cancelSubscribeTimeout();
     }
+
+    private void cancelSubscribeTimeout() {
+        if(subscribeTimeout != null) subscribeTimeout.cancel();
+        subscribeTimeout = null;
+    }
+
 
     protected void setInSubscribe() {
         subscribePhase = true;
         context().parent().tell(ProjectionManager.IN_SUBSCRIBE, self());
+        resetSubscribeTimeout();
     }
 
-    public final void dispatchToCorrectEventHandler(Message message) {
-        Method method = HandlerFinderProtobuf.findHandlingMethod(handleEventMap, message);
+    private void resetSubscribeTimeout() {
+        if(subscribeTimeout != null) subscribeTimeout.cancel();
+        subscribeTimeout = getContext().system().scheduler().scheduleOnce(Duration.create(5, TimeUnit.MINUTES), self(), "stillInSubscribe?", getContext().system().dispatcher(),self());
+    }
+
+    public final void dispatchToCorrectEventHandler(Event event) {
+        Method method = HandlerFinder.findHandlingMethod(handleEventMap, event);
 
         if (method != null) {
             try {
-                method.invoke(this, message);
+                method.invoke(this, event);
             } catch (Exception e) {
-                log.error("Failed to call method " + method + " with event " + message, e);
+                log.error("Failed to call method " + method + " with event " + event, e);
                 throw new RuntimeException(e);
             }
         }
@@ -191,19 +244,19 @@ public abstract class Projection extends UntypedActor {
     }
 
     private void init() {
-        handleEventMap = new HashMap<>();
+        handleEventMap = new HashMap<Class<? extends Event>, Method>();
         try {
-            Class<? extends Projection> projectionClass = this.getClass();
+            Class<? extends ProjectionOld> projectionClass = this.getClass();
             ListensTo listensTo = projectionClass.getAnnotation(ListensTo.class);
             if (listensTo != null) {
                 Class[] handledEventClasses = listensTo.value();
 
-                for (Class<? extends Message> handledEventClass : handledEventClasses) {
+                for (Class<? extends Event> handledEventClass : handledEventClasses) {
                     Method handleEventMethod = projectionClass.getMethod("handleEvent", handledEventClass);
                     handleEventMap.put(handledEventClass, handleEventMethod);
                 }
             } else {
-                handleEventMap.putAll(HandlerFinderProtobuf.getEventHandlers(projectionClass));
+                handleEventMap.putAll(HandlerFinder.getEventHandlers(projectionClass));
             }
         } catch (Exception e) {
             log.error("Exception during creation of projection: ", e);
@@ -211,11 +264,17 @@ public abstract class Projection extends UntypedActor {
         }
     }
 
-    protected String getSubscribe() { // TODO: Brukes fra subscribe
+    protected Subscription getSubscribe() {
+        ListensTo annotation = getClass().getAnnotation(ListensTo.class);
+        if (annotation != null) {
+            for (String aggregate : annotation.aggregates()) {
+                return new AsyncSubscription(aggregate);
+            }
+        }
         Subscriber subscriberAnnotation = getClass().getAnnotation(Subscriber.class);
 
         if (subscriberAnnotation != null) {
-            return subscriberAnnotation.value();
+            return new AsyncSubscription(subscriberAnnotation.value());
         }
         throw new RuntimeException("No subscribe annotation");
     }
@@ -252,23 +311,10 @@ public abstract class Projection extends UntypedActor {
 
     protected void subscribe() {
         if(!subscribePhase) {
-            EventStream.Id streamId = new EventStream.System(SVARUT_CATEGORY_PREFIX + getSubscribe());
-            EventNumber.Exact eventNumber = new EventNumber.Exact(Optional.ofNullable(latestJournalidReceived).orElse(0L));
-            log.info("Subscribing to {} from {}", streamId, eventNumber);
             setInSubscribe();
-            getContext().actorOf(StreamSubscriptionActor.props(
-                    connection,
-                    getSelf(),
-                    streamId,
-                    Option.<EventNumber>apply(eventNumber),
-                    Option.<UserCredentials>empty(),
-                    new SettingsBuilder().resolveLinkTos(true).build()));
+            eventStore.tell(new AsyncSubscription(getSubscribe().getAggregateType(), latestJournalidReceived), self());
         } else {
             log.warn("Trying to subscribe but is already in subscribe phase.");
         }
-    }
-
-    protected Messages.EventWrapper currentMessage() {
-        return currentMessage;
     }
 }

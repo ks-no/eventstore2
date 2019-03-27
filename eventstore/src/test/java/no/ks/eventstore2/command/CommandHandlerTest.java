@@ -8,7 +8,7 @@ import com.typesafe.config.ConfigFactory;
 import no.ks.eventstore2.formProcessorProject.FormParsed;
 import no.ks.eventstore2.formProcessorProject.FormParser;
 import no.ks.eventstore2.formProcessorProject.ParseForm;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 public class CommandHandlerTest extends TestKit {

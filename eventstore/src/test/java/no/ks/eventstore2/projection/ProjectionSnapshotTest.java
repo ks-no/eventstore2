@@ -15,7 +15,7 @@ import no.ks.events.svarut.Order.EventstoreOrder;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.TakeSnapshot;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.util.*;
@@ -23,10 +23,10 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static no.ks.eventstore2.projection.CallProjection.call;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsCollectionContaining.hasItem;
 import static org.hamcrest.core.IsNot.not;
-import static org.junit.Assert.*;
 
 public class ProjectionSnapshotTest extends MongoDbEventstore2TestKit {
 

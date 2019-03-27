@@ -6,7 +6,7 @@ import com.typesafe.config.ConfigFactory;
 import events.test.Order.Order;
 import events.test.form.Form;
 import no.ks.events.svarut.Order.EventstoreOrder;
-import org.junit.Before;
+import org.junit.jupiter.api.BeforeEach;
 
 public class Eventstore2TestKit extends TestKit{
 
@@ -18,7 +18,7 @@ public class Eventstore2TestKit extends TestKit{
         System.setProperty("CONSTRETTO_TAGS", "ITEST");
     }
 
-	@Before
+	@BeforeEach
 	public void setUp() throws Exception {
 		ProtobufHelper.registerDeserializeMethod(Order.SearchRequest.getDefaultInstance());
 		ProtobufHelper.registerDeserializeMethod(Order.SearchResult.getDefaultInstance());

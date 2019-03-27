@@ -9,7 +9,7 @@ import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
 import no.ks.eventstore2.eventstore.CompleteSubscriptionRegistered;
 import no.ks.eventstore2.formProcessorProject.FormStatuses;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
@@ -18,9 +18,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static akka.pattern.Patterns.ask;
-import static junit.framework.Assert.assertNotNull;
-import static junit.framework.Assert.assertTrue;
 import static no.ks.eventstore2.projection.CallProjection.call;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
 public class ProjectionManagerTest extends TestKit {

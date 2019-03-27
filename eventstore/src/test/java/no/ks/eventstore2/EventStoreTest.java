@@ -3,7 +3,6 @@ package no.ks.eventstore2;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-import akka.actor.Props;
 import akka.testkit.TestKit;
 import com.esotericsoftware.kryo.Kryo;
 import com.typesafe.config.ConfigFactory;
@@ -14,9 +13,8 @@ import no.ks.eventstore2.events.OldEvent;
 import no.ks.eventstore2.eventstore.*;
 import no.ks.eventstore2.formProcessorProject.FormParsed;
 import no.ks.eventstore2.response.Success;
-import no.ks.eventstore2.testapplication.TestProjection;
-import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
@@ -77,7 +75,7 @@ public class EventStoreTest extends TestKit {
         expectMsgClass(Event4.class);
     }
 
-    @After
+    @AfterEach
     public void tearDown() throws Exception {
         db.shutdown();
     }

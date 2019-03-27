@@ -2,7 +2,6 @@ package no.ks.eventstore2.saga;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
-import akka.actor.Inbox;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
@@ -11,14 +10,14 @@ import eventstore.Messages;
 import no.ks.eventstore2.formProcessorProject.FormParsed;
 import no.ks.eventstore2.formProcessorProject.FormReceived;
 import org.joda.time.DateTime;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import scala.concurrent.duration.Duration;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.TestCase.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.test.util.AssertionErrors.assertTrue;
 
 
 public class TiemoutSagaTest extends TestKit{

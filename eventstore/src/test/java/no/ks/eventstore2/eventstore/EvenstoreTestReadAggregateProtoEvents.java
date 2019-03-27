@@ -9,14 +9,14 @@ import events.test.Order.Order;
 import eventstore.Messages;
 import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import scala.concurrent.duration.Duration;
 
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class EvenstoreTestReadAggregateProtoEvents extends MongoDbEventstore2TestKit{
 
@@ -28,7 +28,7 @@ public class EvenstoreTestReadAggregateProtoEvents extends MongoDbEventstore2Tes
     };
     private MongoDBJournalV2 journal;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         super.setUp();
 

@@ -7,13 +7,12 @@ import eventstore.Messages;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.Eventstore2TestKit;
 import no.ks.eventstore2.Handler;
-import no.ks.eventstore2.eventstore.Subscription;
 import no.ks.eventstore2.projection.Subscriber;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class SagaManagerNewAnnotationStyleTest extends Eventstore2TestKit{
 

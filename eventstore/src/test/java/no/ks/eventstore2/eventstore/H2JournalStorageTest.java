@@ -2,14 +2,14 @@ package no.ks.eventstore2.eventstore;
 
 import com.esotericsoftware.kryo.Kryo;
 import no.ks.eventstore2.Event;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class H2JournalStorageTest {
 
@@ -18,7 +18,7 @@ public class H2JournalStorageTest {
     private EmbeddedDatabase dataSource;
     private Event lastEvent;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         dataSource = new EmbeddedDatabaseBuilder().setType(EmbeddedDatabaseType.H2).addScript("schema.sql").build();
         h2JournalStorage = new H2JournalStorage(dataSource, createKryoClassRegistration());
@@ -27,7 +27,7 @@ public class H2JournalStorageTest {
         }
     }
 
-    @After
+    @AfterEach
     public void tearDown() throws Exception {
         dataSource.shutdown();
     }

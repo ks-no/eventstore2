@@ -6,8 +6,9 @@ import com.esotericsoftware.kryo.Kryo;
 import com.mongodb.client.MongoDatabase;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,7 +24,7 @@ public class EvenstoreTestReadAggregateEvents extends MongoDbEventstore2TestKit{
     };
     private MongoDBJournalV2 journal;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         super.setUp();
 

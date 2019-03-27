@@ -12,7 +12,7 @@ import no.ks.eventstore2.eventstore.CompleteSubscriptionRegistered;
 import no.ks.eventstore2.saga.Saga;
 import no.ks.eventstore2.saga.SagaInMemoryRepository;
 import no.ks.eventstore2.util.IdUtil;
-import org.junit.Before;
+import org.junit.jupiter.api.BeforeEach;
 
 public class EventStoreTestKit extends TestKit {
 
@@ -41,7 +41,7 @@ public class EventStoreTestKit extends TestKit {
         return (EventReceiver) TestActorRef.create(actorSystem, Props.create(EventReceiver.class), IdUtil.createUUID()).underlyingActor();
     }
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         ProtobufHelper.registerDeserializeMethod(Order.SearchRequest.getDefaultInstance());
         ProtobufHelper.registerDeserializeMethod(Order.SearchResult.getDefaultInstance());

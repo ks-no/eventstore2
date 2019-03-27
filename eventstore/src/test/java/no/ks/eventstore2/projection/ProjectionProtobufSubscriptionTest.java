@@ -9,7 +9,7 @@ import eventstore.Messages;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.ProtobufHelper;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;

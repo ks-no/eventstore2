@@ -11,8 +11,8 @@ import no.ks.eventstore2.testapplication.TestEvent;
 import no.ks.eventstore2.testapplication.TestProjection;
 import no.ks.eventstore2.testkit.EventStoreTestKit;
 import org.joda.time.DateTime;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import scala.concurrent.Await;
 import scala.concurrent.duration.Duration;
 
@@ -20,15 +20,14 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static akka.pattern.Patterns.ask;
-
 import static no.ks.eventstore2.projection.CallProjection.call;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class RestartProjectionTest extends EventStoreTestKit {
 
     private TestActorRef<TestProjection> projection;
 
-    @Before
+    @BeforeEach
     public void before() {
         projection = createProjectionRef(Props.create(TestProjection.class, testActor()));
     }

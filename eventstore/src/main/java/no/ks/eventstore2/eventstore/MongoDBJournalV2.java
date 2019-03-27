@@ -306,21 +306,21 @@ public class MongoDBJournalV2 implements JournalStorage {
             final ArrayList<Event> events = new ArrayList<>();
             final ArrayList<Messages.EventWrapper> eventWrappers = new ArrayList<>();
             readall = loadEventsAndHandle(aggregateType + "_old", event -> {
-                log.info("upgrading event {}", event);
+                        log.info("upgrading event {}", event);
                         Messages.EventWrapper eventWrapper = event.upgradeToProto();
-                if(eventWrapper != null && eventWrapper.getVersion() != -1) {
-                    if("BRUKER".equalsIgnoreCase(aggregateType)){
-                        //version is broken in bruker aggregate
-                        eventWrapper = eventWrapper.toBuilder().setVersion(-1).build();
-                    }
-                    events.add(event);
-                    eventWrappers.add(eventWrapper);
-                } else {
-                    log.error("failed to upgrade event {}", event);
-                }
-            }
-            ,String.valueOf(count));
-            if(events.size() > 0)
+                        if (eventWrapper != null && eventWrapper.getVersion() != -1) {
+                            if ("BRUKER".equalsIgnoreCase(aggregateType)) {
+                                //version is broken in bruker aggregate
+                                eventWrapper = eventWrapper.toBuilder().setVersion(-1).build();
+                            }
+                            events.add(event);
+                            eventWrappers.add(eventWrapper);
+                        } else {
+                            log.error("failed to upgrade event {}", event);
+                        }
+                    },
+                    String.valueOf(count));
+            if (events.size() > 0)
                 count = Long.parseLong(events.get(events.size()-1).getJournalid());
             else
                 return;

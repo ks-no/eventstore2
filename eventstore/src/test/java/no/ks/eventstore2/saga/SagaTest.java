@@ -9,9 +9,9 @@ import com.typesafe.config.ConfigFactory;
 import no.ks.eventstore2.formProcessorProject.FormProcess;
 import no.ks.eventstore2.formProcessorProject.FormReceived;
 import no.ks.eventstore2.formProcessorProject.ParseForm;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static junit.framework.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class SagaTest extends TestKit {
 

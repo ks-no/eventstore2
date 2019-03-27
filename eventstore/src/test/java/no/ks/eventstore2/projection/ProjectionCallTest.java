@@ -14,7 +14,7 @@ import no.ks.eventstore2.formProcessorProject.FormParsed;
 import no.ks.eventstore2.formProcessorProject.FormReceived;
 import no.ks.eventstore2.formProcessorProject.FormStatus;
 import no.ks.eventstore2.formProcessorProject.FormStatuses;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit;
 import static akka.pattern.Patterns.ask;
 import static akka.testkit.JavaTestKit.duration;
 import static no.ks.eventstore2.projection.CallProjection.call;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ProjectionCallTest extends TestKit {
 

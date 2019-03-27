@@ -6,7 +6,7 @@ import no.ks.eventstore2.Eventstore2TestKit;
 import no.ks.eventstore2.eventstore.CompleteSubscriptionRegistered;
 import no.ks.eventstore2.eventstore.LiveSubscription;
 import no.ks.eventstore2.formProcessorProject.FormParsed;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class LiveSubscriptionProjectionTest extends Eventstore2TestKit{
 

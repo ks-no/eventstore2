@@ -8,9 +8,9 @@ import com.mongodb.client.MongoDatabase;
 import com.typesafe.config.ConfigFactory;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
 import no.ks.eventstore2.response.Success;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 
@@ -29,7 +29,7 @@ public class EventStoreTest extends MongoDbEventstore2TestKit {
     private MongoDatabase journal;
 
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         super.setUp();
         journal = mongoClient.getDatabase("Journal");
@@ -38,7 +38,7 @@ public class EventStoreTest extends MongoDbEventstore2TestKit {
 
     }
 
-    @After
+    @AfterEach
     public void tearDown() throws Exception {
         super.tearDown();
     }

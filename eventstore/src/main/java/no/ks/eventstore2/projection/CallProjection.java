@@ -4,7 +4,7 @@ public class CallProjection {
 
     private CallProjection(){}
 
-    public static Call call(String method, Object ... args){
+    public static Call call(String method, Object... args){
         return new Call(method, args);
     }
 }

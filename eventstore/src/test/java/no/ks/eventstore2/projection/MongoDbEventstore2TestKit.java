@@ -10,14 +10,10 @@ import de.flapdoodle.embed.mongo.MongodStarter;
 import de.flapdoodle.embed.mongo.config.*;
 import de.flapdoodle.embed.mongo.distribution.Version;
 import de.flapdoodle.embed.process.config.IRuntimeConfig;
-import events.test.Order.Order;
-import events.test.form.Form;
-import no.ks.eventstore2.Eventstore2TestKit;
-import no.ks.eventstore2.ProtobufHelper;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.util.function.Consumer;
 
@@ -29,7 +25,7 @@ public class MongoDbEventstore2TestKit extends EventstoreEventstore2TestKit {
     private static IMongodConfig mongodConfig;
     static MongodStarter runtime;
 
-    @BeforeClass
+    @BeforeAll
     public static void setUpMongoDb() throws Exception {
         Command command = Command.MongoD;
 
@@ -53,19 +49,19 @@ public class MongoDbEventstore2TestKit extends EventstoreEventstore2TestKit {
         mongod = mongodExecutable.start();
     }
 
-    @AfterClass
+    @AfterAll
     public static void tearDownMongoDb() throws Exception {
         mongod.stop();
         mongodExecutable.stop();
     }
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         mongoClient = new MongoClient(new ServerAddress(mongodConfig.net().getServerAddress(), mongodConfig.net().getPort()));
         super.setUp();
     }
 
-    @After
+    @AfterEach
     public void tearDown() throws Exception {
         final MongoIterable<String> strings = mongoClient.listDatabaseNames();
         strings.forEach((Consumer<? super String>) (db) -> mongoClient.getDatabase(db).drop());

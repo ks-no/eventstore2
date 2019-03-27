@@ -6,9 +6,6 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-import com.esotericsoftware.kryo.serializers.MapSerializer;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.mongodb.MongoClient;
 import events.test.Order.Order;
@@ -17,16 +14,12 @@ import no.ks.eventstore2.Event;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.TakeSnapshot;
-import no.ks.eventstore2.eventstore.Subscription;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.io.ByteArrayOutputStream;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ProjectionProtobufSnapshotTest extends MongoDbEventstore2TestKit {
 

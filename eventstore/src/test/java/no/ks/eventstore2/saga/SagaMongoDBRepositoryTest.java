@@ -1,21 +1,20 @@
 package no.ks.eventstore2.saga;
 
-import com.mongodb.DB;
 import com.mongodb.client.MongoDatabase;
 import no.ks.eventstore2.formProcessorProject.FormProcess;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
 import org.joda.time.DateTime;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import static junit.framework.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class SagaMongoDBRepositoryTest extends MongoDbEventstore2TestKit {
 
     private SagaMongoDBRepository repo;
     private MongoDatabase db;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         super.setUp();
         db = mongoClient.getDatabase("SagaStore");

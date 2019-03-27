@@ -10,9 +10,9 @@ import eventstore.Messages;
 import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.events.OldEventShouldBeUpgradedToOrderSearchResult;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,7 +23,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
 
@@ -39,7 +39,7 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
     private MongoDBJournalV2 journal;
 
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         super.setUp();
 
@@ -51,7 +51,7 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
     }
 
     @Override
-    @After
+    @AfterEach
     public void tearDown() throws Exception {
         super.tearDown();
 

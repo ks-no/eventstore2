@@ -11,9 +11,9 @@ import no.ks.eventstore2.formProcessorProject.*;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
 import no.ks.eventstore2.saga.SagaInMemoryRepository;
 import no.ks.eventstore2.saga.SagaManager;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import scala.concurrent.Await;
 import scala.concurrent.duration.Duration;
 
@@ -37,13 +37,13 @@ public class FormProcessorIntegrationTest extends MongoDbEventstore2TestKit {
         }
     };
 
-    @BeforeClass
+    @BeforeAll
     public static void setup() {
         system = ActorSystem.create();
         EventstoreSingelton.kryoSerializedEvents.add("FORM");
     }
 
-    @AfterClass
+    @AfterAll
     public static void teardown() throws TimeoutException, InterruptedException {
         Await.ready(system.terminate(), Duration.create(30, TimeUnit.SECONDS));
     }

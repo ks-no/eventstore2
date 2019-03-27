@@ -6,10 +6,7 @@ import akka.actor.Status;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
-import eventstore.Messages;
-import eventstore.ReadStreamEventsCompleted;
-import eventstore.Settings;
-import eventstore.WriteEventsCompleted;
+import eventstore.*;
 import eventstore.j.EventDataBuilder;
 import eventstore.j.ReadStreamEventsBuilder;
 import eventstore.j.SettingsBuilder;
@@ -18,6 +15,7 @@ import eventstore.tcp.ConnectionActor;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.ProtobufHelper;
 import no.ks.svarut.events.EventUtil;
+import org.apache.commons.lang3.time.StopWatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.Await;
@@ -53,12 +51,19 @@ public class EventstoreJournalStorage implements JournalStorage {
     @Override
     public List<Messages.EventWrapper> saveEventsBatch(List<Messages.EventWrapper> events) {
         try {
-            // TODO: Mer sjekking på input? Som at de har samme aggregateRootId, osv.
+            StopWatch stopWatch = StopWatch.createStarted();
             if (events == null || events.isEmpty()) {
                 return Collections.emptyList();
+            } else if (events.size() > 500) {
+                throw new RuntimeException(String.format("Max batch size is 500, but received %s", events.size()));
             }
 
             Messages.EventWrapper firstEvent = events.get(0);
+
+            if (!events.stream().allMatch(e -> e.getAggregateRootId().equals(firstEvent.getAggregateRootId()))) {
+                throw new RuntimeException("Can't save batch with multiple aggregate root ids");
+            }
+
             String streamId = EventUtil.getStreamId(
                     ProtobufHelper.unPackAny(firstEvent.getProtoSerializationType(), firstEvent.getEvent()),
                     firstEvent.getAggregateRootId());
@@ -70,7 +75,6 @@ public class EventstoreJournalStorage implements JournalStorage {
 
             events.forEach(event -> {
                 Message message = ProtobufHelper.unPackAny(event.getProtoSerializationType(), event.getEvent());
-//                System.out.println("Before: " + message.toByteArray().length);
                 builder.addEvent(new EventDataBuilder(EventUtil.getEventType(message))
                         .data(event.getEvent().toByteArray())
                         .jsonMetadata(JsonMetadataBuilder.build(event, event.getAggregateType()))
@@ -81,7 +85,7 @@ public class EventstoreJournalStorage implements JournalStorage {
 
             if (result instanceof WriteEventsCompleted) {
                 final WriteEventsCompleted completed = (WriteEventsCompleted) result;
-                log.info("Save events completed. Range: {}, Position: {}", completed.numbersRange(), completed.position());
+                log.info("Saved {} events (range: {}, position: {}) in {}", events.size(), completed.numbersRange(), completed.position(), stopWatch);
 
                 return readEvents(streamId, completed.numbersRange().get().start().value(), events.size());
             } else if (result instanceof Status.Failure) {
@@ -124,6 +128,7 @@ public class EventstoreJournalStorage implements JournalStorage {
     }
 
     private List<Messages.EventWrapper> readEvents(String streamId, long fromKey, int limit) {
+        StopWatch stopWatch = StopWatch.createStarted();
         try {
             ReadStreamEventsBuilder builder = new ReadStreamEventsBuilder(streamId)
                     .resolveLinkTos(true)
@@ -137,16 +142,10 @@ public class EventstoreJournalStorage implements JournalStorage {
                 List<Messages.EventWrapper> events = completed.eventsJava().stream()
                         .map(e -> {
                             try {
-//                                System.out.println("After: " + e.data().data().value().toArray().length);
-                                return Messages.EventWrapper.newBuilder()
-                                        .setAggregateType(e.data().eventType())
-                                        .setAggregateRootId(e.data().eventId().toString())
-                                        .setVersion(e.number().value()) // TODO: Er dette riktig eventnummer?
-                                        .setOccurredOn(e.created().get().getMillis())
-                                        .setJournalid(-1) // TODO: Hvor finnes journal id? (Eventnummer i streamen av alle events)
+                                return JsonMetadataBuilder.readMetadataAsWrapper(e.data().metadata().value().toArray())
+                                        .setVersion(e.number().value()) // Event number of aggregate stream
+                                        .setJournalid(getEventJournalId(e)) // Event number of link event, or -1
                                         .setEvent(Any.parseFrom(e.data().data().value().toArray()))
-                                        .setCorrelationId(JsonMetadataBuilder.read(e.data().metadata().value().toArray()).get("user"))
-                                        .setProtoSerializationType(JsonMetadataBuilder.read(e.data().metadata().value().toArray()).get("serializationId"))
                                         .build();
                             } catch (InvalidProtocolBufferException e1) {
                                 throw new RuntimeException(e1);
@@ -154,7 +153,7 @@ public class EventstoreJournalStorage implements JournalStorage {
                         })
                         .collect(Collectors.toList());
 
-                log.info("Read events completed. Read {} events.", events.size());
+                log.info("Read {} events from \"{}\" (fromKey: {}, limit: {}) in {}", events.size(), streamId, fromKey, limit, stopWatch);
                 return events;
 
             } else if (result instanceof Status.Failure) {
@@ -166,6 +165,13 @@ public class EventstoreJournalStorage implements JournalStorage {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private long getEventJournalId(eventstore.Event event) {
+        if (event instanceof ResolvedEvent) {
+            return ((ResolvedEvent) event).linkEvent().number().value();
+        }
+        return -1;
     }
 
     @Override

@@ -22,11 +22,12 @@
         <akka.version>2.5.21</akka.version>
         <commons-io.version>2.4</commons-io.version>
         <embed-mongo.version>2.0.1</embed-mongo.version>
-        <guava.version>19.0</guava.version>
+        <guava.version>27.1-jre</guava.version>
+        <hamcrest.version>2.1</hamcrest.version>
         <h2.version>1.4.191</h2.version>
         <jackson.version>2.9.2</jackson.version>
         <joda-time.version>2.9.2</joda-time.version>
-        <junit.version>4.12</junit.version>
+        <junit.version>5.4.1</junit.version>
         <kryo.version>2.22</kryo.version>
         <kryo-serializers.version>0.26</kryo-serializers.version>
         <leveldbjni.version>1.8</leveldbjni.version>
@@ -170,9 +171,21 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
             <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest</artifactId>
+            <version>${hamcrest.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -280,6 +293,11 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.22.1</version>
             </plugin>
         </plugins>
     </build>

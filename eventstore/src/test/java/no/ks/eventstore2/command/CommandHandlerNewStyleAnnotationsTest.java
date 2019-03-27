@@ -5,11 +5,11 @@ import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import no.ks.eventstore2.Eventstore2TestKit;
 import no.ks.eventstore2.Handler;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
 
-import static junit.framework.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class CommandHandlerNewStyleAnnotationsTest extends Eventstore2TestKit {
 

@@ -15,7 +15,7 @@ import no.ks.eventstore2.eventstore.EventstoreSingelton;
 import no.ks.eventstore2.eventstore.IncompleteSubscriptionPleaseSendNew;
 import no.ks.eventstore2.eventstore.Subscription;
 import no.ks.eventstore2.formProcessorProject.*;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.HashMap;

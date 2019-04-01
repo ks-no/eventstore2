@@ -1,11 +1,12 @@
 package no.ks.eventstore2.projection;
 
-import akka.actor.ActorRef;
-import akka.actor.Status;
-import akka.actor.UntypedActor;
+import akka.actor.*;
 import akka.dispatch.OnFailure;
 import akka.dispatch.OnSuccess;
+import akka.japi.pf.DeciderBuilder;
+import akka.japi.pf.ReceiveBuilder;
 import com.google.protobuf.Any;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import eventstore.*;
 import eventstore.j.SettingsBuilder;
@@ -17,17 +18,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.ClassUtils;
 import scala.Option;
+import scala.PartialFunction;
 import scala.concurrent.Future;
+import scala.runtime.BoxedUnit;
 import scala.util.Failure;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.*;
 
-public abstract class Projection extends UntypedActor {
+public abstract class Projection extends AbstractActor {
+
+    private static final Logger log = LoggerFactory.getLogger(Projection.class);
 
     private static final String SVARUT_CATEGORY_PREFIX = "ce-no.ks.events.svarut.";
 
-    protected final Logger log = LoggerFactory.getLogger(this.getClass());
     private final ActorRef connection;
     private Map<Class<? extends Message>, Method> handleEventMap = null;
 
@@ -37,7 +43,6 @@ public abstract class Projection extends UntypedActor {
 
     private List<PendingCall> pendingCalls = new ArrayList<>();
 
-    //TODO; constructor vs preStart, and how do we handle faling actor creations? Pass exception to parent and shutdown actor system?
     public Projection(ActorRef connection) {
         this.connection = connection;
         init();
@@ -51,75 +56,35 @@ public abstract class Projection extends UntypedActor {
 
     @Override
     public void preRestart(Throwable reason, Option<Object> message) {
-
+        log.debug("preRestart");
     }
 
     @Override
-    public void onReceive(Object o) {
+    public void aroundReceive(PartialFunction<Object, BoxedUnit> receive, Object msg) {
         try {
-            if (o instanceof ResolvedEvent) {
-                ResolvedEvent event = (ResolvedEvent) o;
-                log.debug("Handling event: {}", o);
-                latestJournalidReceived = event.linkEvent().number().value();
-
-                Any anyEvent = Any.parseFrom(event.data().data().value().toArray());
-                Messages.EventWrapper eventWrapper = JsonMetadataBuilder.readMetadataAsWrapper(event.data().metadata().value().toArray())
-                        .setEvent(anyEvent)
-                        .build();
-                currentMessage = eventWrapper;
-
-                dispatchToCorrectEventHandler(ProtobufHelper.unPackAny(eventWrapper.getProtoSerializationType(), anyEvent));
-            } else if (o instanceof Call && !subscribePhase) {
-                handleCall((Call) o);
-            } else if (o instanceof LiveProcessingStarted$) {
-//                if (o instanceof CompleteAsyncSubscriptionPleaseSendSyncSubscription) {
-//                    log.info("AsyncSubscription complete, sending sync subscription");
-//                    eventStore.tell(new Subscription(((CompleteAsyncSubscriptionPleaseSendSyncSubscription) o).getAggregateType(), latestJournalidReceived), self());
-//                } else {
-//                    log.info("Subscription on {} is complete", ((CompleteSubscriptionRegistered) o).getAggregateType());
-//                    setSubscribeFinished();
-//                }
-                setSubscribeFinished();
-                for (PendingCall pendingCall : pendingCalls) {
-                    self().tell(pendingCall.getCall(), pendingCall.getSender());
-                }
-                pendingCalls.clear();
-                log.info("Live processing started!");
-            } else if (o instanceof Call && subscribePhase) {
-                log.debug("Adding call {} to pending calls", o);
-                pendingCalls.add(new PendingCall((Call) o, sender()));
-            }
+            super.aroundReceive(receive, msg);
         } catch (Exception e) {
-            getContext().parent().tell(new ProjectionFailedError(self(), e, o), self());
             log.error("Projection threw exception while handling message: ", e);
-            throw new RuntimeException("Projection threw exception while handling message: ", e);
+            throw new ProjectionFailedException(new ProjectionFailedError(self(), e, msg), e);
         }
     }
 
-    private void setSubscribeFinished() {
-        subscribePhase = false;
-        context().parent().tell(ProjectionManager.SUBSCRIBE_FINISHED, self());
+    @Override
+    public Receive createReceive() {
+        return createReceiveBuilder().build();
     }
 
-    protected void setInSubscribe() {
-        subscribePhase = true;
-        context().parent().tell(ProjectionManager.IN_SUBSCRIBE, self());
+    protected ReceiveBuilder createReceiveBuilder() {
+        return receiveBuilder()
+                .match(ResolvedEvent.class, this::handleResolvedEvent)
+                .match(Call.class, () -> subscribePhase, this::handlePendingCall)
+                .match(Call.class, () -> !subscribePhase, this::handleCall)
+                .match(LiveProcessingStarted$.class, this::handleLiveProcessingStarted);
     }
 
-    public final void dispatchToCorrectEventHandler(Message message) {
-        Method method = HandlerFinderProtobuf.findHandlingMethod(handleEventMap, message);
 
-        if (method != null) {
-            try {
-                method.invoke(this, message);
-            } catch (Exception e) {
-                log.error("Failed to call method " + method + " with event " + message, e);
-                throw new RuntimeException(e);
-            }
-        }
-    }
 
-    public final void handleCall(Call call) {
+    private void handleCall(Call call) {
         log.debug("handling call: {}", call);
         try {
             Method method = getCallMethod(call);
@@ -153,6 +118,56 @@ public abstract class Projection extends UntypedActor {
             sender().tell(new Status.Failure(runtimeException), self());
             throw runtimeException;
 
+        }
+    }
+
+    private void handlePendingCall(Call call) {
+        log.debug("Adding call {} to pending calls", call);
+        pendingCalls.add(new PendingCall(call, sender()));
+    }
+
+    private void handleResolvedEvent(ResolvedEvent event) throws InvalidProtocolBufferException {
+        log.trace("Handling ResolvedEvent: {}", event);
+        latestJournalidReceived = event.linkEvent().number().value();
+
+        Any anyEvent = Any.parseFrom(event.data().data().value().toArray());
+        Messages.EventWrapper eventWrapper = JsonMetadataBuilder.readMetadataAsWrapper(event.data().metadata().value().toArray())
+                .setEvent(anyEvent)
+                .build();
+        currentMessage = eventWrapper;
+
+        dispatchToCorrectEventHandler(ProtobufHelper.unPackAny(eventWrapper.getProtoSerializationType(), anyEvent));
+    }
+
+    private void handleLiveProcessingStarted(LiveProcessingStarted$ live) {
+        setSubscribeFinished();
+        for (PendingCall pendingCall : pendingCalls) {
+            self().tell(pendingCall.getCall(), pendingCall.getSender());
+        }
+        pendingCalls.clear();
+        log.info("Live processing started!");
+    }
+
+    private void setSubscribeFinished() {
+        subscribePhase = false;
+        context().parent().tell(ProjectionManager.SUBSCRIBE_FINISHED, self());
+    }
+
+    protected void setInSubscribe() {
+        subscribePhase = true;
+        context().parent().tell(ProjectionManager.IN_SUBSCRIBE, self());
+    }
+
+    public final void dispatchToCorrectEventHandler(Message message) {
+        Method method = HandlerFinderProtobuf.findHandlingMethod(handleEventMap, message);
+
+        if (method != null) {
+            try {
+                method.invoke(this, message);
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                log.error("Failed to call method " + method + " with event " + message, e);
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -211,7 +226,7 @@ public abstract class Projection extends UntypedActor {
         }
     }
 
-    protected String getSubscribe() { // TODO: Brukes fra subscribe
+    protected String getSubscribe() {
         Subscriber subscriberAnnotation = getClass().getAnnotation(Subscriber.class);
 
         if (subscriberAnnotation != null) {
@@ -251,7 +266,7 @@ public abstract class Projection extends UntypedActor {
     }
 
     protected void subscribe() {
-        if(!subscribePhase) {
+        if (!subscribePhase) {
             EventStream.Id streamId = new EventStream.System(SVARUT_CATEGORY_PREFIX + getSubscribe());
             EventNumber.Exact eventNumber = new EventNumber.Exact(Optional.ofNullable(latestJournalidReceived).orElse(0L));
             log.info("Subscribing to {} from {}", streamId, eventNumber);

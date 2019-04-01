@@ -16,11 +16,10 @@ public abstract class ProjectionSnapshot extends Projection {
     }
 
     @Override
-    public void onReceive(Object o) {
-        super.onReceive(o);
-        if (o instanceof TakeSnapshot) {
-            saveSnapshot();
-        }
+    public Receive createReceive() {
+        return super.createReceiveBuilder()
+                .match(TakeSnapshot.class, o -> saveSnapshot())
+                .build();
     }
 
     public abstract void saveSnapshot();

@@ -3,13 +3,11 @@ package no.ks.eventstore2.eventstore;
 import com.google.protobuf.InvalidProtocolBufferException;
 import events.Aggevents.Agg;
 import events.test.Order.Order;
-import events.test.form.Form;
 import eventstore.Messages;
-import no.ks.eventstore2.Eventstore2TestKit;
 import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.TestInvoker;
+import no.ks.eventstore2.testkit.EventstoreEventstore2TestKit;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -23,7 +21,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class EventstoreJournalTest extends Eventstore2TestKit {
+public class EventstoreJournalTest extends EventstoreEventstore2TestKit {
 
     private EventstoreJournalStorage journal;
 
@@ -35,9 +33,7 @@ public class EventstoreJournalTest extends Eventstore2TestKit {
 
         ProtobufHelper.registerDeserializeMethod(Agg.Aggevent.getDefaultInstance());
         ProtobufHelper.registerDeserializeMethod(Order.SearchRequest.getDefaultInstance());
-        ProtobufHelper.registerDeserializeMethod(Form.FormReceived.getDefaultInstance());
-        journal = new EventstoreJournalStorage(_system);
-        journal.open();
+        journal = new EventstoreJournalStorage(eventstoreConnection);
     }
 
     @Test
@@ -48,7 +44,7 @@ public class EventstoreJournalTest extends Eventstore2TestKit {
         Messages.EventWrapper eventWrapper = ProtobufHelper.newEventWrapper(aggregateType, aggregateRootId, searchRequest);
 
         Messages.EventWrapper savedEvent = journal.saveEvent(eventWrapper);
-        Messages.EventWrapper lastEvent = getLastEvent();
+        Messages.EventWrapper lastEvent = getLastEvent(ORDER_CATEGORY);
 
         assertThat(savedEvent.getAggregateType(), is(aggregateType));
         assertThat(savedEvent.getAggregateRootId(), is(aggregateRootId));
@@ -77,7 +73,7 @@ public class EventstoreJournalTest extends Eventstore2TestKit {
 
     @Test
     void testSaveAndRetrieveMultipleBatches() {
-        long previousJournalId = getLatestJournalId();
+        long previousJournalId = getLatestJournalId(ORDER_CATEGORY);
         String aggregateId1 = UUID.randomUUID().toString();
         String aggregateId2 = UUID.randomUUID().toString();
         Messages.EventWrapper event1 = ProtobufHelper.newEventWrapper("order", aggregateId1, buildSearchRequest());
@@ -89,7 +85,7 @@ public class EventstoreJournalTest extends Eventstore2TestKit {
         journal.saveEventsBatch(Arrays.asList(event1, event2));
         journal.saveEventsBatch(Arrays.asList(event3, event4));
         journal.saveEventsBatch(Arrays.asList(event5, event6));
-        List<Messages.EventWrapper> allEvents = getAllEvents();
+        List<Messages.EventWrapper> allEvents = getAllEvents(ORDER_CATEGORY);
 
         assertThat(allEvents.get(allEvents.size() - 6).getVersion(), is(0L));
         assertThat(allEvents.get(allEvents.size() - 6).getJournalid(), is(previousJournalId + 1));
@@ -115,24 +111,24 @@ public class EventstoreJournalTest extends Eventstore2TestKit {
     void testJournalId() {
         final Order.SearchRequest searchRequest1 = buildSearchRequest();
         journal.saveEvent(ProtobufHelper.newEventWrapper("order", UUID.randomUUID().toString(), searchRequest1));
-        Messages.EventWrapper searchRequestRead1 = getLastEvent();
+        Messages.EventWrapper searchRequestRead1 = getLastEvent(ORDER_CATEGORY);
 
         final Order.SearchRequest searchRequest2 = buildSearchRequest();
         journal.saveEvent(ProtobufHelper.newEventWrapper("order", UUID.randomUUID().toString(), searchRequest2));
-        Messages.EventWrapper searchRequestRead2 = getLastEvent();
+        Messages.EventWrapper searchRequestRead2 = getLastEvent(ORDER_CATEGORY);
 
         assertThat(searchRequestRead2.getJournalid(), is(searchRequestRead1.getJournalid() + 1));
     }
 
     @Test
     void testJournalIdMultipleEvents() {
-        long previousJournalId = getLatestJournalId();
+        long previousJournalId = getLatestJournalId(ORDER_CATEGORY);
 
         String aggregateId = UUID.randomUUID().toString();
         Messages.EventWrapper event1 = ProtobufHelper.newEventWrapper("order", aggregateId, buildSearchRequest());
         Messages.EventWrapper event2 = ProtobufHelper.newEventWrapper("order", aggregateId, buildSearchRequest());
         journal.saveEventsBatch(Arrays.asList(event1, event2));
-        List<Messages.EventWrapper> allEvents = getAllEvents();
+        List<Messages.EventWrapper> allEvents = getAllEvents(ORDER_CATEGORY);
 
         assertThat(allEvents.get(allEvents.size() - 2).getJournalid(), is(previousJournalId + 1));
         assertThat(allEvents.get(allEvents.size() - 1).getJournalid(), is(previousJournalId + 2));
@@ -145,7 +141,7 @@ public class EventstoreJournalTest extends Eventstore2TestKit {
         final Order.SearchRequest searchRequest = buildSearchRequest();
         Messages.EventWrapper searchRequestSaved = journal.saveEvent(ProtobufHelper.newEventWrapper(
                 "order", UUID.randomUUID().toString(), searchRequest, correlationId, ""));
-        Messages.EventWrapper searchRequestRead = getLastEvent();
+        Messages.EventWrapper searchRequestRead = getLastEvent(ORDER_CATEGORY);
 
         assertThat(searchRequestSaved.getCorrelationId(), is(correlationId));
         assertThat(searchRequestRead.getCorrelationId(), is(correlationId));
@@ -191,7 +187,7 @@ public class EventstoreJournalTest extends Eventstore2TestKit {
 
     @Test
     void testSaveAndReceiveEventsFromKey() {
-        long previousJournalId = getLatestJournalId();
+        long previousJournalId = getLatestJournalId(ORDER_CATEGORY);
         String aggregateId = UUID.randomUUID().toString();
 
         List<Messages.EventWrapper> batch = new ArrayList<>();
@@ -208,7 +204,7 @@ public class EventstoreJournalTest extends Eventstore2TestKit {
 
     @Test
     void testEventReadLimit() {
-        long previousJournalId = getLatestJournalId();
+        long previousJournalId = getLatestJournalId(ORDER_CATEGORY);
         String aggregateId = UUID.randomUUID().toString();
 
         List<Messages.EventWrapper> batch = new ArrayList<>();
@@ -238,7 +234,7 @@ public class EventstoreJournalTest extends Eventstore2TestKit {
 
     @Test
     void testStresstest() throws InterruptedException, ExecutionException, TimeoutException {
-        long nextJournalId = getLatestJournalId() + 1;
+        long nextJournalId = getLatestJournalId(ORDER_CATEGORY) + 1;
 
         final int numberOfVersions = 50;
         final int numberOfAggregates = 50;
@@ -272,59 +268,6 @@ public class EventstoreJournalTest extends Eventstore2TestKit {
             finished = journal.loadEventsAndHandle("events.test.Order", loadEvents, nextJournalId);
         }
         assertThat(events.size(), is(numberOfAggregates * numberOfVersions));
-    }
-
-    private long getLatestJournalId() {
-        Messages.EventWrapper lastEvent = getLastEvent();
-        if (lastEvent != null) {
-            return lastEvent.getJournalid();
-        }
-        return -1;
-    }
-
-    private Messages.EventWrapper getLastEvent() {
-        final List<Messages.EventWrapper> events = getAllEvents();
-
-        if (events.isEmpty()) {
-            return null;
-        }
-        return events.get(events.size() - 1);
-    }
-
-    private List<Messages.EventWrapper> getAllEvents() {
-        final ArrayList<Messages.EventWrapper> events = new ArrayList<>();
-        final HandleEventMetadata loadEvents = new HandleEventMetadata() {
-            @Override
-            public void handleEvent(Messages.EventWrapper event) {
-                events.add(event);
-            }
-        };
-        boolean finished = journal.loadEventsAndHandle(ORDER_CATEGORY, loadEvents);
-        while(!finished){
-            finished = journal.loadEventsAndHandle(ORDER_CATEGORY, loadEvents, events.size());
-        }
-
-        return events;
-    }
-
-    private Order.SearchRequest buildSearchRequest() {
-        return Order.SearchRequest.newBuilder()
-                .setQuery(UUID.randomUUID().toString())
-                .setPageNumber(ThreadLocalRandom.current().nextInt(0, 100) + 1)
-                .setResultPerPage(ThreadLocalRandom.current().nextInt(0, 100) + 1)
-                .build();
-    }
-
-    private Order.SearchResult buildSearchResult() {
-        Order.SearchResult.Builder builder = Order.SearchResult.newBuilder();
-
-        for (int i = 0; i < ThreadLocalRandom.current().nextInt(10); i++) {
-            builder = builder.addResult(UUID.randomUUID().toString());
-        }
-
-        return builder
-                .setNumberOfResults(builder.getResultCount())
-                .build();
     }
 
     private void assertEventEquals(Messages.EventWrapper first, Messages.EventWrapper second) {

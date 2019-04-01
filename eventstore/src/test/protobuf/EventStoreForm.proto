@@ -1,0 +1,14 @@
+syntax = "proto3";
+package  no.ks.events.svarut.Form;
+
+message FormReceived {
+  string formId = 1;
+}
+
+message FormParsed {
+  string formId = 1;
+}
+
+message FormDelivered {
+  string formId = 1;
+}

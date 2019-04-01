@@ -1,0 +1,6 @@
+syntax = "proto3";
+package  no.ks.events.svarut.Test;
+
+message TestEvent {
+  string message = 1;
+}

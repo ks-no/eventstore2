@@ -1,22 +1,26 @@
 package no.ks.eventstore2.formProcessorProject;
 
 import akka.actor.ActorRef;
+import no.ks.events.svarut.Form.EventStoreForm;
+import no.ks.eventstore2.Handler;
+import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.command.CommandHandler;
-import no.ks.eventstore2.command.HandlesCommand;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-@HandlesCommand(ParseForm.class)
+import java.util.UUID;
+
 public class FormParser extends CommandHandler {
 
-    private static Logger log = LoggerFactory.getLogger(FormParser.class);
     public FormParser(ActorRef eventStore) {
         super(eventStore);
-        log.debug("FormParser created");
     }
 
+    @Handler
     public void handleCommand(ParseForm command){
-        log.debug("got command " + command);
-        eventStore.tell(new FormParsed(command.getFormId()), self());
+        eventStore.tell(
+                ProtobufHelper.newEventWrapper(
+                        "form",
+                        UUID.randomUUID().toString(),
+                        EventStoreForm.FormParsed.newBuilder().setFormId(command.getFormId()).build()),
+                self());
     }
 }

@@ -8,6 +8,7 @@ import akka.cluster.Member;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.japi.Function;
+import akka.japi.pf.DeciderBuilder;
 import no.ks.eventstore2.RestartActorException;
 import no.ks.eventstore2.TakeSnapshot;
 import scala.concurrent.duration.Duration;
@@ -17,14 +18,14 @@ import java.util.*;
 import static akka.actor.SupervisorStrategy.restart;
 import static akka.actor.SupervisorStrategy.resume;
 
-public class ProjectionManager extends UntypedActor {
+public class ProjectionManager extends UntypedAbstractActor {
 
     private LoggingAdapter log = Logging.getLogger(getContext().system(), this);
 
     public static final String IN_SUBSCRIBE = "insubscribe";
     public static final String SUBSCRIBE_FINISHED = "subscribe_finished";
 
-    private Map<Class<? extends UntypedActor>, ActorRef> projections = new HashMap<>();
+    private Map<Class<? extends AbstractActor>, ActorRef> projections = new HashMap<>();
     private Set<ActorRef> inSubscribePhase = new HashSet<>();
     private ActorRef errorListener;
     private Cluster cluster;
@@ -38,7 +39,7 @@ public class ProjectionManager extends UntypedActor {
 
         for (Props prop : props) {
             ActorRef projectionRef = getContext().actorOf(prop, prop.actorClass().getSimpleName());
-            projections.put((Class<? extends ProjectionOld>) prop.actorClass(), projectionRef);
+            projections.put((Class<? extends Projection>) prop.actorClass(), projectionRef);
             inSubscribePhase.add(projectionRef);
         }
 
@@ -59,19 +60,16 @@ public class ProjectionManager extends UntypedActor {
         }
     }
 
-    private static SupervisorStrategy strategy =
-            new OneForOneStrategy(10, Duration.create("1 minute"),
-                    new Function<Throwable, SupervisorStrategy.Directive>() {
-                        public SupervisorStrategy.Directive apply(Throwable t) {
-                            if(t instanceof RestartActorException)
-                                return restart();
-                            else if (t instanceof RuntimeException || t instanceof Exception) {
-                                return resume();
-                            } else {
-                                return restart();
-                            }
-                        }
-                    });
+    private SupervisorStrategy strategy =
+            new OneForOneStrategy(10, Duration.create("1 minute"), DeciderBuilder
+                    .match(RestartActorException.class, e -> restart())
+                    .match(ProjectionFailedException.class, e -> {
+                        errorListener.tell(e.getError(), sender());
+                        return resume();
+                    })
+                    .match(Exception.class, e -> resume())
+                    .matchAny(e -> restart())
+                    .build());
 
     @Override
     public SupervisorStrategy supervisorStrategy() {
@@ -97,14 +95,12 @@ public class ProjectionManager extends UntypedActor {
                 }
             }
             log.info("Member oldest {}", oldest );
-            if(oldest.equals(reachable.member())) {
+            if (oldest.equals(reachable.member())) {
                 for (ActorRef actorRef : projections.values()) {
                     actorRef.tell("restart", self());
                     log.debug("Sending restart to actorref {}", actorRef);
                 }
             }
-        }else if(o instanceof ProjectionFailedError) {
-            errorListener.tell(o,sender());
         } else if (o instanceof Call && "getProjectionRef".equals(((Call) o).getMethodName())) {
         	sender().tell(projections.get(((Call) o).getArgs()[0]), self());
         } else if (o instanceof Call && "isAnyoneInSubscribePhase".equals(((Call) o).getMethodName())) {

@@ -1,32 +1,44 @@
 package no.ks.eventstore2.formProcessorProject;
 
 import akka.actor.ActorRef;
-import no.ks.eventstore2.projection.ListensTo;
-import no.ks.eventstore2.projection.ProjectionOld;
+import no.ks.events.svarut.Form.EventStoreForm;
+import no.ks.eventstore2.Handler;
+import no.ks.eventstore2.projection.Projection;
+import no.ks.eventstore2.projection.Subscriber;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-@ListensTo(value = {FormReceived.class, FormParsed.class, FormDelivered.class}, aggregates = "FORM")
-public class FormStatuses extends ProjectionOld {
+@Subscriber("Form")
+public class FormStatuses extends Projection {
 
-    Map<String, FormStatus> statuses = new LinkedHashMap<String, FormStatus>();
+    private Map<String, FormStatus> statuses = new LinkedHashMap<>();
 
-    public FormStatuses(ActorRef eventStore) {
-        super(eventStore);
+    public FormStatuses(ActorRef eventstoreConnection) {
+        super(eventstoreConnection);
     }
 
-    public void handleEvent(FormReceived event){
+    public String assertEventReceived(String id) {
+        if (statuses.containsKey(id)) {
+            return "STATUS_RECEIVED";
+        }
+        return "STATUS_NOT_RECEIVED";
+    }
+
+    @Handler
+    public void handleEvent(EventStoreForm.FormReceived event) {
         statuses.put(event.getFormId(), FormStatus.RECEIVED);
     }
 
-    public void handleEvent(FormParsed event){
+    @Handler
+    public void handleEvent(EventStoreForm.FormParsed event) {
         statuses.put(event.getFormId(), FormStatus.PARSED);
     }
 
-    public void handleEvent(FormDelivered event){
+    @Handler
+    public void handleEvent(EventStoreForm.FormDelivered event) {
         statuses.put(event.getFormId(), FormStatus.DELIVERED);
     }
 
@@ -38,8 +50,8 @@ public class FormStatuses extends ProjectionOld {
         return statuses.get(formId);
     }
 
-    public Map<String, FormStatus> getStatuses(List<String> formIds){
-        Map<String, FormStatus> result = new HashMap<String, FormStatus>();
+    public Map<String, FormStatus> getStatuses(List<String> formIds) {
+        Map<String, FormStatus> result = new HashMap<>();
         for (String formId : formIds){
             result.put(formId, statuses.get(formId));
         }

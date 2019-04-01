@@ -4,7 +4,7 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import no.ks.eventstore2.Event;
-import no.ks.eventstore2.Eventstore2TestKit;
+import no.ks.eventstore2.testkit.Eventstore2TestKit;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.projection.Subscriber;
 import org.junit.jupiter.api.Test;

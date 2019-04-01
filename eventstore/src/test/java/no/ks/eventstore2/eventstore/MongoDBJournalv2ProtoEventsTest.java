@@ -5,8 +5,8 @@ import com.google.protobuf.Any;
 import com.mongodb.client.MongoDatabase;
 import events.Aggevents.Agg;
 import events.test.Order.Order;
-import events.test.form.Form;
 import eventstore.Messages;
+import no.ks.events.svarut.Form.EventStoreForm;
 import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.events.OldEventShouldBeUpgradedToOrderSearchResult;
 import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
@@ -45,7 +45,6 @@ public class MongoDBJournalv2ProtoEventsTest extends MongoDbEventstore2TestKit {
 
         ProtobufHelper.registerDeserializeMethod(Agg.Aggevent.getDefaultInstance());
         ProtobufHelper.registerDeserializeMethod(Order.SearchRequest.getDefaultInstance());
-        ProtobufHelper.registerDeserializeMethod(Form.FormReceived.getDefaultInstance());
         MongoDatabase db = mongoClient.getDatabase("Journal");
         journal = new MongoDBJournalV2(db, kryoClassRegistration, Arrays.asList(new String[]{"agg1", "agg3", "agg2", "ORDER"}), 10, null);
     }

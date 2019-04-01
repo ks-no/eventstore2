@@ -1,44 +1,31 @@
 package no.ks.eventstore2.projection;
 
 import akka.actor.ActorRef;
-import akka.actor.ActorSelection;
-import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
-import akka.testkit.TestKit;
-import com.typesafe.config.ConfigFactory;
-import no.ks.eventstore2.eventstore.CompleteSubscriptionRegistered;
 import no.ks.eventstore2.formProcessorProject.FormStatuses;
+import no.ks.eventstore2.testkit.EventstoreEventstore2TestKit;
 import org.junit.jupiter.api.Test;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collections;
 
 import static akka.pattern.Patterns.ask;
 import static no.ks.eventstore2.projection.CallProjection.call;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
-public class ProjectionManagerTest extends TestKit {
-
-    static ActorSystem _system = ActorSystem.create("TestSys", ConfigFactory
-            .load().getConfig("TestSys"));
-
-    public ProjectionManagerTest() {
-        super(_system);
-    }
+class ProjectionManagerTest extends EventstoreEventstore2TestKit {
 
     @Test
-    public void testProjectionManagerCreatesProjections() throws Exception {
-
-        List<Props> factories = new ArrayList<>();
-        factories.add(Props.create(FormStatuses.class, super.testActor()));
-
-        final TestActorRef<ProjectionManager> ref = TestActorRef.create(_system, ProjectionManager.mkProps(super.testActor(), factories), "projectionManager");
+    void testProjectionManagerCreatesProjections() throws Exception {
+        final TestActorRef<ProjectionManager> ref = TestActorRef.create(_system,
+                ProjectionManager.mkProps(super.testActor(),
+                        Collections.singletonList(Props.create(FormStatuses.class, eventstoreConnection))),
+                "projectionManager");
 
         Future<Object> getProjectionref = ask(ref, call("getProjectionRef", FormStatuses.class), 3000);
 
@@ -48,31 +35,19 @@ public class ProjectionManagerTest extends TestKit {
     }
 
     @Test
-    public void testProjectionsInSubscribePhase () throws Exception {
+    void testProjectionsInSubscribePhase () throws Exception {
+        final TestActorRef<ProjectionManager> actorRef = TestActorRef.create(_system,
+                ProjectionManager.mkProps(super.testActor(),
+                        Collections.singletonList(Props.create(FormStatuses.class, eventstoreConnection))),
+                "projectionManager2");
 
-        List<Props> factories = new ArrayList<>();
-        factories.add(Props.create(FormStatuses.class, super.testActor()));
-
-        final TestActorRef<ProjectionManager> actorRef = TestActorRef.create(_system, ProjectionManager.mkProps(super.testActor(), factories), "projectionManager2");
-
-        completeSubscription(actorRef);
+        ActorRef projectionRef = (ActorRef) Await.result(ask(actorRef, call("getProjectionRef", FormStatuses.class), 3000), Duration.create("3 seconds"));
+        Await.result(ask(projectionRef, call("getNumberOfForms"), 3000), Duration.create("3 seconds"));
 
         Future<Object> getProjectionref = ask(actorRef, call("isAnyoneInSubscribePhase", FormStatuses.class), 3000 );
         Boolean isInSubscribePhase = (Boolean) Await.result(getProjectionref, Duration.create("3 seconds"));
 
-        assertTrue(!isInSubscribePhase.booleanValue());
-
-    }
-
-    private void completeSubscription(TestActorRef<ProjectionManager> actorRef) {
-        ActorSelection sel = _system.actorSelection("/user/projectionManager2/FormStatuses");
-        sel.tell(new CompleteSubscriptionRegistered("agg"), actorRef);
-        final Future<Object> getNumberOfForms = ask(sel, call("getNumberOfForms"), 3000);
-        try {
-            Await.result(getNumberOfForms, Duration.create("3 seconds"));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        assertFalse(isInSubscribePhase);
 
     }
 }

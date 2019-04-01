@@ -13,6 +13,8 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.UpdateOptions;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -20,6 +22,8 @@ import java.util.ArrayList;
 import java.util.UUID;
 
 public abstract class MongoDbProjection extends ProjectionSnapshot {
+
+    private static final Logger log = LoggerFactory.getLogger(MongoDbProjection.class);
 
     private final MongoDatabase mongodatabase;
     private GridFSBucket gridFS;

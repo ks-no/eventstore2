@@ -7,11 +7,11 @@ import akka.testkit.TestActorRef;
 import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
 import no.ks.eventstore2.formProcessorProject.FormProcess;
-import no.ks.eventstore2.formProcessorProject.FormReceived;
 import no.ks.eventstore2.formProcessorProject.ParseForm;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class SagaTest extends TestKit {
 
@@ -30,7 +30,8 @@ public class SagaTest extends TestKit {
         final Props props = getNotificationSagaProps();
         final TestActorRef<FormProcess> ref = TestActorRef.create(_system, props, "not_saga_a");
         final FormProcess saga = ref.underlyingActor();
-        ref.tell(new FormReceived("1"), null);
+        fail();
+//        ref.tell(new FormReceived("1"), null);
         assertEquals(2, saga.getState());
     }
 
@@ -38,7 +39,8 @@ public class SagaTest extends TestKit {
     public void testSagaDispatchesCommandOnMessageRecieved() throws Exception {
         final Props props = getNotificationSagaProps();
         final TestActorRef<FormProcess> ref = TestActorRef.create(_system, props, "not_saga_b");
-        ref.tell(new FormReceived("1"), super.testActor());
+        fail();
+//        ref.tell(new FormReceived("1"), super.testActor());
         expectMsgClass(ParseForm.class);
     }
 
@@ -46,7 +48,8 @@ public class SagaTest extends TestKit {
     public void testSagaPersistsState() throws Exception {
         final Props props = getNotificationSagaProps();
         final TestActorRef<FormProcess> ref = TestActorRef.create(_system, props, "not_saga_c");
-        ref.tell(new FormReceived("1"), super.testActor());
+        fail();
+//        ref.tell(new FormReceived("1"), super.testActor());
         assertEquals(2, sagaInMemoryRepository.getState("FormProcess", "123"));
     }
 

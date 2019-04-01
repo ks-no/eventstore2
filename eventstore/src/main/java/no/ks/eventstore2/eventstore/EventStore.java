@@ -14,6 +14,7 @@ import akka.cluster.singleton.ClusterSingletonProxySettings;
 import akka.dispatch.OnFailure;
 import akka.dispatch.OnSuccess;
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Lists;
 import eventstore.Messages;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.TakeBackup;
@@ -24,6 +25,7 @@ import scala.concurrent.Future;
 
 import java.text.SimpleDateFormat;
 import java.util.HashSet;
+import java.util.List;
 
 import static akka.dispatch.Futures.future;
 
@@ -41,7 +43,6 @@ public class EventStore extends UntypedActor {
     private SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
 
     public static Props mkProps(JournalStorage journalStorage) {
-
         return Props.create(EventStore.class, journalStorage);
     }
 
@@ -172,14 +173,16 @@ public class EventStore extends UntypedActor {
                 readAggregateEvents((Messages.RetreiveAggregateEventsAsync) o);
             } else if (o instanceof Messages.RetreiveCorrelationIdEventsAsync) {
                 readAggregateEvents((Messages.RetreiveCorrelationIdEventsAsync) o);
+            } else if (o instanceof Messages.EventWrapper) {
+                storeEventWrapper((Messages.EventWrapper) o);
+            } else if (o instanceof Messages.EventWrapperBatch) {
+                storeEventWrapperBatch((Messages.EventWrapperBatch) o);
             } else if (o instanceof String ||
                     o instanceof Subscription ||
                     o instanceof Messages.Subscription ||
                     o instanceof Messages.LiveSubscription ||
                     o instanceof StoreEvents ||
                     o instanceof Event ||
-                    o instanceof Messages.EventWrapper ||
-                    o instanceof Messages.EventWrapperBatch ||
                     o instanceof AcknowledgePreviousEventsProcessed ||
                     o instanceof RetreiveAggregateEvents ||
                     o instanceof Messages.RetreiveAggregateEvents ||
@@ -206,6 +209,16 @@ public class EventStore extends UntypedActor {
             log.error("Eventstore got an error: ", e);
             throw e;
         }
+    }
+
+    private void storeEventWrapper(Messages.EventWrapper o) {
+        storage.saveEvent(o);
+    }
+
+    private void storeEventWrapperBatch(Messages.EventWrapperBatch o) {
+        Messages.EventWrapperBatch batch = o;
+        Lists.partition(batch.getEventsList(), 500)
+                .forEach(subBatch -> storage.saveEventsBatch(subBatch));
     }
 
     private void tryToFillSubscription(final ActorRef sender, final Messages.AsyncSubscription subscription) {

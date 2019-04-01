@@ -136,21 +136,20 @@ public class EventstoreSingelton extends UntypedActor {
             storeEvent((Event) o);
             publishEvent((Event) o);
             log.info("Published event {}: {}", o, ((Event) o).getLogMessage());
-        }else if (o instanceof Messages.EventWrapper) {
-            Messages.EventWrapper storedEvent = storeEvent((Messages.EventWrapper) o);
-            publishEvent(storedEvent);
-            log.info("Published event {}", ProtobufHelper.toLog((Messages.EventWrapper) o));
-
-        } else if (o instanceof Messages.EventWrapperBatch) {
-            Messages.EventWrapperBatch storedEvents = storeEvents((Messages.EventWrapperBatch) o);
-            publishEvents(storedEvents);
-            if(((Messages.EventWrapperBatch) o).getEventsCount() > 50) {
-                log.info("Published {} events in aggregate {}", ((Messages.EventWrapperBatch) o).getEventsCount(), ((Messages.EventWrapperBatch) o).getAggregateType());
-            } else {
-                for (Messages.EventWrapper event : ((Messages.EventWrapperBatch) o).getEventsList()) {
-                    log.info("Published event {}", ProtobufHelper.toLog(event));
-                }
-            }
+//        }else if (o instanceof Messages.EventWrapper) {
+//            Messages.EventWrapper storedEvent = storeEvent((Messages.EventWrapper) o);
+//            publishEvent(storedEvent);
+//            log.info("Published event {}", ProtobufHelper.toLog((Messages.EventWrapper) o));
+//        } else if (o instanceof Messages.EventWrapperBatch) {
+//            Messages.EventWrapperBatch storedEvents = storeEvents((Messages.EventWrapperBatch) o);
+//            publishEvents(storedEvents);
+//            if(((Messages.EventWrapperBatch) o).getEventsCount() > 50) {
+//                log.info("Published {} events in aggregate {}", ((Messages.EventWrapperBatch) o).getEventsCount(), ((Messages.EventWrapperBatch) o).getAggregateType());
+//            } else {
+//                for (Messages.EventWrapper event : ((Messages.EventWrapperBatch) o).getEventsList()) {
+//                    log.info("Published event {}", ProtobufHelper.toLog(event));
+//                }
+//            }
         } else if (o instanceof RetreiveAggregateEvents) {
             readAggregateEvents((RetreiveAggregateEvents) o);
         } else if (o instanceof Messages.RetreiveAggregateEvents) {

@@ -5,7 +5,7 @@ import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import eventstore.Messages;
 import no.ks.eventstore2.Event;
-import no.ks.eventstore2.Eventstore2TestKit;
+import no.ks.eventstore2.testkit.Eventstore2TestKit;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.projection.Subscriber;
 import no.ks.eventstore2.response.Success;

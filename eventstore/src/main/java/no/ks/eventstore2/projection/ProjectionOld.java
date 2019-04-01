@@ -28,6 +28,7 @@ import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+// TODO: Slettes
 public abstract class ProjectionOld extends UntypedActor {
 
     protected final Logger log = LoggerFactory.getLogger(this.getClass());
@@ -49,8 +50,6 @@ public abstract class ProjectionOld extends UntypedActor {
             log.debug("Got message {} while restarting", message);
         }
     };
-
-    //TODO; constructor vs preStart, and how do we handle faling actor creations? Pass exception to parent and shutdown actor system?
     public ProjectionOld(ActorRef eventStore) {
         this.eventStore = eventStore;
         init();

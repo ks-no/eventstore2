@@ -1,17 +1,17 @@
 package no.ks.eventstore2.eventstore;
 
 import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
 import akka.actor.Status;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
-import eventstore.*;
+import eventstore.Messages;
+import eventstore.ReadStreamEventsCompleted;
+import eventstore.ResolvedEvent;
+import eventstore.WriteEventsCompleted;
 import eventstore.j.EventDataBuilder;
 import eventstore.j.ReadStreamEventsBuilder;
-import eventstore.j.SettingsBuilder;
 import eventstore.j.WriteEventsBuilder;
-import eventstore.tcp.ConnectionActor;
 import no.ks.eventstore2.Event;
 import no.ks.eventstore2.ProtobufHelper;
 import no.ks.svarut.events.EventUtil;
@@ -22,7 +22,6 @@ import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
 
-import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -35,12 +34,10 @@ public class EventstoreJournalStorage implements JournalStorage {
 
     private static final Logger log = LoggerFactory.getLogger(EventstoreJournalStorage.class);
 
-    private final ActorSystem system;
-
     private ActorRef connection;
 
-    public EventstoreJournalStorage(ActorSystem system) {
-        this.system = system;
+    public EventstoreJournalStorage(ActorRef connection) {
+        this.connection = connection;
     }
 
     @Override
@@ -176,12 +173,13 @@ public class EventstoreJournalStorage implements JournalStorage {
 
     @Override
     public void open() {
-        final Settings settings = new SettingsBuilder()
-                .address(new InetSocketAddress("127.0.0.1", 1113))
-                .defaultCredentials("admin", "changeit")
-                .build();
-
-        connection = system.actorOf(ConnectionActor.getProps(settings));
+        // TODO: Ta inn connection i konstruktør eller lage her?
+//        final Settings settings = new SettingsBuilder()
+//                .address(new InetSocketAddress("127.0.0.1", 1113))
+//                .defaultCredentials("admin", "changeit")
+//                .build();
+//
+//        connection = system.actorOf(ConnectionActor.getProps(settings));
     }
 
     @Override

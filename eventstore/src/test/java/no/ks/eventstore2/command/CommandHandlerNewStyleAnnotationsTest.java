@@ -3,7 +3,7 @@ package no.ks.eventstore2.command;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
-import no.ks.eventstore2.Eventstore2TestKit;
+import no.ks.eventstore2.testkit.Eventstore2TestKit;
 import no.ks.eventstore2.Handler;
 import org.junit.jupiter.api.Test;
 

@@ -1,159 +1,122 @@
 package no.ks.eventstore2.projection;
 
-import akka.actor.Actor;
 import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
-import akka.testkit.TestKit;
-import com.typesafe.config.ConfigFactory;
-import no.ks.eventstore2.eventstore.CompleteSubscriptionRegistered;
-import no.ks.eventstore2.eventstore.IncompleteSubscriptionPleaseSendNew;
-import no.ks.eventstore2.eventstore.Subscription;
-import no.ks.eventstore2.formProcessorProject.FormParsed;
-import no.ks.eventstore2.formProcessorProject.FormReceived;
+import no.ks.events.svarut.Form.EventStoreForm;
+import no.ks.eventstore2.ProtobufHelper;
+import no.ks.eventstore2.TestInvoker;
 import no.ks.eventstore2.formProcessorProject.FormStatus;
 import no.ks.eventstore2.formProcessorProject.FormStatuses;
+import no.ks.eventstore2.testkit.EventstoreEventstore2TestKit;
 import org.junit.jupiter.api.Test;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
 import scala.util.Failure;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import static akka.pattern.Patterns.ask;
-import static akka.testkit.JavaTestKit.duration;
 import static no.ks.eventstore2.projection.CallProjection.call;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.Is.is;
 
-public class ProjectionCallTest extends TestKit {
+class ProjectionCallTest extends EventstoreEventstore2TestKit {
 
-    static ActorSystem _system = ActorSystem.create("TestSys", ConfigFactory
-            .load().getConfig("TestSys"));
+    @Test
+    void testProjectionReturnsStatusOnCallWithNoArgs() throws Exception {
+        final TestActorRef<FormStatuses> ref = TestActorRef.create(_system, Props.create(FormStatuses.class, this.eventstoreConnection), "lastFormStatus1");
+        int numberOfForms = (int)Await.result(ask(ref, call("getNumberOfForms"), 3000), Duration.create(3, TimeUnit.SECONDS));
 
-    public ProjectionCallTest() {
-        super(_system);
+        journal.saveEvent(ProtobufHelper.newEventWrapper("form", UUID.randomUUID().toString(), buildFormParsed()));
+
+        callAssertEqualsWithRetry(ref, call("getNumberOfForms"),
+                (Consumer<Object>) result -> assertThat(result, is(numberOfForms + 1)));
     }
 
     @Test
-    public void testProjectionReturnsStatusOnCallWithNoArgs() throws Exception {
-        final TestActorRef<FormStatuses> ref = TestActorRef.create(_system, Props.create(FormStatuses.class, super.testActor()), "lastFormStatus1");
+    void testProjectionReturnsStatusForSpecifiedFormOnCallWithArgs() {
+        final TestActorRef<FormStatuses> ref = TestActorRef.create(_system, Props.create(FormStatuses.class, this.eventstoreConnection), "lastFormStatus3");
 
-        ref.tell(new FormReceived("1"), super.testActor());
-        ref.tell(new CompleteSubscriptionRegistered("agg"), super.testActor());
-        Future<Object> numberOfForms = ask(ref, call("getNumberOfForms"), 3000);
+        String formId = UUID.randomUUID().toString();
+        journal.saveEvent(ProtobufHelper.newEventWrapper("form", UUID.randomUUID().toString(), EventStoreForm.FormReceived.newBuilder().setFormId(formId).build()));
+        journal.saveEvent(ProtobufHelper.newEventWrapper("form", UUID.randomUUID().toString(), buildFormReceived()));
+        journal.saveEvent(ProtobufHelper.newEventWrapper("form", UUID.randomUUID().toString(), EventStoreForm.FormParsed.newBuilder().setFormId(formId).build()));
 
-        assertEquals(1, ((Await.result(numberOfForms, duration("3 seconds")))));
+        callAssertEqualsWithRetry(ref, call("getStatus", formId),
+                result -> assertThat(result, is(FormStatus.PARSED)));
     }
 
     @Test
-    public void testProjectionReturnsStatusForSpecifiedFormOnCallWithArgs() throws Exception {
+    void testProjectionMethodsAreCalledIfParametersAreAssignableToSuperclassOrInterface() {
+        final TestActorRef<FormStatuses> ref = TestActorRef.create(_system, Props.create(FormStatuses.class, this.eventstoreConnection), "lastFormStatus2");
 
-        final TestActorRef<FormStatuses> ref = TestActorRef.create(_system, Props.create(FormStatuses.class, super.testActor()), "lastFormStatus3");
+        String formId1 = UUID.randomUUID().toString();
+        String formId2 = UUID.randomUUID().toString();
+        journal.saveEvent(ProtobufHelper.newEventWrapper("form", UUID.randomUUID().toString(), EventStoreForm.FormReceived.newBuilder().setFormId(formId1).build()));
+        journal.saveEvent(ProtobufHelper.newEventWrapper("form", UUID.randomUUID().toString(), EventStoreForm.FormReceived.newBuilder().setFormId(formId2).build()));
+        journal.saveEvent(ProtobufHelper.newEventWrapper("form", UUID.randomUUID().toString(), EventStoreForm.FormParsed.newBuilder().setFormId(formId1).build()));
 
-        ref.tell(new FormReceived("2"), super.testActor());
-        ref.tell(new FormReceived("3"), super.testActor());
-        ref.tell(new FormParsed("2"), super.testActor());
-        ref.tell(new CompleteSubscriptionRegistered("agg"), super.testActor());
-        Future<Object> formStatus = ask(ref, call("getStatus", "2"), 3000);
-
-        assertEquals(FormStatus.PARSED, ((Await.result(formStatus, duration("3 seconds")))));
+        callAssertEqualsWithRetry(ref, call("getStatuses", Arrays.asList(formId1, formId2)),
+                result -> assertThat(((Map<String, FormStatus>) result).size(), is(2)));
     }
 
     @Test
-    public void testProjectionMethodsAreCalledIfParametersAreAssignableToSuperclassOrInterface() throws Exception {
-
-        final TestActorRef<FormStatuses> ref = TestActorRef.create(_system, Props.create(FormStatuses.class, super.testActor()), "lastFormStatus2");
-
-        ref.tell(new FormReceived("2"), super.testActor());
-        ref.tell(new FormReceived("3"), super.testActor());
-        ref.tell(new FormParsed("2"), super.testActor());
-        ref.tell(new CompleteSubscriptionRegistered("agg"), super.testActor());
-        List<String> ids = new ArrayList<String>();
-        ids.add("2");
-        ids.add("3");
-        Future<Object> formStatus = ask(ref, call("getStatuses", ids), 3000);
-        Map<String, FormStatus> result = (Map<String, FormStatus>) Await.result(formStatus, duration("3 seconds"));
-        assertEquals(2, result.size());
-    }
-
-    @Test
-    public void testErrorIsReceivedAtErrorListener() throws Exception {
-
-        ArrayList<Props> props = new ArrayList<>();
-        props.add(Props.create(FailingProjection.class, super.testActor()));
+    void testErrorIsReceivedAtErrorListener() throws Exception {
+        List<Props> props = new ArrayList<>();
+        props.add(Props.create(FailingProjection.class, eventstoreConnection));
         final TestActorRef<ProjectionManager> ref = TestActorRef.create(_system, ProjectionManager.mkProps(super.testActor(), props), "failingProjection");
 
         Future<Object> getProjectionref = ask(ref, call("getProjectionRef", FailingProjection.class), 3000);
-
         ActorRef projectionRef = (ActorRef) Await.result(getProjectionref, Duration.create("3 seconds"));
 
-        FormParsed formParsed = new FormParsed("formid");
-        projectionRef.tell(formParsed,super.testActor());
-        projectionRef.tell(formParsed,super.testActor());
-        expectMsgClass(Subscription.class);
+        EventStoreForm.FormReceived formReceived1 = buildFormReceived();
+        EventStoreForm.FormReceived formReceived2 = buildFormReceived();
+        journal.saveEvent(ProtobufHelper.newEventWrapper("form", UUID.randomUUID().toString(), formReceived1));
+        journal.saveEvent(ProtobufHelper.newEventWrapper("form", UUID.randomUUID().toString(), formReceived2));
         expectMsgClass(ProjectionFailedError.class);
-        expectMsg(formParsed);
+        callAssertEqualsWithRetry(projectionRef, call("getFormById", formReceived2.getFormId()),
+                result -> assertThat(result, is(formReceived2)));
     }
 
     @Test
-    public void testGetNewSubscription() throws Exception {
-        TestActorRef<Actor> newSubscription = TestActorRef.create(_system, Props.create(FormStatuses.class, super.testActor()), "newSubscription");
-        expectMsgClass(Subscription.class);
-        FormParsed formid = new FormParsed("formid");
-        formid.setJournalid("01");
-        newSubscription.tell(formid,super.testActor());
-        newSubscription.tell(new IncompleteSubscriptionPleaseSendNew("agg"),super.testActor());
-        expectMsg(new Subscription("agg","01"));
-    }
-
-    @Test
-    public void testPendingCallsAreFilled() throws Exception {
-        TestActorRef<Actor> projection = TestActorRef.create(_system, Props.create(FormStatuses.class, super.testActor()), "pendingCalls");
-        expectMsgClass(Subscription.class);
-        FormParsed formid = new FormParsed("formid");
-        formid.setJournalid("01");
-        projection.tell(formid, super.testActor());
-        Future<Object> nrStatusesFuture = ask(projection, call("getNumberOfForms"), 3000);
-        projection.tell(new CompleteSubscriptionRegistered("agg"),super.testActor());
-        Integer nrStatuser = (Integer) Await.result(nrStatusesFuture, Duration.create("3 seconds"));
-        assertEquals(new Integer(1), nrStatuser);
-
-    }
-
-    @Test
-    public void testProjectionCallWithFutureMethod() throws Exception {
-        TestActorRef<Actor> projection = TestActorRef.create(_system, Props.create(FutureCallProjection.class, super.testActor()));
-        expectMsgClass(Subscription.class);
-        projection.tell(new CompleteSubscriptionRegistered("agg"), ActorRef.noSender());
+    void testProjectionCallWithFutureMethod() throws Exception {
+        TestActorRef<FutureCallProjection> projection = TestActorRef.create(_system, Props.create(FutureCallProjection.class, eventstoreConnection));
         final Future<Object> getString = ask(projection, call("getString"), 3000);
         final Object result = Await.result(getString, Duration.create(3, TimeUnit.SECONDS));
-        assertEquals("OK", result);
+        assertThat(result, is("OK"));
     }
 
     @Test
-    public void testFailingFufutreCall() throws Exception {
-        TestActorRef<Actor> projection = TestActorRef.create(_system, Props.create(FutureCallProjection.class, super.testActor()));
-        expectMsgClass(Subscription.class);
-        projection.tell(new CompleteSubscriptionRegistered("agg"), ActorRef.noSender());
+    void testFailingFufutreCall() throws Exception {
+        TestActorRef<FutureCallProjection> projection = TestActorRef.create(_system, Props.create(FutureCallProjection.class, eventstoreConnection));
         final Future<Object> getString = ask(projection, call("getFailure"), 3000);
         final Object result = Await.result(getString, Duration.create(3, TimeUnit.SECONDS));
-        assertEquals(RuntimeException.class, ((Failure)result).exception().getClass());
+        assertThat(((Failure)result).exception().getClass(), is(RuntimeException.class));
 
     }
 
     @Test
-    public void checkIntIntegerMethodCall() throws Exception {
+    void checkIntIntegerMethodCall() throws Exception {
         final Integer value = new Integer(10);
-        TestActorRef<Actor> projection = TestActorRef.create(_system, Props.create(FutureCallProjection.class, super.testActor()));
-        expectMsgClass(Subscription.class);
-        projection.tell(new CompleteSubscriptionRegistered("agg"), ActorRef.noSender());
+        TestActorRef<FutureCallProjection> projection = TestActorRef.create(_system, Props.create(FutureCallProjection.class, eventstoreConnection));
         final Future<Object> getString = ask(projection, call("getInt", value), 3000);
         final Object result = Await.result(getString, Duration.create(3, TimeUnit.SECONDS));
-        assertEquals(10, result);
+        assertThat(result, is(10));
+    }
+
+    private void callAssertEqualsWithRetry(ActorRef caller, Call call, Consumer... asserts) {
+        new TestInvoker().invoke(() -> {
+            try {
+                Future<Object> future = ask(caller, call, 3000);
+                Object result = Await.result(future, Duration.create(1, TimeUnit.SECONDS));
+                Arrays.stream(asserts).forEach(a -> a.accept(result));
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 }

@@ -6,18 +6,20 @@ import akka.actor.ActorSystem;
 import akka.testkit.TestKit;
 import com.esotericsoftware.kryo.Kryo;
 import com.typesafe.config.ConfigFactory;
+import no.ks.events.svarut.Form.EventStoreForm;
 import no.ks.eventstore2.events.Event1;
 import no.ks.eventstore2.events.Event4;
 import no.ks.eventstore2.events.NewEvent;
 import no.ks.eventstore2.events.OldEvent;
 import no.ks.eventstore2.eventstore.*;
-import no.ks.eventstore2.formProcessorProject.FormParsed;
 import no.ks.eventstore2.response.Success;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
+
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class EventStoreTest extends TestKit {
 
@@ -26,7 +28,7 @@ public class EventStoreTest extends TestKit {
     private KryoClassRegistration kryoClassRegistration = new KryoClassRegistration() {
         @Override
         public void registerClasses(Kryo kryo) {
-            kryo.register(FormParsed.class, 1001);
+            kryo.register(EventStoreForm.FormParsed.class, 1001);
             kryo.register(OldEvent.class, 1002);
             kryo.register(NewEvent.class, 1003);
             kryo.register(Event1.class, 1004);
@@ -52,10 +54,11 @@ public class EventStoreTest extends TestKit {
     @Test
     public void testPendingSubscriptionsIsFilled() throws Exception {
         ActorRef eventstore = _system.actorOf(EventStore.mkProps(new H2JournalStorage(db, kryoClassRegistration)), "eventstore_pendingSubscriptiontest");
-        FormParsed event = new FormParsed("formid");
-        eventstore.tell(event,super.testActor());
-        eventstore.tell(new Subscription(event.getAggregateType()),super.testActor());
-        expectMsg(event);
+        fail();
+//        FormParsed event = new FormParsed("formid");
+//        eventstore.tell(event,super.testActor());
+//        eventstore.tell(new Subscription(event.getAggregateType()),super.testActor());
+//        expectMsg(event);
     }
 
 

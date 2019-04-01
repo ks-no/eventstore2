@@ -16,8 +16,7 @@ public class CommandDispatcher extends UntypedActor {
 	private static Logger log = LoggerFactory.getLogger(CommandDispatcher.class);
 
 	private List<Props> commandHandlerProps;
-    private ActorRef eventStore;
-    private Map<Class<? extends Command>, ActorRef> commandHandlers = new HashMap<Class<? extends Command>, ActorRef>();
+    private Map<Class<? extends Command>, ActorRef> commandHandlers = new HashMap<>();
 
     private int remainingCommandHandlers = 0;
 

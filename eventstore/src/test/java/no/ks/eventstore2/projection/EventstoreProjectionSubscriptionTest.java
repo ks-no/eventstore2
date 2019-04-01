@@ -9,6 +9,7 @@ import eventstore.Messages;
 import no.ks.events.svarut.Order.EventstoreOrder;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.ProtobufHelper;
+import no.ks.eventstore2.testkit.EventstoreEventstore2TestKit;
 import org.junit.jupiter.api.Test;
 
 import java.util.*;

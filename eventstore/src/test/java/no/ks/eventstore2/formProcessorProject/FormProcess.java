@@ -1,7 +1,7 @@
 package no.ks.eventstore2.formProcessorProject;
 
 import akka.actor.ActorRef;
-import events.test.form.Form;
+import no.ks.events.svarut.Form.EventStoreForm;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.projection.Subscriber;
 import no.ks.eventstore2.saga.Saga;
@@ -25,7 +25,7 @@ public class FormProcess extends Saga {
     }
 
     @Handler
-    public void handleEvent(FormReceived event){
+    public void handleEvent(EventStoreForm.FormReceived event){
         if (getState() == STATE_INITIAL){
             commandDispatcher.tell(new ParseForm(event.getFormId()), self());
             transitionState(FORM_RECEIVED);
@@ -33,22 +33,14 @@ public class FormProcess extends Saga {
     }
 
     @Handler
-    public void handleEvent(Form.FormReceived event){
-        if (getState() == STATE_INITIAL){
-            commandDispatcher.tell(new ParseForm(eventWrapper().getAggregateRootId()), self());
-            transitionState(FORM_RECEIVED);
-        }
-    }
-
-    @Handler
-    public void handleEvent(FormParsed event){
+    public void handleEvent(EventStoreForm.FormParsed event){
         if (getState() == FORM_RECEIVED){
             commandDispatcher.tell(new DeliverForm(event.getFormId()), self());
             transitionState(FORM_PARSED);
         }
     }
     @Handler
-    public void handleEvent(FormDelivered event){
+    public void handleEvent(EventStoreForm.FormDelivered event){
         if (getState() == FORM_PARSED){
             transitionState(FORM_DELIVERED);
         }

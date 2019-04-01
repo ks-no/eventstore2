@@ -1,31 +1,35 @@
 package no.ks.eventstore2.projection;
 
 import akka.actor.ActorRef;
-import no.ks.eventstore2.Event;
+import no.ks.events.svarut.Form.EventStoreForm;
 import no.ks.eventstore2.Handler;
-import no.ks.eventstore2.eventstore.Subscription;
 
-public class FailingProjection extends ProjectionOld {
+import java.util.LinkedHashMap;
+import java.util.Map;
 
-    boolean failed = false;
+@Subscriber("Form")
+public class FailingProjection extends Projection {
+
+    private boolean failed = false;
+
+    private Map<String, EventStoreForm.FormReceived> forms = new LinkedHashMap<>();
 
     public FailingProjection(ActorRef eventStore) {
         super(eventStore);
     }
 
-    @Override
-    protected Subscription getSubscribe() {
-        return new Subscription("agg");
-    }
-
     @Handler
-    public void handleEvent(Event event) {
-        if (failed)
-            sender().tell(event, self());
-        else {
+    public void handleEvent(EventStoreForm.FormReceived event) {
+        if (failed) {
+            forms.put(event.getFormId(), event);
+        } else {
             failed = true;
             throw new RuntimeException("Failing");
         }
+    }
+
+    public EventStoreForm.FormReceived getFormById(String formId) {
+        return forms.get(formId);
     }
 }
 

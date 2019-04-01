@@ -7,9 +7,7 @@ import events.test.Order.Order;
 import eventstore.Messages;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.ProtobufHelper;
-import no.ks.eventstore2.testapplication.AggregateType;
-import no.ks.eventstore2.testapplication.TestEvent;
-import no.ks.eventstore2.testkit.EventStoreTestKit;
+import no.ks.eventstore2.testkit.EventstoreEventstore2TestKit;
 import no.ks.eventstore2.util.IdUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,38 +21,40 @@ import java.util.concurrent.TimeUnit;
 import static akka.pattern.Patterns.ask;
 import static no.ks.eventstore2.projection.CallProjection.call;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
-public class RestartProjectionProtobufTest extends EventStoreTestKit {
+public class RestartProjectionProtobufTest extends EventstoreEventstore2TestKit {
 
     private TestActorRef<TestProjection> projection;
 
     @BeforeEach
     public void before() {
 
-        TestActorRef<TestProjection> actorRef = TestActorRef.create(actorSystem, Props.create(TestProjection.class, super.testActor()), IdUtil.createUUID());
+        TestActorRef<TestProjection> actorRef = TestActorRef.create(_system, Props.create(TestProjection.class, super.testActor()), IdUtil.createUUID());
 
         projection = actorRef;
     }
 
     @Test
     public void test_restart() throws Exception {
-        expectMsgClass(Messages.AsyncSubscription.class);
-        projection.tell(createEvent(0), super.testActor());
-        projection.tell(createEvent(1), super.testActor());
-        projection.tell("restart", super.testActor());
-        projection.tell(createEvent(2), super.testActor());
-        projection.tell(createEvent(3), super.testActor());
-        expectMsgClass(Messages.RemoveSubscription.class);
-        projection.tell(createEvent(4), super.testActor());
-        projection.tell(Messages.SubscriptionRemoved.newBuilder().setAggregateType(AggregateType.TEST_AGGREGATE).build(), super.testActor());
-        expectMsgClass(Messages.AsyncSubscription.class);
-        projection.tell(createEvent(0), super.testActor());
-        projection.tell(createEvent(1), super.testActor());
-        projection.tell(createEvent(2), super.testActor());
-        projection.tell(createEvent(3), super.testActor());
-        projection.tell(Messages.CompleteSubscriptionRegistered.newBuilder().setAggregateType(AggregateType.TEST_AGGREGATE).build(),super.testActor());
-        final List<TestEvent> events = (List<TestEvent>)Await.result(ask(projection, call("getEvents"), 3000), Duration.create(3, TimeUnit.SECONDS));
-        assertEquals(4, events.size());
+        fail();
+//        expectMsgClass(Messages.AsyncSubscription.class);
+//        projection.tell(createEvent(0), super.testActor());
+//        projection.tell(createEvent(1), super.testActor());
+//        projection.tell("restart", super.testActor());
+//        projection.tell(createEvent(2), super.testActor());
+//        projection.tell(createEvent(3), super.testActor());
+//        expectMsgClass(Messages.RemoveSubscription.class);
+//        projection.tell(createEvent(4), super.testActor());
+//        projection.tell(Messages.SubscriptionRemoved.newBuilder().setAggregateType("Test").build(), super.testActor());
+//        expectMsgClass(Messages.AsyncSubscription.class);
+//        projection.tell(createEvent(0), super.testActor());
+//        projection.tell(createEvent(1), super.testActor());
+//        projection.tell(createEvent(2), super.testActor());
+//        projection.tell(createEvent(3), super.testActor());
+//        projection.tell(Messages.CompleteSubscriptionRegistered.newBuilder().setAggregateType("Test").build(),super.testActor());
+//        final List<TestEvent> events = (List<TestEvent>)Await.result(ask(projection, call("getEvents"), 3000), Duration.create(3, TimeUnit.SECONDS));
+//        assertEquals(4, events.size());
     }
 
     private Messages.EventWrapper createEvent(long jid) {

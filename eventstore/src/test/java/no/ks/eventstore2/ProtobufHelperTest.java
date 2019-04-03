@@ -8,10 +8,10 @@ import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class ProtobufHelperTest {
+class ProtobufHelperTest {
 
     @Test
-    public void TimestampConversion() throws Exception {
+    void TimestampConversion() {
         final DateTime now = DateTime.now();
         final Timestamp timestamp = ProtobufHelper.toTimestamp(now);
         final DateTime now2 = ProtobufHelper.fromTimestamp(timestamp);
@@ -19,7 +19,7 @@ public class ProtobufHelperTest {
     }
 
     @Test
-    public void DateConversion() throws Exception {
+    void DateConversion() {
         final Date now = new Date();
         final Timestamp timestamp = ProtobufHelper.toTimestamp(now);
         final Date now2 = ProtobufHelper.fromTimestampToDate(timestamp);
@@ -27,7 +27,7 @@ public class ProtobufHelperTest {
     }
 
     @Test
-    public void DateAndDateTime() throws Exception {
+    void DateAndDateTime() {
         final Date now = new Date();
         final Timestamp timestamp = ProtobufHelper.toTimestamp(now);
         final DateTime now2 = ProtobufHelper.fromTimestamp(timestamp);

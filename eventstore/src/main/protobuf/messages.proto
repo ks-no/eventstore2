@@ -24,40 +24,6 @@ message EventWrapperBatch {
     repeated EventWrapper events = 4;
 }
 
-message Subscription {
-    string aggregateType = 1;
-    int64 fromJournalId = 2;
-}
-
-message AsyncSubscription {
-    string aggregateType = 1;
-    int64 fromJournalId = 2;
-}
-
-message IncompleteSubscriptionPleaseSendNew {
-    string aggregateType = 1;
-}
-
-message CompleteSubscriptionRegistered {
-    string aggregateType = 1;
-}
-
-message CompleteAsyncSubscriptionPleaseSendSyncSubscription {
-    string aggregateType = 1;
-}
-
-message LiveSubscription {
-    string aggregateType = 1;
-}
-
-message RemoveSubscription {
-    string aggregateType = 1;
-}
-
-message SubscriptionRemoved {
-    string aggregateType = 1;
-}
-
 message AcknowledgePreviousEventsProcessed {
 }
 
@@ -81,17 +47,6 @@ message RetreiveCorrelationIdEventsAsync {
     string correlationId = 1;
     int64 fromJournalId = 2;
     string aggregateType = 3;
-}
-
-message GetSubscribers {
-}
-
-message Subscribers{
-    message Subscriber {
-        string actorRef = 1;
-        string aggregateType = 2;
-    }
-    repeated Subscriber subscribers = 1;
 }
 
 message SagaCompositeId{

@@ -107,12 +107,12 @@ public class SagaMongoDBRepository extends SagaRepository{
     public long loadLatestJournalID(final String aggregate) {
         final FindIterable<Document> limit = MongoDbOperations.doDbOperation(() -> journalid.find(new Document("_id", aggregate)).limit(1));
         final Document first = limit.first();
-        if(first == null) return 0;
+        if(first == null) return -1L;
         Object latestJournalID = first.get("latestJournalID");
         if(latestJournalID instanceof String){
             return Long.parseLong((String) latestJournalID);
         }
-        if(latestJournalID == null) return 0L;
+        if(latestJournalID == null) return -1L;
         return (long) latestJournalID;
     }
 

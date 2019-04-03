@@ -8,7 +8,6 @@ import eventstore.j.SettingsBuilder;
 import eventstore.tcp.ConnectionActor;
 import no.ks.events.svarut.Form.EventStoreForm;
 import no.ks.eventstore2.eventstore.EventstoreJournalStorage;
-import no.ks.eventstore2.eventstore.HandleEventMetadata;
 import no.ks.eventstore2.eventstore.JournalStorage;
 
 import java.net.InetSocketAddress;
@@ -52,15 +51,9 @@ public class EventstoreEventstore2TestKit extends Eventstore2TestKit {
 
     protected List<Messages.EventWrapper> getAllEvents(String category) {
         final ArrayList<Messages.EventWrapper> events = new ArrayList<>();
-        final HandleEventMetadata loadEvents = new HandleEventMetadata() {
-            @Override
-            public void handleEvent(Messages.EventWrapper event) {
-                events.add(event);
-            }
-        };
-        boolean finished = journal.loadEventsAndHandle(category, loadEvents);
+        boolean finished = journal.loadEventsAndHandle(category, events::add);
         while(!finished){
-            finished = journal.loadEventsAndHandle(category, loadEvents, events.size());
+            finished = journal.loadEventsAndHandle(category, events::add, events.size());
         }
 
         return events;

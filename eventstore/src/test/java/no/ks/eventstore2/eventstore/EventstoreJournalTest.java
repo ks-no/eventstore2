@@ -44,14 +44,16 @@ public class EventstoreJournalTest extends EventstoreEventstore2TestKit {
         Messages.EventWrapper eventWrapper = ProtobufHelper.newEventWrapper(aggregateType, aggregateRootId, searchRequest);
 
         Messages.EventWrapper savedEvent = journal.saveEvent(eventWrapper);
-        Messages.EventWrapper lastEvent = getLastEvent(ORDER_CATEGORY);
 
         assertThat(savedEvent.getAggregateType(), is(aggregateType));
         assertThat(savedEvent.getAggregateRootId(), is(aggregateRootId));
         assertThat(savedEvent.getEvent().unpack(Order.SearchRequest.class), is(searchRequest));
 
-        assertEventEquals(lastEvent, savedEvent);
-        assertThat(lastEvent.getVersion(), is(savedEvent.getVersion()));
+        new TestInvoker().invoke(() -> {
+            Messages.EventWrapper lastEvent = getLastEvent(ORDER_CATEGORY);
+            assertEventEquals(lastEvent, savedEvent);
+            assertThat(lastEvent.getVersion(), is(savedEvent.getVersion()));
+        });
     }
 
     @Test
@@ -166,25 +168,6 @@ public class EventstoreJournalTest extends EventstoreEventstore2TestKit {
         assertThat(savedEvents2.get(1).getVersion(), is(3L));
     }
 
-    // TODO: Not supported (?)
-//    @Test
-//    public void bulkInsertMultipleAggregates() throws Exception {
-//        final ArrayList<Messages.EventWrapper> events = new ArrayList<>();
-//        events.add(ProtobufHelper.newEventWrapper("agg1", "1", -1, Order.SearchRequest.newBuilder().setQuery("query").setPageNumber(4).build()));
-//        events.add(ProtobufHelper.newEventWrapper("agg1", "2", -1, Order.SearchResult.newBuilder().addResult("res1").addResult("res2").build()));
-//        journal.saveEventsBatch(events);
-//        events.clear();
-//        events.add(ProtobufHelper.newEventWrapper("agg1", "1", -1, Order.SearchRequest.newBuilder().setQuery("query").setPageNumber(4).build()));
-//        events.add(ProtobufHelper.newEventWrapper("agg1", "2", -1, Order.SearchResult.newBuilder().addResult("res1").addResult("res2").build()));
-//            journal.saveEventsBatch(events);
-//
-//        final Messages.EventWrapperBatch batch = journal.loadEventWrappersForAggregateId("agg1", "1", 0);
-//        assertEquals(2, batch.getEventsCount());
-//        final Messages.EventWrapperBatch batch2 = journal.loadEventWrappersForAggregateId("agg1", "2", 0);
-//        assertEquals(2, batch2.getEventsCount());
-//    }
-
-
     @Test
     void testSaveAndReceiveEventsFromKey() {
         long previousJournalId = getLatestJournalId(ORDER_CATEGORY);
@@ -256,18 +239,24 @@ public class EventstoreJournalTest extends EventstoreEventstore2TestKit {
         }
         final ArrayList<Messages.EventWrapper> events = new ArrayList<>();
 
-        final HandleEventMetadata loadEvents = new HandleEventMetadata() {
-            @Override
-            public void handleEvent(Messages.EventWrapper event) {
-                events.add(event);
-            }
-        };
-        boolean finished = journal.loadEventsAndHandle("events.test.Order", loadEvents, nextJournalId);
+        boolean finished = journal.loadEventsAndHandle("events.test.Order", events::add, nextJournalId);
         while (!finished) {
             nextJournalId += 500;
-            finished = journal.loadEventsAndHandle("events.test.Order", loadEvents, nextJournalId);
+            finished = journal.loadEventsAndHandle("events.test.Order", events::add, nextJournalId);
         }
         assertThat(events.size(), is(numberOfAggregates * numberOfVersions));
+    }
+
+    @Test
+    void testTrySaveMultipleAggregateIdsInSingleBatch() {
+        final List<Messages.EventWrapper> events = Arrays.asList(
+                ProtobufHelper.newEventWrapper("agg1", "1", -1,
+                        Order.SearchRequest.newBuilder().setQuery("query").setPageNumber(4).build()),
+                ProtobufHelper.newEventWrapper("agg1", "2", -1,
+                        Order.SearchResult.newBuilder().addResult("res1").addResult("res2").build()));
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> journal.saveEventsBatch(events));
+        assertThat(exception.getMessage(), containsString("Can't save batch with multiple aggregate root ids"));
     }
 
     private void assertEventEquals(Messages.EventWrapper first, Messages.EventWrapper second) {
@@ -283,12 +272,7 @@ public class EventstoreJournalTest extends EventstoreEventstore2TestKit {
     private List<Messages.EventWrapper> loadEventsExpectSize(long fromKey, int expectedSize) {
         return new TestInvoker().invoke(() -> {
             final List<Messages.EventWrapper> events = new ArrayList<>();
-            journal.loadEventsAndHandle(ORDER_CATEGORY, new HandleEventMetadata() {
-                @Override
-                public void handleEvent(Messages.EventWrapper event) {
-                    events.add(event);
-                }
-            }, fromKey);
+            journal.loadEventsAndHandle(ORDER_CATEGORY, events::add, fromKey);
 
             assertThat(events.size(), is(expectedSize));
 

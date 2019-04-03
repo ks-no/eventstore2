@@ -48,7 +48,7 @@ public class SagaInMemoryRepository extends SagaRepository{
 
     @Override
     public byte getState(String sagaStateId, String sagaid) {
-        return  (map.containsKey(sagaStateId + "_" +  sagaid) ? map.get(sagaStateId + "_" +  sagaid) : Saga.STATE_INITIAL);
+        return  map.getOrDefault(sagaStateId + "_" + sagaid, Saga.STATE_INITIAL);
     }
 
     @Override
@@ -73,7 +73,7 @@ public class SagaInMemoryRepository extends SagaRepository{
 
     @Override
     public long loadLatestJournalID(String aggregate) {
-        return 0;
+        return -1;
     }
 
     @Override

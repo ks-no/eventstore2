@@ -1,55 +1,55 @@
 package no.ks.eventstore2.saga;
 
-import akka.ConfigurationException;
 import akka.actor.*;
-import akka.cluster.pubsub.DistributedPubSub;
 import akka.cluster.pubsub.DistributedPubSubMediator;
-import akka.cluster.singleton.ClusterSingletonManager;
-import akka.cluster.singleton.ClusterSingletonManagerSettings;
-import akka.cluster.singleton.ClusterSingletonProxy;
-import akka.cluster.singleton.ClusterSingletonProxySettings;
-import com.google.common.cache.*;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.google.common.cache.RemovalListener;
+import com.google.protobuf.Any;
 import com.google.protobuf.Message;
-import eventstore.Messages;
-import no.ks.eventstore2.Event;
+import eventstore.*;
+import eventstore.j.SettingsBuilder;
 import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.TakeBackup;
 import no.ks.eventstore2.TakeSnapshot;
-import no.ks.eventstore2.eventstore.*;
+import no.ks.eventstore2.eventstore.EventMetadata;
+import no.ks.eventstore2.eventstore.EventStoreUtil;
+import no.ks.eventstore2.eventstore.JsonMetadataBuilder;
 import no.ks.eventstore2.projection.Subscriber;
 import no.ks.eventstore2.reflection.HandlerFinder;
-import no.ks.eventstore2.reflection.HandlerFinderProtobuf;
-import no.ks.eventstore2.response.Success;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
+import scala.Option;
 import scala.concurrent.duration.Duration;
 
-import java.beans.IntrospectionException;
-import java.beans.PropertyDescriptor;
 import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import static no.ks.eventstore2.eventstore.EventstoreConstants.getSystemCategoryStreamId;
+
 public class SagaManager extends UntypedActor {
     private static Logger log = LoggerFactory.getLogger(SagaManager.class);
 
-    private final ActorRef commandDispatcher;
-    private final SagaRepository repository;
-    private ActorRef eventstore;
-    private String packageScanPath;
-
-
-    private SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
-
-    private LoadingCache<SagaCompositeId, ActorRef> sagas = null;
-
+    private static Set<String> aggregates = new HashSet<>();
+    private static Map<Class<?>, ArrayList<SagaEventMapping>> eventToSagaMap = new HashMap<>();
     private Map<String, Long> latestJournalidReceived = new HashMap<>();
     private Map<String, Boolean> inSubscribe = new HashMap<>();
+    private Map<ActorRef, String> subscriptions = new HashMap<>();
+    private LoadingCache<SagaCompositeId, ActorRef> sagas = null;
+
+    private final ActorRef commandDispatcher;
+    private final SagaRepository repository;
+    private ActorRef eventstoreConnection;
+    private String packageScanPath;
+
+    private static final SimpleDateFormat FORMAT = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
 
     private final Cancellable snapshotSchedule = getContext().system().scheduler().schedule(
             Duration.create(1, TimeUnit.HOURS),
@@ -57,38 +57,21 @@ public class SagaManager extends UntypedActor {
             getSelf(), new TakeSnapshot(), getContext().dispatcher(), null);
     private ActorRef timeoutstore;
 
-    public static Props mkProps(ActorSystem system, ActorRef commandDispatcher, SagaInMemoryRepository repository, ActorRef eventStore) {
-        return mkProps(system, commandDispatcher, repository, eventStore, "no");
+    public static Props mkProps(ActorSystem system, ActorRef commandDispatcher, SagaInMemoryRepository repository, ActorRef eventstoreConnection) {
+        return mkProps(system, commandDispatcher, repository, eventstoreConnection, "no");
     }
-    public static Props mkProps(ActorSystem system, ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore, String packageScanPath) {
-        return mkProps(system, commandDispatcher, repository, eventstore, packageScanPath, null);
+    public static Props mkProps(ActorSystem system, ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstoreConnection, String packageScanPath) {
+        return mkProps(system, commandDispatcher, repository, eventstoreConnection, packageScanPath, null);
     }
-    public static Props mkProps(ActorSystem system, ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore, String packageScanPath, String dispatcher) {
-        Props singletonProps = Props.create(SagaManager.class, commandDispatcher, repository, eventstore, packageScanPath);
+    public static Props mkProps(ActorSystem system, ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstoreConnection, String packageScanPath, String dispatcher) {
+        Props singletonProps = Props.create(SagaManager.class, commandDispatcher, repository, eventstoreConnection, packageScanPath);
         if(dispatcher != null){
             singletonProps = singletonProps.withDispatcher(dispatcher);
         }
-        try {
-            final ClusterSingletonManagerSettings settings =
-                    ClusterSingletonManagerSettings.create(system);
-
-            system.actorOf(ClusterSingletonManager.props(
-                    singletonProps,
-                    "shutdown", settings), "sagamanagersingelton");
-
-            ClusterSingletonProxySettings proxySettings =
-                    ClusterSingletonProxySettings.create(system);
-            proxySettings.withBufferSize(10000);
-
-            return ClusterSingletonProxy.props("/user/eventstoresingelton", proxySettings);
-        } catch (ConfigurationException e) {
-            log.info("not cluster system");
-            return singletonProps;
-        }
-
+        return singletonProps;
     }
 
-    public SagaManager(ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstore, String packageScanPath) {
+    public SagaManager(ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstoreConnection, String packageScanPath) {
         sagas = CacheBuilder.newBuilder().maximumSize(100000)
                 .removalListener((RemovalListener<SagaCompositeId, ActorRef>) removalNotification -> {
                     log.debug("Removing actor {} because {}", removalNotification.getKey(), removalNotification.getCause());
@@ -104,7 +87,7 @@ public class SagaManager extends UntypedActor {
 
         this.commandDispatcher = commandDispatcher;
         this.repository = repository;
-        this.eventstore = eventstore;
+        this.eventstoreConnection = eventstoreConnection;
         this.packageScanPath = packageScanPath;
     }
 
@@ -118,15 +101,6 @@ public class SagaManager extends UntypedActor {
     @Override
     public void preStart() {
         registerSagas();
-        try {
-            ActorRef mediator =
-                    DistributedPubSub.get(getContext().system()).mediator();
-
-            mediator.tell(new DistributedPubSubMediator.Subscribe(EventStore.EVENTSTOREMESSAGES, getSelf()),
-                    getSelf());
-        } catch (ConfigurationException e){
-            log.info("Not subscribing to eventstore event, no cluster system");
-        }
         repository.open();
         subscribe();
         timeoutstore = getContext().actorOf(TimeOutStore.mkProps(repository));
@@ -142,45 +116,33 @@ public class SagaManager extends UntypedActor {
 
     @Override
     public void onReceive(Object o) throws Exception {
-        if (log.isDebugEnabled() && o instanceof Event) {
-            log.debug("SagaManager received event {}", o);
-        }
-        if (o instanceof Event) {
-            final String journalid = ((Event) o).getJournalid();
-            latestJournalidReceived.put(((Event) o).getAggregateType(), Long.valueOf(journalid != null? journalid : "0"));
-        }
-        if (o instanceof Event) {
-            log.debug("SagaManager processing event {}", o);
-            Event event = (Event) o;
-            Set<SagaEventMapping> sagaClassesForEvent = getSagaClassesForEvent(event.getClass());
-            for (SagaEventMapping mapping : sagaClassesForEvent) {
-                String sagaId = (String) mapping.getPropertyMethod().invoke(event);
-                ActorRef sagaRef = getOrCreateSaga(mapping.getSagaClass(), sagaId);
-                sagaRef.tell(event, self());
-            }
-        } else if(o instanceof Messages.SendAwake){
+        if (o instanceof LiveProcessingStarted$) {
+            String aggregate = subscriptions.get(getSender());
+            inSubscribe.put(aggregate, false);
+            log.info("Live processing started for \"{}\"", aggregate);
+        } else if (o instanceof Messages.SendAwake) {
             timeoutstore.tell(Messages.ClearAwake.newBuilder().setSagaid(((Messages.SendAwake) o).getSagaid()).build(), self());
             getOrCreateSaga((Class<? extends Saga>) Class.forName(((Messages.SendAwake) o).getSagaid().getClazz()), ((Messages.SendAwake) o).getSagaid().getId())
                     .tell("awake",self());
-        } else if(o instanceof Messages.ClearAwake || o instanceof Messages.ScheduleAwake){
+        } else if (o instanceof Messages.ClearAwake || o instanceof Messages.ScheduleAwake){
             timeoutstore.tell(o,sender());
-        } else if(o instanceof Messages.EventWrapper){
-            latestJournalidReceived.put(((Messages.EventWrapper) o).getAggregateType(), ((Messages.EventWrapper) o).getJournalid());
-            log.debug("SagaManager processing event {}", o);
-            Set<SagaEventMapping> sagaClassesForEvent = getSagaClassesForEventWrapper((Messages.EventWrapper)o);
+        } else if (o instanceof ResolvedEvent) {
+            ResolvedEvent event = (ResolvedEvent) o;
+            Any anyEvent = Any.parseFrom(event.data().data().value().toArray());
+            EventMetadata metadata = JsonMetadataBuilder.readMetadata(event.data().metadata().value().toArray());
+            latestJournalidReceived.put(metadata.getAggregateType(), event.linkEvent().number().value());
+
+            Set<SagaEventMapping> sagaClassesForEvent = getSagaClassesForType(metadata.getProtoSerializationType());
             for (SagaEventMapping mapping : sagaClassesForEvent) {
                 String sagaId;
                 if(mapping.isUseAggregateRootID()){
-                    sagaId = ((Messages.EventWrapper) o).getAggregateRootId();
+                    sagaId = metadata.getAggregateRootId();
                 } else {
-                    sagaId = (String) mapping.getPropertyMethod().invoke(ProtobufHelper.unPackAny(((Messages.EventWrapper) o).getProtoSerializationType(), ((Messages.EventWrapper) o).getEvent()));
+                    sagaId = (String) mapping.getPropertyMethod().invoke(ProtobufHelper.unPackAny(metadata.getProtoSerializationType(), anyEvent));
                 }
                 ActorRef sagaRef = getOrCreateSaga(mapping.getSagaClass(), sagaId);
-                sagaRef.tell(o, self());
+                sagaRef.tell(ProtobufHelper.unPackAny(metadata.getProtoSerializationType(), anyEvent), self());
             }
-
-        } else if (o instanceof NewEventstoreStarting) {
-            subscribe();
         } else if (o instanceof UpgradeSagaRepoStore) {
             repository.open();
             if (repository.getState("Saga", "upgradedH2Db") != (byte) 1) {
@@ -188,31 +150,9 @@ public class SagaManager extends UntypedActor {
                 ((UpgradeSagaRepoStore) o).getSagaRepository().readAllStatesToNewRepository(repository);
                 repository.saveState("Saga", "upgradedH2Db", (byte) 1);
             }
-        } else if (o instanceof Messages.IncompleteSubscriptionPleaseSendNew) {
-            String aggregateType = ((Messages.IncompleteSubscriptionPleaseSendNew) o).getAggregateType();
-            log.debug("Sending new subscription on '{}' from latest journalid '{}'", aggregateType, latestJournalidReceived);
-            if (latestJournalidReceived.get(aggregateType) == null) {
-                throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
-            }
-            Messages.Subscription subscription = Messages.Subscription.newBuilder()
-                    .setAggregateType(aggregateType)
-                    .setFromJournalId(latestJournalidReceived.get(aggregateType)).build();
-            eventstore.tell(subscription, self());
-        } else if (o instanceof IncompleteSubscriptionPleaseSendNew) {
-            String aggregateType = ((IncompleteSubscriptionPleaseSendNew) o).getAggregateType();
-            log.debug("Sending new subscription on '{}' from latest journalid '{}'", aggregateType, latestJournalidReceived);
-            if (latestJournalidReceived.get(aggregateType) == null) {
-                throw new RuntimeException("Missing latestJournalidReceived but got IncompleteSubscriptionPleaseSendNew");
-            }
-            Messages.Subscription subscription = Messages.Subscription.newBuilder()
-                    .setAggregateType(aggregateType)
-                    .setFromJournalId(latestJournalidReceived.get(aggregateType)).build();
-            eventstore.tell(subscription, self());
         }
         else if (o instanceof TakeBackup) {
-                repository.doBackup(((TakeBackup) o).getBackupdir(), "backupSagaRepo" + format.format(new Date()));
-        } else if (o instanceof AcknowledgePreviousEventsProcessed) {
-                sender().tell(new Success(), self());
+            repository.doBackup(((TakeBackup) o).getBackupdir(), "backupSagaRepo" + FORMAT.format(new Date()));
         } else if (o instanceof Messages.AcknowledgePreviousEventsProcessed) {
             sender().tell(Messages.Success.getDefaultInstance(), self());
         } else if (o instanceof TakeSnapshot) {
@@ -220,12 +160,6 @@ public class SagaManager extends UntypedActor {
                 log.info("Saving latestJournalId {} for sagaManager aggregate {}", latestJournalidReceived.get(aggregate), aggregate);
                 repository.saveLatestJournalId(aggregate, latestJournalidReceived.get(aggregate));
             }
-        } else if (o instanceof DistributedPubSubMediator.SubscribeAck){
-            log.info("Subscribing for eventstore restartmessages");
-        } else if( o instanceof Messages.CompleteSubscriptionRegistered) {
-            inSubscribe.remove(((Messages.CompleteSubscriptionRegistered) o).getAggregateType());
-        } else if( o instanceof CompleteSubscriptionRegistered) {
-            inSubscribe.remove(((CompleteSubscriptionRegistered) o).getAggregateType());
         } else if("shutdown".equals(o)){
             log.info("shutting down sagamanager");
             removeOldActorsWithWrongState();
@@ -237,13 +171,8 @@ public class SagaManager extends UntypedActor {
         return sagas.get(compositeId);
     }
 
-    private static Set<String> aggregates = new HashSet<String>();
-
-    private static Map<Class<?>, ArrayList<SagaEventMapping>> eventToSagaMap = new HashMap<>();
-
     private void registerSagas() {
         ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
-        scanner.addIncludeFilter(new AnnotationTypeFilter(ListensTo.class));
         scanner.addIncludeFilter(new AnnotationTypeFilter(SagaEventIdProperty.class));
         for (BeanDefinition bd : scanner.findCandidateComponents(packageScanPath)) {
             if (!bd.isAbstract()) {
@@ -255,13 +184,7 @@ public class SagaManager extends UntypedActor {
     @SuppressWarnings("unchecked")
     private void register(String className) {
         try {
-            Class<? extends Saga> sagaClass = (Class<? extends Saga>) Class.forName(className);
-
-            boolean oldStyle = handleOldStyleAnnotations(sagaClass);
-
-            if (!oldStyle) {
-                handleNewStyleAnnotations(sagaClass);
-            }
+            handleNewStyleAnnotations((Class<? extends Saga>) Class.forName(className));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -282,35 +205,17 @@ public class SagaManager extends UntypedActor {
         }
 
         String eventPropertyMethodName = sagaEventIdProperty.value();
-        Map<Class<? extends Event>, Method> eventHandlers = HandlerFinder.getEventHandlers(sagaClass);
-        for (Class<? extends Event> eventClass : eventHandlers.keySet()) {
-            try {
-                Method eventPropertyMethod = null;
-                if(sagaEventIdProperty.useAggregateRootId()){
-                    eventPropertyMethod = eventClass.getMethod(propertyfy("aggregateRootId"));
-                } else {
-                    eventPropertyMethod = eventClass.getMethod(propertyfy(eventPropertyMethodName));
-                }
-                if (!String.class.equals(eventPropertyMethod.getReturnType())) {
-                    throw new InvalidSagaConfigurationException("Event " + eventClass.getName() + "s " + eventPropertyMethodName + " eventPropertyMethod does not return String, which is required for saga " + sagaClass);
-                }
-                registerEventToSaga(eventClass, sagaClass, eventPropertyMethod);
-            } catch (NoSuchMethodException e) {
-                throw new InvalidSagaConfigurationException("Event " + eventClass.getName() + " does not implement the java property " + eventPropertyMethodName + " which is required for saga " + sagaClass, e);
-            }
-        }
-
-        Map<Class<? extends Message>, Method> eventHandlersProto = HandlerFinderProtobuf.getEventHandlers(sagaClass);
+        Map<Class<? extends Message>, Method> eventHandlersProto = HandlerFinder.getEventHandlers(sagaClass);
         for (Class<? extends Message> eventClass : eventHandlersProto.keySet()) {
             try {
                 if(sagaEventIdProperty.useAggregateRootId()){
-                    registerEventProtoToSaga(eventClass, sagaClass, sagaEventIdProperty.useAggregateRootId());
+                    registerEventToSaga(eventClass, sagaClass, sagaEventIdProperty.useAggregateRootId());
                 } else {
                     Method eventPropertyMethod = eventClass.getMethod(propertyfy(eventPropertyMethodName));
                     if (!String.class.equals(eventPropertyMethod.getReturnType())) {
                         throw new InvalidSagaConfigurationException("Event " + eventClass.getName() + "s " + eventPropertyMethodName + " eventPropertyMethod does not return String, which is required for saga " + sagaClass);
                     }
-                    registerEventProtoToSaga(eventClass, sagaClass, eventPropertyMethod);
+                    registerEventToSaga(eventClass, sagaClass, eventPropertyMethod);
                 }
             } catch (NoSuchMethodException e) {
                 throw new InvalidSagaConfigurationException("Event " + eventClass.getName() + " does not implement the java property " + eventPropertyMethodName + " which is required for saga " + sagaClass, e);
@@ -327,28 +232,14 @@ public class SagaManager extends UntypedActor {
         registerAggregates(new String[]{aggregate});
     }
 
-    private boolean handleOldStyleAnnotations(Class<? extends Saga> sagaClass) throws IntrospectionException {
-        ListensTo annotation = sagaClass.getAnnotation(ListensTo.class);
-        if (null != annotation) {
-            registerAggregates(annotation.aggregates());
-            for (EventIdBind eventIdBind : annotation.value()) {
-                Method getter = new PropertyDescriptor(eventIdBind.idProperty(), eventIdBind.eventClass()).getReadMethod();
-                registerEventToSaga(eventIdBind.eventClass(), sagaClass, getter);
-            }
-            return true;
-        } else {
-            return false;
-        }
-    }
-
     private void registerAggregates(String[] aggregates) {
         Collections.addAll(SagaManager.aggregates, aggregates);
     }
 
-    private Set<SagaEventMapping> getSagaClassesForEventWrapper(Messages.EventWrapper o) {
-        Set<SagaEventMapping> handlingSagas = new HashSet<SagaEventMapping>();
+    private Set<SagaEventMapping> getSagaClassesForType(String protoSerializationType) {
+        Set<SagaEventMapping> handlingSagas = new HashSet<>();
 
-        Class<?> clazz = ProtobufHelper.getClassForSerialization(o.getProtoSerializationType());
+        Class<?> clazz = ProtobufHelper.getClassForSerialization(protoSerializationType);
 
         if (eventToSagaMap.containsKey(clazz)) {
             handlingSagas.addAll(eventToSagaMap.get(clazz));
@@ -357,56 +248,41 @@ public class SagaManager extends UntypedActor {
         return handlingSagas;
     }
 
-    private Set<SagaEventMapping> getSagaClassesForEvent(Class<? extends Event> eventClass) {
-        Set<SagaEventMapping> handlingSagas = new HashSet<SagaEventMapping>();
-
-        Class<?> clazz = eventClass;
-
-        while (clazz != Object.class) {
-            if (eventToSagaMap.containsKey(clazz)) {
-                handlingSagas.addAll(eventToSagaMap.get(clazz));
-            }
-            clazz = clazz.getSuperclass();
-        }
-
-        return handlingSagas;
-    }
-
-    private void registerEventToSaga(Class<? extends Event> eventClass, Class<? extends Saga> sagaClass, Method propertyMethod) {
-        if (eventToSagaMap.get(eventClass) == null) {
-            eventToSagaMap.put(eventClass, new ArrayList<>());
-        }
+    private void registerEventToSaga(Class<? extends Message> eventClass, Class<? extends Saga> sagaClass, Method propertyMethod) {
+        eventToSagaMap.putIfAbsent(eventClass, new ArrayList<>());
         eventToSagaMap.get(eventClass).add(new SagaEventMapping(sagaClass, propertyMethod));
     }
 
-    private void registerEventProtoToSaga(Class<? extends Message> eventClass, Class<? extends Saga> sagaClass, Method propertyMethod) {
-        if (eventToSagaMap.get(eventClass) == null) {
-            eventToSagaMap.put(eventClass, new ArrayList<>());
-        }
-        eventToSagaMap.get(eventClass).add(new SagaEventMapping(sagaClass, propertyMethod));
-    }
-
-    private void registerEventProtoToSaga(Class<? extends Message> eventClass, Class<? extends Saga> sagaClass, boolean useAggregateRootID) {
-        if (eventToSagaMap.get(eventClass) == null) {
-            eventToSagaMap.put(eventClass, new ArrayList<>());
-        }
+    private void registerEventToSaga(Class<? extends Message> eventClass, Class<? extends Saga> sagaClass, boolean useAggregateRootID) {
+        eventToSagaMap.putIfAbsent(eventClass, new ArrayList<>());
         eventToSagaMap.get(eventClass).add(new SagaEventMapping(sagaClass, useAggregateRootID));
     }
 
     private void subscribe() {
-        if(inSubscribe.size() == 0) {
+        if (inSubscribe.size() == 0) {
             for (String aggregate : aggregates) {
-                latestJournalidReceived.put(aggregate, Long.valueOf(repository.loadLatestJournalID(aggregate)));
-                log.info("SagaManager loaded aggregate {} latestJournalid {}", aggregate, latestJournalidReceived.get(aggregate));
-            }
-            for (String aggregate : aggregates) {
+                subscribeForAggregate(aggregate);
                 inSubscribe.put(aggregate, true);
-                eventstore.tell(Messages.Subscription.newBuilder().setAggregateType(aggregate).setFromJournalId(latestJournalidReceived.get(aggregate)).build(), self());
             }
         }
     }
 
+    private void subscribeForAggregate(String aggregate) {
+        log.debug("Starting subscription for \"{}\"", aggregate);
+        latestJournalidReceived.put(aggregate, repository.loadLatestJournalID(aggregate));
+        ActorRef subscription = getContext().actorOf(EventStoreUtil.getCategorySubscriptionsProps(
+                eventstoreConnection,
+                getSelf(),
+                aggregate,
+                latestJournalidReceived.get(aggregate)));
+        subscriptions.put(subscription, aggregate);
+    }
+
     private void removeOldActorsWithWrongState() {
         sagas.invalidateAll();
+    }
+
+    public boolean isLive() {
+        return inSubscribe.values().stream().noneMatch(t -> t);
     }
 }

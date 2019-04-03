@@ -5,14 +5,10 @@ import akka.actor.Status;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
-import eventstore.Messages;
-import eventstore.ReadStreamEventsCompleted;
-import eventstore.ResolvedEvent;
-import eventstore.WriteEventsCompleted;
+import eventstore.*;
 import eventstore.j.EventDataBuilder;
 import eventstore.j.ReadStreamEventsBuilder;
 import eventstore.j.WriteEventsBuilder;
-import no.ks.eventstore2.Event;
 import no.ks.eventstore2.ProtobufHelper;
 import no.ks.svarut.events.EventUtil;
 import org.apache.commons.lang3.time.StopWatch;
@@ -26,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static akka.pattern.Patterns.ask;
@@ -34,15 +31,34 @@ public class EventstoreJournalStorage implements JournalStorage {
 
     private static final Logger log = LoggerFactory.getLogger(EventstoreJournalStorage.class);
 
+    private int eventLimit = 500;
+    private static final int EVENTSTORE_TIMEOUT_MILLIS = 15000;
+
     private ActorRef connection;
 
     public EventstoreJournalStorage(ActorRef connection) {
         this.connection = connection;
     }
 
+    public EventstoreJournalStorage(ActorRef connection, int eventLimit) {
+        this.connection = connection;
+        this.eventLimit = eventLimit;
+    }
+
     @Override
-    public void saveEvent(Event event) {
-        throw new UnsupportedOperationException();
+    public void open() {
+        // TODO: Ta inn connection i konstruktør eller lage her?
+//        final Settings settings = new SettingsBuilder()
+//                .address(new InetSocketAddress("127.0.0.1", 1113))
+//                .defaultCredentials("admin", "changeit")
+//                .build();
+//
+//        connection = system.actorOf(ConnectionActor.getProps(settings));
+    }
+
+    @Override
+    public void close() {
+        // TODO: Trenger vi denne?
     }
 
     @Override
@@ -51,8 +67,8 @@ public class EventstoreJournalStorage implements JournalStorage {
             StopWatch stopWatch = StopWatch.createStarted();
             if (events == null || events.isEmpty()) {
                 return Collections.emptyList();
-            } else if (events.size() > 500) {
-                throw new RuntimeException(String.format("Max batch size is 500, but received %s", events.size()));
+            } else if (events.size() > eventLimit) {
+                throw new RuntimeException(String.format("Max batch size is %s, but received %s", eventLimit, events.size()));
             }
 
             Messages.EventWrapper firstEvent = events.get(0);
@@ -78,7 +94,7 @@ public class EventstoreJournalStorage implements JournalStorage {
                         .eventId(UUID.randomUUID())
                         .build());
             });
-            Object result = Await.result(ask(connection, builder.build(), 15000), Duration.create(15, TimeUnit.SECONDS));
+            Object result = Await.result(ask(connection, builder.build(), EVENTSTORE_TIMEOUT_MILLIS), Duration.create(EVENTSTORE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS));
 
             if (result instanceof WriteEventsCompleted) {
                 final WriteEventsCompleted completed = (WriteEventsCompleted) result;
@@ -97,31 +113,21 @@ public class EventstoreJournalStorage implements JournalStorage {
     }
 
     @Override
-    public boolean loadEventsAndHandle(String aggregateType, HandleEvent handleEvent) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean loadEventsAndHandle(String aggregateType, HandleEventMetadata handleEvent) {
-        List<Messages.EventWrapper> events = readEvents("$ce-" + aggregateType, 0, 500);
+    public boolean loadEventsAndHandle(String aggregateType, Consumer<Messages.EventWrapper> handleEvent) {
+        List<Messages.EventWrapper> events = readEvents("$ce-" + aggregateType, 0, eventLimit);
         for (Messages.EventWrapper event : events) {
-            handleEvent.handleEvent(event);
+            handleEvent.accept(event);
         }
-        return events.size() < 500;
+        return events.size() < eventLimit;
     }
 
     @Override
-    public boolean loadEventsAndHandle(String aggregateType, HandleEvent handleEvent, String fromKey) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean loadEventsAndHandle(String aggregateType, HandleEventMetadata handleEvent, long fromKey) {
-        List<Messages.EventWrapper> events = readEvents("$ce-" + aggregateType, fromKey, 500);
+    public boolean loadEventsAndHandle(String aggregateType, Consumer<Messages.EventWrapper> handleEvent, long fromKey) {
+        List<Messages.EventWrapper> events = readEvents("$ce-" + aggregateType, fromKey, eventLimit);
         for (Messages.EventWrapper event : events) {
-            handleEvent.handleEvent(event);
+            handleEvent.accept(event);
         }
-        return events.size() < 500;
+        return events.size() < eventLimit;
     }
 
     private List<Messages.EventWrapper> readEvents(String streamId, long fromKey, int limit) {
@@ -132,7 +138,7 @@ public class EventstoreJournalStorage implements JournalStorage {
                     .fromNumber(fromKey)
                     .maxCount(limit);
 
-            Object result = Await.result(ask(connection, builder.build(), 15000), Duration.create(15, TimeUnit.SECONDS));
+            Object result = Await.result(ask(connection, builder.build(), EVENTSTORE_TIMEOUT_MILLIS), Duration.create(EVENTSTORE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS));
 
             if (result instanceof ReadStreamEventsCompleted) {
                 ReadStreamEventsCompleted completed = (ReadStreamEventsCompleted) result;
@@ -159,6 +165,9 @@ public class EventstoreJournalStorage implements JournalStorage {
             } else {
                 throw new RuntimeException(String.format("Got unknown response while reading events: %s", result.getClass()));
             }
+        } catch (StreamNotFoundException e) {
+            log.warn("Got StreamNotFoundException while reading events, returning empty list");
+            return Collections.emptyList();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -172,53 +181,13 @@ public class EventstoreJournalStorage implements JournalStorage {
     }
 
     @Override
-    public void open() {
-        // TODO: Ta inn connection i konstruktør eller lage her?
-//        final Settings settings = new SettingsBuilder()
-//                .address(new InetSocketAddress("127.0.0.1", 1113))
-//                .defaultCredentials("admin", "changeit")
-//                .build();
-//
-//        connection = system.actorOf(ConnectionActor.getProps(settings));
-    }
-
-    @Override
-    public void close() {
-    }
-
-    @Override
-    public void upgradeFromOldStorage(String aggregateType, JournalStorage storage) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void doBackup(String backupDirectory, String backupfilename) {
-        // Do nothing
-    }
-
-    @Override
-    public EventBatch loadEventsForAggregateId(String aggregateType, String aggregateId, String fromJournalId) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Future<EventBatch> loadEventsForAggregateIdAsync(String aggregateType, String aggregateId, String fromJournalId) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void saveEvents(List<? extends Event> events) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public Messages.EventWrapper saveEvent(Messages.EventWrapper eventWrapper) {
         return saveEventsBatch(Collections.singletonList(eventWrapper)).get(0);
     }
 
     @Override
     public Future<Messages.EventWrapperBatch> loadEventWrappersForAggregateIdAsync(String aggregateType, String aggregateRootId, long fromJournalId) {
-        return null;
+        return null; // TODO: Les fra aggregat stream (trenger vi async og sync?)
     }
 
     @Override
@@ -228,6 +197,11 @@ public class EventstoreJournalStorage implements JournalStorage {
 
     @Override
     public Messages.EventWrapperBatch loadEventWrappersForAggregateId(String aggregateType, String aggregateRootId, long fromJournalId) {
-        return null;
+        log.debug("Loading events for type \"{}\" and aggregate id \"{}\" from {}", aggregateType, aggregateRootId, fromJournalId);
+        return Messages.EventWrapperBatch.newBuilder()
+                .setAggregateType(aggregateType)
+                .setAggregateRootId(aggregateRootId)
+                .addAllEvents(readEvents(EventstoreConstants.getAggregateStreamId(aggregateType, aggregateRootId), fromJournalId, eventLimit))
+                .build();
     }
 }

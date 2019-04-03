@@ -2,13 +2,8 @@ package no.ks.eventstore2.projection;
 
 import akka.actor.ActorRef;
 import akka.dispatch.Futures;
-import no.ks.eventstore2.eventstore.Subscription;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
-
-import java.util.concurrent.Callable;
-
-import static akka.dispatch.Futures.future;
 
 @Subscriber("Form")
 public class FutureCallProjection extends Projection {

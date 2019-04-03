@@ -1,6 +1,5 @@
 package no.ks.eventstore2.projection;
 
-import no.ks.eventstore2.Event;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,13 +21,6 @@ public class ProjectionError {
     public ProjectionError(ProjectionFailedError error) {
         this.event = error.getMessage().toString();
         this.projection = error.getProjection().toString();
-        if (error.getMessage() instanceof Event) {
-            try {
-                this.date = format.format(((Event) error.getMessage()).getCreated().toDate());
-            } catch (Exception e) {
-                log.warn("Could not format created date", e);
-            }
-        }
         reason = joinStackTrace(error.getReason());
     }
 

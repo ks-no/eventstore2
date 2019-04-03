@@ -46,7 +46,7 @@ public abstract class CommandHandler extends UntypedActor{
         }
     }
 
-    public void handleCommand(Command command) {
+    private void handleCommand(Command command) {
         Method method = handleCommandMap.get(command.getClass());
         try {
             method.invoke(this, command);
@@ -56,12 +56,9 @@ public abstract class CommandHandler extends UntypedActor{
     }
 
     private void init() {
-        handleCommandMap = new HashMap<Class<? extends Command>, Method>();
+        handleCommandMap = new HashMap<>();
         try {
-
-            handleCommandMap.putAll(getOldStyleHandlers());
             handleCommandMap.putAll(getNewStyleHandlers());
-
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -69,19 +66,5 @@ public abstract class CommandHandler extends UntypedActor{
 
     private Map<Class<? extends Command>, Method> getNewStyleHandlers() {
         return  HandlerFinder.getCommandHandlers(this.getClass());
-    }
-
-    private Map<Class<? extends Command>, Method> getOldStyleHandlers() throws NoSuchMethodException {
-        HashMap<Class<? extends Command>, Method> oldStyleMap = new HashMap<Class<? extends Command>, Method>();
-        Class<? extends CommandHandler> handlerClass = this.getClass();
-        HandlesCommand annotation = handlerClass.getAnnotation(HandlesCommand.class);
-        if (annotation != null) {
-            Class[] handledCommandClasses = annotation.value();
-            for (Class<? extends Command> handledEventClass : handledCommandClasses) {
-                Method handleCommandMethod = handlerClass.getMethod("handleCommand", handledEventClass);
-                oldStyleMap.put(handledEventClass, handleCommandMethod);
-            }
-        }
-        return oldStyleMap;
     }
 }

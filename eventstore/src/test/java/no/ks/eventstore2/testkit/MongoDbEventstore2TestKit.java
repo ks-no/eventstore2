@@ -1,4 +1,4 @@
-package no.ks.eventstore2.projection;
+package no.ks.eventstore2.testkit;
 
 import com.mongodb.MongoClient;
 import com.mongodb.ServerAddress;
@@ -36,7 +36,8 @@ public class MongoDbEventstore2TestKit extends EventstoreEventstore2TestKit {
                         .defaults(command)
                         .download(new DownloadConfigBuilder()
                                 .defaultsForCommand(command)
-                                .downloadPath("http://jenkins.usrv.ubergenkom.no/apps/")))
+                                .downloadPath("http://jenkins.usrv.ubergenkom.no/apps/")
+                                .build()))
                 .build();
         runtime = MongodStarter.getInstance(runtimeConfig);
 
@@ -51,7 +52,7 @@ public class MongoDbEventstore2TestKit extends EventstoreEventstore2TestKit {
     }
 
     @AfterAll
-    public static void tearDownMongoDb() throws Exception {
+    public static void tearDownMongoDb() {
         mongod.stop();
         mongodExecutable.stop();
     }
@@ -63,7 +64,7 @@ public class MongoDbEventstore2TestKit extends EventstoreEventstore2TestKit {
     }
 
     @AfterEach
-    public void tearDown() throws Exception {
+    public void tearDown() {
         final MongoIterable<String> strings = mongoClient.listDatabaseNames();
         strings.forEach((Consumer<? super String>) (db) -> mongoClient.getDatabase(db).drop());
         mongoClient.close();

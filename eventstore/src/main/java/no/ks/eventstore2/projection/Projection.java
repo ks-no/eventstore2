@@ -1,18 +1,21 @@
 package no.ks.eventstore2.projection;
 
-import akka.actor.*;
+import akka.actor.AbstractActor;
+import akka.actor.ActorRef;
+import akka.actor.Status;
 import akka.dispatch.OnFailure;
 import akka.dispatch.OnSuccess;
-import akka.japi.pf.DeciderBuilder;
 import akka.japi.pf.ReceiveBuilder;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
-import eventstore.*;
-import eventstore.j.SettingsBuilder;
+import eventstore.LiveProcessingStarted$;
+import eventstore.Messages;
+import eventstore.ResolvedEvent;
 import no.ks.eventstore2.ProtobufHelper;
+import no.ks.eventstore2.eventstore.EventStoreUtil;
 import no.ks.eventstore2.eventstore.JsonMetadataBuilder;
-import no.ks.eventstore2.reflection.HandlerFinderProtobuf;
+import no.ks.eventstore2.reflection.HandlerFinder;
 import no.ks.eventstore2.response.NoResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,14 +28,11 @@ import scala.util.Failure;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.time.Duration;
 import java.util.*;
 
 public abstract class Projection extends AbstractActor {
 
     private static final Logger log = LoggerFactory.getLogger(Projection.class);
-
-    private static final String SVARUT_CATEGORY_PREFIX = "ce-no.ks.events.svarut.";
 
     private final ActorRef connection;
     private Map<Class<? extends Message>, Method> handleEventMap = null;
@@ -159,7 +159,7 @@ public abstract class Projection extends AbstractActor {
     }
 
     public final void dispatchToCorrectEventHandler(Message message) {
-        Method method = HandlerFinderProtobuf.findHandlingMethod(handleEventMap, message);
+        Method method = HandlerFinder.findHandlingMethod(handleEventMap, message);
 
         if (method != null) {
             try {
@@ -207,26 +207,10 @@ public abstract class Projection extends AbstractActor {
 
     private void init() {
         handleEventMap = new HashMap<>();
-        try {
-            Class<? extends Projection> projectionClass = this.getClass();
-            ListensTo listensTo = projectionClass.getAnnotation(ListensTo.class);
-            if (listensTo != null) {
-                Class[] handledEventClasses = listensTo.value();
-
-                for (Class<? extends Message> handledEventClass : handledEventClasses) {
-                    Method handleEventMethod = projectionClass.getMethod("handleEvent", handledEventClass);
-                    handleEventMap.put(handledEventClass, handleEventMethod);
-                }
-            } else {
-                handleEventMap.putAll(HandlerFinderProtobuf.getEventHandlers(projectionClass));
-            }
-        } catch (Exception e) {
-            log.error("Exception during creation of projection: ", e);
-            throw new RuntimeException(e);
-        }
+        handleEventMap.putAll(HandlerFinder.getEventHandlers(this.getClass()));
     }
 
-    protected String getSubscribe() {
+    private String getSubscribe() {
         Subscriber subscriberAnnotation = getClass().getAnnotation(Subscriber.class);
 
         if (subscriberAnnotation != null) {
@@ -239,7 +223,7 @@ public abstract class Projection extends AbstractActor {
         return subscribePhase;
     }
 
-    private final class PendingCall {
+    private static final class PendingCall {
         private Call call;
         private ActorRef sender;
 
@@ -265,25 +249,21 @@ public abstract class Projection extends AbstractActor {
         }
     }
 
-    protected void subscribe() {
+    private void subscribe() {
         if (!subscribePhase) {
-            EventStream.Id streamId = new EventStream.System(SVARUT_CATEGORY_PREFIX + getSubscribe());
-            EventNumber.Exact eventNumber = new EventNumber.Exact(Optional.ofNullable(latestJournalidReceived).orElse(0L));
-            log.info("Subscribing to {} from {}", streamId, eventNumber);
+            log.debug("Starting subscription");
             setInSubscribe();
-            getContext().actorOf(StreamSubscriptionActor.props(
+            getContext().actorOf(EventStoreUtil.getCategorySubscriptionsProps(
                     connection,
                     getSelf(),
-                    streamId,
-                    Option.<EventNumber>apply(eventNumber),
-                    Option.<UserCredentials>empty(),
-                    new SettingsBuilder().resolveLinkTos(true).build()));
+                    getSubscribe(),
+                    latestJournalidReceived));
         } else {
             log.warn("Trying to subscribe but is already in subscribe phase.");
         }
     }
 
-    protected Messages.EventWrapper currentMessage() {
+    public Messages.EventWrapper currentMessage() {
         return currentMessage;
     }
 }

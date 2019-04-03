@@ -15,6 +15,7 @@ import no.ks.events.svarut.Order.EventstoreOrder;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.TakeSnapshot;
+import no.ks.eventstore2.testkit.MongoDbEventstore2TestKit;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -23,18 +24,18 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static no.ks.eventstore2.projection.CallProjection.call;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
-import static org.hamcrest.core.IsCollectionContaining.hasItem;
 import static org.hamcrest.core.IsNot.not;
 
-public class ProjectionSnapshotTest extends MongoDbEventstore2TestKit {
+class ProjectionSnapshotTest extends MongoDbEventstore2TestKit {
 
     private static Kryo kryo = new Kryo();
 
 
     @Test
-    public void test_that_a_projection_can_save_and_load_snapshot() {
+    void test_that_a_projection_can_save_and_load_snapshot() {
         Message event1 = saveEvent();
         TestActorRef<Actor> testActor = TestActorRef.create(_system, Props.create(TestProjection.class, eventstoreConnection, mongoClient), UUID.randomUUID().toString());
         testActor.tell(call("assertSearchRequest", event1), super.testActor());

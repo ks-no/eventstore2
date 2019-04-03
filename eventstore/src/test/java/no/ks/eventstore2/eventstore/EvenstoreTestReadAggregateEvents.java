@@ -1,63 +1,95 @@
 package no.ks.eventstore2.eventstore;
 
 import akka.actor.Actor;
+import akka.actor.Inbox;
 import akka.testkit.TestActorRef;
-import com.esotericsoftware.kryo.Kryo;
-import com.mongodb.client.MongoDatabase;
-import no.ks.eventstore2.Event;
-import no.ks.eventstore2.projection.MongoDbEventstore2TestKit;
-import org.junit.jupiter.api.BeforeAll;
+import eventstore.Messages;
+import no.ks.events.svarut.Test.EventstoreTest;
+import no.ks.eventstore2.ProtobufHelper;
+import no.ks.eventstore2.testkit.EventstoreEventstore2TestKit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import scala.concurrent.duration.Duration;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
-public class EvenstoreTestReadAggregateEvents extends MongoDbEventstore2TestKit{
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.Is.is;
 
-    private KryoClassRegistration kryoClassRegistration = new KryoClassRegistration() {
-        @Override
-        public void registerClasses(Kryo kryo) {
-            kryo.register(AggEvent.class, 1001);
-        }
-    };
-    private MongoDBJournalV2 journal;
+class EvenstoreTestReadAggregateEvents extends EventstoreEventstore2TestKit {
+
+    private JournalStorage journal;
 
     @BeforeEach
     public void setUp() throws Exception {
         super.setUp();
 
-        MongoDatabase db = mongoClient.getDatabase("Journal");
-        journal = new MongoDBJournalV2(db, kryoClassRegistration, Arrays.asList(new String[]{"agg1", "agg", "agg2"}), 10, null);
+        journal = new EventstoreJournalStorage(eventstoreConnection);
     }
 
     @Test
-    public void testReadEventsForOneAggregateId() throws Exception {
-        for(int i = 0; i<3;i++)
-            journal.saveEvent(new AggEvent("id","agg"));
+    void testReadEventsForOneAggregateId() throws TimeoutException {
+        String aggregateRootId = UUID.randomUUID().toString();
+        for(int i = 0; i < 3; i++) {
+            journal.saveEvent(ProtobufHelper.newEventWrapper("Test", aggregateRootId,
+                    EventstoreTest.TestEvent.newBuilder().setMessage(UUID.randomUUID().toString()).build()));
+        }
+
         TestActorRef<Actor> actorTestActorRef = TestActorRef.create(_system, EventStore.mkProps(journal));
-        actorTestActorRef.tell(new RetreiveAggregateEvents("agg", "id", null), super.testActor());
-        List<Event> events = new ArrayList<>();
-        for(int i = 0; i<3;i++)
-            events.add(new AggEvent("id","agg"));
-        expectMsg(new EventBatch("agg", "id", events, true));
+        Inbox inbox = Inbox.create(_system);
+
+        actorTestActorRef.tell(
+                Messages.RetreiveAggregateEvents.newBuilder()
+                        .setAggregateType("Test")
+                        .setAggregateRootId(aggregateRootId)
+                        .build(),
+                inbox.getRef());
+
+        Messages.EventWrapperBatch receive = (Messages.EventWrapperBatch) inbox.receive(Duration.create(3, TimeUnit.SECONDS));
+        assertThat(aggregateRootId, is(receive.getAggregateRootId()));
+        assertThat(3, is(receive.getEventsCount()));
     }
 
     @Test
-    public void testReadEventsForOneAggregateIdAndContinueWhenBatchIsFull() throws Exception {
-        for(int i = 0; i<11;i++)
-            journal.saveEvent(new AggEvent("id","agg2"));
+    void testReadEventsForOneAggregateIdAndContinueWhenBatchIsFull() throws Exception {
+        EventstoreJournalStorage journal = new EventstoreJournalStorage(eventstoreConnection, 10);
+
+        String aggregateRootId = UUID.randomUUID().toString();
+        for(int i = 0; i < 12; i++) {
+            this.journal.saveEvent(ProtobufHelper.newEventWrapper("Test", aggregateRootId,
+                    EventstoreTest.TestEvent.newBuilder().setMessage(aggregateRootId + "-" + i).build()));
+        }
+
         TestActorRef<Actor> actorTestActorRef = TestActorRef.create(_system, EventStore.mkProps(journal));
-        actorTestActorRef.tell(new RetreiveAggregateEvents("agg2", "id", null), super.testActor());
-        List<Event> events = new ArrayList<>();
-        for(int i = 0; i<10;i++)
-            events.add(new AggEvent("id","agg2"));
-        expectMsg(new EventBatch("agg2", "id", events, false));
-        actorTestActorRef.tell(new RetreiveAggregateEvents("agg2", "id", "10"), super.testActor());
-        events.clear();
-        for(int i = 0; i<1;i++)
-            events.add(new AggEvent("id","agg2"));
-        expectMsg(new EventBatch("agg2", "id", events, true));
+        Inbox inbox = Inbox.create(_system);
+
+        actorTestActorRef.tell(
+                Messages.RetreiveAggregateEvents.newBuilder()
+                        .setAggregateType("Test")
+                        .setAggregateRootId(aggregateRootId)
+                        .build(),
+                inbox.getRef());
+
+        Messages.EventWrapperBatch receive = (Messages.EventWrapperBatch) inbox.receive(Duration.create(3, TimeUnit.SECONDS));
+        assertThat(aggregateRootId, is(receive.getAggregateRootId()));
+        assertThat(10, is(receive.getEventsCount()));
+        assertThat(receive.getEvents(0).getEvent().unpack(EventstoreTest.TestEvent.class).getMessage(), is(aggregateRootId + "-0"));
+        assertThat(receive.getEvents(9).getEvent().unpack(EventstoreTest.TestEvent.class).getMessage(), is(aggregateRootId + "-9"));
+
+        actorTestActorRef.tell(
+                Messages.RetreiveAggregateEvents.newBuilder()
+                        .setAggregateType("Test")
+                        .setAggregateRootId(aggregateRootId)
+                        .setFromJournalId(10)
+                        .build(),
+                inbox.getRef());
+
+        receive = (Messages.EventWrapperBatch) inbox.receive(Duration.create(3, TimeUnit.SECONDS));
+        assertThat(aggregateRootId, is(receive.getAggregateRootId()));
+        assertThat(2, is(receive.getEventsCount()));
+        assertThat(receive.getEvents(0).getEvent().unpack(EventstoreTest.TestEvent.class).getMessage(), is(aggregateRootId + "-10"));
+        assertThat(receive.getEvents(1).getEvent().unpack(EventstoreTest.TestEvent.class).getMessage(), is(aggregateRootId + "-11"));
     }
 }

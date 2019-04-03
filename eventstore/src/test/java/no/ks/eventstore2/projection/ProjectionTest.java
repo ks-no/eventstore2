@@ -1,6 +1,5 @@
 package no.ks.eventstore2.projection;
 
-import akka.actor.Actor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
@@ -9,6 +8,7 @@ import eventstore.Messages;
 import no.ks.events.svarut.Order.EventstoreOrder;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.ProtobufHelper;
+import no.ks.eventstore2.TestInvoker;
 import no.ks.eventstore2.testkit.EventstoreEventstore2TestKit;
 import org.junit.jupiter.api.Test;
 
@@ -16,12 +16,17 @@ import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static no.ks.eventstore2.projection.CallProjection.call;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class EventstoreProjectionSubscriptionTest extends EventstoreEventstore2TestKit {
+class ProjectionTest extends EventstoreEventstore2TestKit {
 
     @Test
-    public void testProjectionCanReceiveEventsAndAnswerCall() {
-        TestActorRef<Actor> testActor = TestActorRef.create(_system, Props.create(TestProjection.class, this.eventstoreConnection), UUID.randomUUID().toString());
+    void testProjectionCanReceiveEventsAndAnswerCall() {
+        TestActorRef<TestProjection> testActor = TestActorRef.create(_system, Props.create(TestProjection.class, this.eventstoreConnection), UUID.randomUUID().toString());
+        TestProjection projection = testActor.underlyingActor();
+
+        testActor.tell(call("isSubscribePhase"), super.testActor());
+        expectMsg(false);
 
         EventstoreOrder.SearchRequest request = EventstoreOrder.SearchRequest.newBuilder()
                 .setQuery(UUID.randomUUID().toString())
@@ -39,14 +44,12 @@ public class EventstoreProjectionSubscriptionTest extends EventstoreEventstore2T
         Messages.EventWrapper resultWrapper = ProtobufHelper.newEventWrapper("order", UUID.randomUUID().toString(), result);
         journal.saveEvent(resultWrapper);
 
-        testActor.tell(call("assertSearchRequest", request), super.testActor());
-        expectMsg("SEARCH_REQUEST_OK");
-        testActor.tell(call("assertSearchResult", result), super.testActor());
-        expectMsg("SEARCH_RESULT_OK");
-        testActor.tell(call("assertCurrentMessage", request, requestWrapper), super.testActor());
-        expectMsg("CURRENT_MESSAGE_OK");
-        testActor.tell(call("assertCurrentMessage", result, resultWrapper), super.testActor());
-        expectMsg("CURRENT_MESSAGE_OK");
+        new TestInvoker().invoke(() -> {
+            assertTrue(projection.receivedSearchRequest(request));
+            assertTrue(projection.receivedSearchResult(result));
+            assertTrue(projection.hasCorrectCurrentMessage(request, requestWrapper));
+            assertTrue(projection.hasCorrectCurrentMessage(result, resultWrapper));
+        });
     }
 
 
@@ -62,42 +65,29 @@ public class EventstoreProjectionSubscriptionTest extends EventstoreEventstore2T
             super(connection);
         }
 
-        public String assertSearchRequest(EventstoreOrder.SearchRequest expectedEvent) {
-            long matches = handledRequestEvents.stream().filter(e ->
+        boolean receivedSearchRequest(EventstoreOrder.SearchRequest expectedEvent) {
+            return handledRequestEvents.stream().filter(e ->
                     e.getQuery().equals(expectedEvent.getQuery())
                             && e.getPageNumber() == expectedEvent.getPageNumber()
-                            && e.getResultPerPage() == expectedEvent.getResultPerPage()
-            ).count();
-
-            if (matches == 1) {
-                return "SEARCH_REQUEST_OK";
-            }
-            return "SEARCH_REQUEST_FAILURE";
+                            && e.getResultPerPage() == expectedEvent.getResultPerPage()).count()
+                    == 1;
         }
 
-        public String assertSearchResult(EventstoreOrder.SearchResult expectedEvent) {
-            long matches = handledResultEvents.stream().filter(e ->
+        boolean receivedSearchResult(EventstoreOrder.SearchResult expectedEvent) {
+            return handledResultEvents.stream().filter(e ->
                     e.getResultList().equals(expectedEvent.getResultList())
-                            && e.getNumberOfResults() == expectedEvent.getNumberOfResults()
-            ).count();
-
-            if (matches == 1) {
-                return "SEARCH_RESULT_OK";
-            }
-            return "SEARCH_RESULT_FAILURE";
+                            && e.getNumberOfResults() == expectedEvent.getNumberOfResults()).count()
+                    == 1;
         }
 
-        public String assertCurrentMessage(Message message, Messages.EventWrapper expectedWrapper) {
+        boolean hasCorrectCurrentMessage(Message message, Messages.EventWrapper expectedWrapper) {
             Messages.EventWrapper actualWrapper = eventWrapperMap.get(message);
-            if (actualWrapper.getAggregateType().equals(expectedWrapper.getAggregateType())
+            return actualWrapper.getAggregateType().equals(expectedWrapper.getAggregateType())
                     && actualWrapper.getAggregateRootId().equals(expectedWrapper.getAggregateRootId())
                     && actualWrapper.getOccurredOn() == expectedWrapper.getOccurredOn()
                     && actualWrapper.getProtoSerializationType().equals(expectedWrapper.getProtoSerializationType())
                     && actualWrapper.getCreatedByUser().equals(expectedWrapper.getCreatedByUser())
-                    && actualWrapper.getJournalid() == expectedWrapper.getJournalid()) {
-                return "CURRENT_MESSAGE_OK";
-            }
-            return "CURRENT_MESSAGE_FAILURE";
+                    && actualWrapper.getJournalid() == expectedWrapper.getJournalid();
         }
 
         @Handler

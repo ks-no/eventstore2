@@ -51,7 +51,7 @@ public class CommandDispatcher extends UntypedActor {
 		if (o instanceof Command) {
             log.debug("Got command " + o);
 			ActorRef actorRef = commandHandlers.get(o.getClass());
-            if(actorRef == null && remainingCommandHandlers > 0) {
+            if (actorRef == null && remainingCommandHandlers > 0) { // TODO: Denne gikk plutselig i loop randomly
                 log.debug("RemainingCommandHandlers is " + remainingCommandHandlers + " sending message to self");
                 self().tell(o, sender());
             } else {

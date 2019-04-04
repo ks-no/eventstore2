@@ -25,6 +25,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.springframework.test.util.AssertionErrors.assertTrue;
 
+@SuppressWarnings("unchecked")
 class SagaManagerTest extends EventstoreEventstore2TestKit {
 
     private SagaInMemoryRepository sagaInMemoryRepository;

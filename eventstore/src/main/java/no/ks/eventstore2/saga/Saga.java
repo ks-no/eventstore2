@@ -1,19 +1,23 @@
 package no.ks.eventstore2.saga;
 
+import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
-import akka.actor.UntypedActor;
+import akka.japi.pf.ReceiveBuilder;
 import com.google.protobuf.Message;
 import eventstore.Messages;
 import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.reflection.HandlerFinder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.PartialFunction;
+import scala.runtime.BoxedUnit;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
-public abstract class Saga extends UntypedActor {
+public abstract class Saga extends AbstractActor {
 
 	private Logger log = LoggerFactory.getLogger(this.getClass());
 
@@ -54,23 +58,38 @@ public abstract class Saga extends UntypedActor {
 	}
 
 	@Override
-	public void onReceive(Object o) {
+	public void aroundReceive(PartialFunction<Object, BoxedUnit> receive, Object msg) {
 		try {
-			if(o instanceof Messages.EventWrapper) {
-				log.debug("Received event {}", o);
-				currentEventWrapper = (Messages.EventWrapper) o;
+			super.aroundReceive(receive, msg);
+		} catch (Exception e) {
+			log.error("Saga threw exception when handling message: ", e);
+			throw new RuntimeException("Saga threw exception when handling message: ", e);
+		}
+	}
 
-				final Message message = ProtobufHelper.unPackAny(((Messages.EventWrapper) o).getProtoSerializationType(), ((Messages.EventWrapper) o).getEvent());
-				Method method = HandlerFinder.findHandlingMethod(handleEventMap, message);
-				method.invoke(this, message);
-			} else if (o instanceof Message) {
-				Method method = HandlerFinder.findHandlingMethod(handleEventMap, (Message) o);
-				method.invoke(this, (Message) o);
-			}
-        } catch(Exception e) {
-            log.error("Saga threw exception when handling message: ", e);
-            throw new RuntimeException("Saga threw exception when handling message: ", e);
-        }
+	@Override
+	public Receive createReceive() {
+		return createReceiveBuilder().build();
+	}
+
+	protected ReceiveBuilder createReceiveBuilder() {
+		return receiveBuilder()
+				.match(Messages.EventWrapper.class, this::handleEventWrapper)
+				.match(Message.class, this::handleMessage);
+	}
+
+	private void handleEventWrapper(Messages.EventWrapper event) throws InvocationTargetException, IllegalAccessException {
+		log.debug("Received event {}", event);
+		currentEventWrapper = event;
+
+		final Message message = ProtobufHelper.unPackAny(event.getProtoSerializationType(), event.getEvent());
+		Method method = HandlerFinder.findHandlingMethod(handleEventMap, message);
+		method.invoke(this, message);
+	}
+
+	private void handleMessage(Message message) throws InvocationTargetException, IllegalAccessException {
+		Method method = HandlerFinder.findHandlingMethod(handleEventMap, message);
+		method.invoke(this, message);
 	}
 
 	private void loadPersistedState() {

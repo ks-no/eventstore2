@@ -111,15 +111,15 @@ public class EventstoreJournalTest extends EventstoreEventstore2TestKit {
 
     @Test
     void testJournalId() {
+        long latestJournalId = getLatestJournalId(ORDER_CATEGORY);
+
         final Order.SearchRequest searchRequest1 = buildSearchRequest();
         journal.saveEvent(ProtobufHelper.newEventWrapper("order", UUID.randomUUID().toString(), searchRequest1));
-        Messages.EventWrapper searchRequestRead1 = getLastEvent(ORDER_CATEGORY);
+        new TestInvoker().invoke(() -> assertThat(getLatestJournalId(ORDER_CATEGORY), is(latestJournalId + 1)));
 
         final Order.SearchRequest searchRequest2 = buildSearchRequest();
         journal.saveEvent(ProtobufHelper.newEventWrapper("order", UUID.randomUUID().toString(), searchRequest2));
-        Messages.EventWrapper searchRequestRead2 = getLastEvent(ORDER_CATEGORY);
-
-        assertThat(searchRequestRead2.getJournalid(), is(searchRequestRead1.getJournalid() + 1));
+        new TestInvoker().invoke(() -> assertThat(getLatestJournalId(ORDER_CATEGORY), is(latestJournalId + 2)));
     }
 
     @Test

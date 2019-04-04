@@ -1,8 +1,8 @@
 package no.ks.eventstore2.eventstore;
 
+import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
-import akka.actor.UntypedActor;
 import akka.dispatch.OnFailure;
 import akka.dispatch.OnSuccess;
 import com.google.common.collect.Lists;
@@ -10,9 +10,11 @@ import eventstore.Messages;
 import no.ks.eventstore2.TakeSnapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.PartialFunction;
 import scala.concurrent.Future;
+import scala.runtime.BoxedUnit;
 
-public class EventStore extends UntypedActor {
+public class EventStore extends AbstractActor {
 
     private static Logger log = LoggerFactory.getLogger(EventStore.class);
 
@@ -31,35 +33,40 @@ public class EventStore extends UntypedActor {
         log.debug("EventStore preStart");
     }
 
-    public void onReceive(Object o) {
+    @Override
+    public void aroundReceive(PartialFunction<Object, BoxedUnit> receive, Object msg) {
         try {
-            if (o instanceof String && "fail".equals(o)) {
-//                eventstoresingeltonProxy.tell(o, sender());
-                throw new RuntimeException("Failing by force"); // TODO: What to do? singleton kastet exception
-            }
-
-            if (o instanceof Messages.EventWrapper) {
-                storeEventWrapper((Messages.EventWrapper) o);
-            } else if (o instanceof Messages.EventWrapperBatch) {
-                storeEventWrapperBatch((Messages.EventWrapperBatch) o);
-            } else if (o instanceof Messages.RetreiveAggregateEventsAsync) {
-                readAggregateEvents((Messages.RetreiveAggregateEventsAsync) o);
-            } else if (o instanceof Messages.RetreiveAggregateEvents) {
-                readAggregateEvents((Messages.RetreiveAggregateEvents) o);
-            } else if (o instanceof Messages.RetreiveCorrelationIdEventsAsync) {
-                readAggregateEvents((Messages.RetreiveCorrelationIdEventsAsync) o);
-            } else if (o instanceof Messages.AcknowledgePreviousEventsProcessed) {
-                sender().tell(Messages.Success.getDefaultInstance(), self());
-            } else if (o instanceof TakeSnapshot) { // TODO: Sende til alle projeksjoner via ProjectionManager
-                throw new RuntimeException("Implement this!");
-//                for (ActorRef actorRef : aggregateSubscribers.values()) {
-//                    actorRef.tell(o, self());
-//                }
-            }
+            super.aroundReceive(receive, msg);
         } catch (Exception e) {
             log.error("Eventstore got an error: ", e);
             throw e;
         }
+    }
+
+    @Override
+    public Receive createReceive() {
+        return receiveBuilder()
+                .matchEquals("fail", this::handleFail)
+                .match(Messages.EventWrapper.class, this::storeEventWrapper)
+                .match(Messages.EventWrapperBatch.class, this::storeEventWrapperBatch)
+                .match(Messages.RetreiveAggregateEventsAsync.class, this::readAggregateEvents)
+                .match(Messages.RetreiveAggregateEvents.class, this::readAggregateEvents)
+                .match(Messages.RetreiveCorrelationIdEventsAsync.class, this::readAggregateEvents)
+                .match(Messages.AcknowledgePreviousEventsProcessed.class, o -> sender().tell(Messages.Success.getDefaultInstance(), self()))
+                .match(TakeSnapshot.class, this::handleTakeSnapshot)
+                .build();
+    }
+
+    private void handleFail(Object o) {
+//        eventstoresingeltonProxy.tell(o, sender());
+        throw new RuntimeException("Failing by force"); // TODO: What to do? singleton kastet exception
+    }
+
+    private void handleTakeSnapshot(TakeSnapshot o) { // TODO: Sende til alle projeksjoner via ProjectionManager
+        throw new RuntimeException("Implement this!");
+//                for (ActorRef actorRef : aggregateSubscribers.values()) {
+//                    actorRef.tell(o, self());
+//                }
     }
 
     private void readAggregateEvents(Messages.RetreiveAggregateEventsAsync retreiveAggregateEvents) {

@@ -5,6 +5,7 @@ import no.ks.eventstore2.response.NoResult;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings("unchecked")
 public class ObjectConverter {
 
     private Object object;
@@ -24,7 +25,7 @@ public class ObjectConverter {
         return (List<T>) object;
     }
 
-    public <String, T> Map<String, T> map(Class<T> clz) {
+    public <T> Map<String, T> map(Class<T> clz) {
         if(object instanceof NoResult) {
             return null;
         }

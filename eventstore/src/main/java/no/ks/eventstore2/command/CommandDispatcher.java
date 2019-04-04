@@ -1,8 +1,8 @@
 package no.ks.eventstore2.command;
 
+import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
-import akka.actor.UntypedActor;
 import com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,7 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class CommandDispatcher extends UntypedActor {
+public class CommandDispatcher extends AbstractActor {
 
 	private static Logger log = LoggerFactory.getLogger(CommandDispatcher.class);
 
@@ -45,31 +45,38 @@ public class CommandDispatcher extends UntypedActor {
         Thread.sleep(100);
 	}
 
-	@Override
-	public void onReceive(Object o) throws Exception {
+    @Override
+    public Receive createReceive() {
+        return receiveBuilder()
+                .match(Command.class, this::handleCommand)
+                .match(ImmutableSet.class, this::handleImmutableSet)
+                .build();
+    }
 
-		if (o instanceof Command) {
-            log.debug("Got command " + o);
-			ActorRef actorRef = commandHandlers.get(o.getClass());
-            if (actorRef == null && remainingCommandHandlers > 0) { // TODO: Denne gikk plutselig i loop randomly
-                log.debug("RemainingCommandHandlers is " + remainingCommandHandlers + " sending message to self");
-                self().tell(o, sender());
+    private void handleCommand(Command command) {
+        log.debug("Got command " + command);
+        ActorRef actorRef = commandHandlers.get(command.getClass());
+        if (actorRef == null && remainingCommandHandlers > 0) { // TODO: Denne gikk plutselig i loop randomly
+            log.debug("RemainingCommandHandlers is " + remainingCommandHandlers + " sending message to self");
+            self().tell(command, sender());
+        } else {
+            if(actorRef == null){
+                log.error("Failed to find commandHandler for command {}", command);
             } else {
-                if(actorRef == null){
-                    log.error("Failed to find commandHandler for command {}", o);
-                } else {
-			        actorRef.tell(o, sender());
-                }
-            }
-		} else if(o instanceof ImmutableSet){
-            log.debug("Got ImmutableSet " + o);
-            ImmutableSet<Class<? extends Command>> handles = (ImmutableSet<Class<? extends Command>>) o;
-            for (Class<? extends Command> clz : handles) {
-                log.debug("Putting class " + clz  + " into map with actor " + sender());
-                commandHandlers.put(clz, sender());
-                remainingCommandHandlers--;
-                log.debug("remainingCommandHandlers is " + remainingCommandHandlers);
+                actorRef.tell(command, sender());
             }
         }
-	}
+    }
+
+    @SuppressWarnings("unchecked")
+    private void handleImmutableSet(ImmutableSet set) {
+        log.debug("Got ImmutableSet " + set);
+        ImmutableSet<Class<? extends Command>> handles = (ImmutableSet<Class<? extends Command>>) set;
+        for (Class<? extends Command> clz : handles) {
+            log.debug("Putting class " + clz  + " into map with actor " + sender());
+            commandHandlers.put(clz, sender());
+            remainingCommandHandlers--;
+            log.debug("remainingCommandHandlers is " + remainingCommandHandlers);
+        }
+    }
 }

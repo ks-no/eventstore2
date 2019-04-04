@@ -24,6 +24,7 @@ import static no.ks.eventstore2.projection.CallProjection.call;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 
+@SuppressWarnings("unchecked")
 class ProjectionCallTest extends EventstoreEventstore2TestKit {
 
     @Test

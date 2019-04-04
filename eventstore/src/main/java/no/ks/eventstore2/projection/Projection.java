@@ -20,7 +20,6 @@ import no.ks.eventstore2.response.NoResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.ClassUtils;
-import scala.Option;
 import scala.PartialFunction;
 import scala.concurrent.Future;
 import scala.runtime.BoxedUnit;
@@ -54,8 +53,10 @@ public abstract class Projection extends AbstractActor {
         subscribe();
     }
 
+
+
     @Override
-    public void preRestart(Throwable reason, Option<Object> message) {
+    public void preRestart(Throwable reason, Optional<Object> message) {
         log.debug("preRestart");
     }
 
@@ -83,7 +84,7 @@ public abstract class Projection extends AbstractActor {
     }
 
 
-
+    @SuppressWarnings("unchecked")
     private void handleCall(Call call) {
         log.debug("handling call: {}", call);
         try {

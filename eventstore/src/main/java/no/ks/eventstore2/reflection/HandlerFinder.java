@@ -33,6 +33,7 @@ public class HandlerFinder {
         return getHandlers(clazz, Command.class);
     }
 
+    @SuppressWarnings("unchecked")
     public static <T> Map<Class<? extends T>, Method> getHandlers(Class<?> clazz, Class<T> handlesClass) {
         HashMap<Class<? extends T>, Method> handlers = new HashMap<>();
         for (Method method : clazz.getMethods()) {

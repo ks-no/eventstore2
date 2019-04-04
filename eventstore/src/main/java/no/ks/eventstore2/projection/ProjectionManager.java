@@ -7,7 +7,6 @@ import akka.cluster.ClusterEvent;
 import akka.cluster.Member;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import akka.japi.Function;
 import akka.japi.pf.DeciderBuilder;
 import no.ks.eventstore2.RestartActorException;
 import no.ks.eventstore2.TakeSnapshot;
@@ -34,6 +33,7 @@ public class ProjectionManager extends UntypedAbstractActor {
         return Props.create(ProjectionManager.class,errorListener,props);
     }
 
+    @SuppressWarnings("unchecked")
     public ProjectionManager(ActorRef errorListener, List<Props> props){
         this.errorListener = errorListener;
 

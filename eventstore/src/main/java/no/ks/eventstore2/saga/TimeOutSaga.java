@@ -18,13 +18,15 @@ public abstract class TimeOutSaga extends Saga {
     }
 
     @Override
-    public void onReceive(Object o) {
-        if ("awake".equals(o)) {
-            log.debug("{} {} awake called", getSelf(), id);
-            awake();
-            return;
-        }
-        super.onReceive(o);
+    public Receive createReceive() {
+        return super.createReceiveBuilder()
+                .matchEquals("awake", this::handleAwake)
+                .build();
+    }
+
+    private void handleAwake(Object o) {
+        log.debug("{} {} awake called", getSelf(), id);
+        awake();
     }
 
     @Override

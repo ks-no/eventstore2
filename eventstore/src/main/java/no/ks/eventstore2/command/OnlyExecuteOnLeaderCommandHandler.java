@@ -3,6 +3,8 @@ package no.ks.eventstore2.command;
 import akka.actor.ActorRef;
 import akka.cluster.ClusterEvent;
 import no.ks.eventstore2.AkkaClusterInfo;
+import scala.PartialFunction;
+import scala.runtime.BoxedUnit;
 
 public abstract class OnlyExecuteOnLeaderCommandHandler extends CommandHandler {
 
@@ -20,14 +22,20 @@ public abstract class OnlyExecuteOnLeaderCommandHandler extends CommandHandler {
 		super.preStart();
 	}
 
+	// TODO: Trenger vi denne? Hvis ja, test at leader greiene fungerer som forventet
 	@Override
-	public void onReceive(Object o) throws Exception {
-		if( o instanceof ClusterEvent.LeaderChanged){
-			akkaClusterInfo.updateLeaderState((ClusterEvent.LeaderChanged) o);
-		}
+	public void aroundReceive(PartialFunction<Object, BoxedUnit> receive, Object msg) {
+		super.aroundReceive(receive, msg);
 
-		if(akkaClusterInfo.isLeader() || "HandlesClasses".equals(o)) {
-			super.onReceive(o);
+		if(akkaClusterInfo.isLeader() || "HandlesClasses".equals(msg)) {
+			super.createReceive().onMessage().apply(msg);
 		}
+	}
+
+	@Override
+	public Receive createReceive() {
+		return receiveBuilder()
+				.match(ClusterEvent.LeaderChanged.class, o -> akkaClusterInfo.updateLeaderState(o))
+				.build();
 	}
 }

@@ -1,19 +1,19 @@
 package no.ks.eventstore2.saga;
 
+import akka.actor.AbstractActor;
 import akka.actor.Cancellable;
 import akka.actor.Props;
-import akka.actor.UntypedActor;
 import eventstore.Messages;
 import no.ks.eventstore2.ProtobufHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
 import scala.concurrent.duration.Duration;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-public class TimeOutStore extends UntypedActor {
+public class TimeOutStore extends AbstractActor {
 
     private static Logger log = LoggerFactory.getLogger(TimeOutStore.class);
     private SagaRepository repository;
@@ -24,7 +24,7 @@ public class TimeOutStore extends UntypedActor {
     }
 
     @Override
-    public void preStart() throws Exception {
+    public void preStart() {
         cancellable = startScheduledAwake();
     }
 
@@ -33,7 +33,7 @@ public class TimeOutStore extends UntypedActor {
     }
 
     @Override
-    public void preRestart(Throwable reason, Option<Object> message) throws Exception {
+    public void preRestart(Throwable reason, Optional<Object> message) throws Exception {
         super.preRestart(reason, message);
         cancellable.cancel();
         cancellable = null;
@@ -48,31 +48,41 @@ public class TimeOutStore extends UntypedActor {
     }
 
     @Override
-    public void postStop() throws Exception {
+    public void postStop() {
         cancellable.cancel();
         cancellable = null;
     }
 
     @Override
-    public void onReceive(Object message) throws Throwable {
-        if (message instanceof Messages.ScheduleAwake) {
-            repository.storeScheduleAwake(((Messages.ScheduleAwake) message).getSagaid().getId(), ((Messages.ScheduleAwake) message).getSagaid().getClazz(), ProtobufHelper.fromTimestamp(((Messages.ScheduleAwake) message).getAwake()));
-        } else if (message instanceof Messages.ClearAwake) {
-            repository.clearAwake(((Messages.ClearAwake) message).getSagaid().getId(), ((Messages.ClearAwake) message).getSagaid().getClazz());
-        } else if ("awake".equals(message)) {
-            final List<SagaCompositeId> sagaCompositeIds = repository.whoNeedsToWake();
-            log.info("Awoke {} sagas", sagaCompositeIds.size());
-            sagaCompositeIds.stream().forEach((v) -> {
-                        final Messages.SagaCompositeId.Builder builder = Messages.SagaCompositeId.newBuilder();
-                        builder.setClazz(v.getClz().getName());
-                        builder.setId(v.getId());
-                        final Messages.SagaCompositeId sagaid = builder.build();
-                        final Messages.SendAwake sendAwake = Messages.SendAwake.newBuilder().setSagaid(sagaid).build();
-                        repository.clearAwake(v.getId(), v.getClz().getName());
-                        getContext().parent().tell(sendAwake, self());
-                    }
-            );
-        }
+    public Receive createReceive() {
+        return receiveBuilder()
+                .match(Messages.ScheduleAwake.class, this::handleScheduleAwake)
+                .match(Messages.ClearAwake.class, this::handleClearAwake)
+                .matchEquals("awake", this::handleAwake)
+                .build();
+    }
+
+    private void handleScheduleAwake(Messages.ScheduleAwake message) {
+        repository.storeScheduleAwake(message.getSagaid().getId(), message.getSagaid().getClazz(), ProtobufHelper.fromTimestamp(message.getAwake()));
+    }
+
+    private void handleClearAwake(Messages.ClearAwake message) {
+        repository.clearAwake(message.getSagaid().getId(), message.getSagaid().getClazz());
+    }
+
+    private void handleAwake(Object o) {
+        final List<SagaCompositeId> sagaCompositeIds = repository.whoNeedsToWake();
+        log.info("Awoke {} sagas", sagaCompositeIds.size());
+        sagaCompositeIds.forEach((v) -> {
+                    final Messages.SagaCompositeId.Builder builder = Messages.SagaCompositeId.newBuilder();
+                    builder.setClazz(v.getClz().getName());
+                    builder.setId(v.getId());
+                    final Messages.SagaCompositeId sagaid = builder.build();
+                    final Messages.SendAwake sendAwake = Messages.SendAwake.newBuilder().setSagaid(sagaid).build();
+                    repository.clearAwake(v.getId(), v.getClz().getName());
+                    getContext().parent().tell(sendAwake, self());
+                }
+        );
     }
 
     public static Props mkProps(SagaRepository repository) {

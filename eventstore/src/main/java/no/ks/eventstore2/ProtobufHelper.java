@@ -35,6 +35,7 @@ public class ProtobufHelper {
         return classToType.get(clazz);
     }
 
+    @SuppressWarnings("unchecked")
     public static <T extends Message> T deserializeByteArray(String type, byte[] message) {
         try {
             return (T) deserializeMethods.get(type).parseFrom(message);
@@ -43,6 +44,7 @@ public class ProtobufHelper {
         }
     }
 
+    @SuppressWarnings("unchecked")
     public static <T extends Message> T unPackAny(String type, Any any) {
         try {
             return (T) any.unpack(deserializeClasses.get(type));

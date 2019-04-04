@@ -113,6 +113,7 @@ class ProjectionSnapshotTest extends MongoDbEventstore2TestKit {
         }
 
         @Override
+        @SuppressWarnings("unchecked")
         protected void deSerializeData(byte[] bytes) {
             Input input = new Input(bytes);
             snapshotData = (List<EventstoreOrder.SearchRequest>) kryo.readClassAndObject(input);

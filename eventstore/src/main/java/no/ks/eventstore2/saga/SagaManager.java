@@ -1,15 +1,16 @@
 package no.ks.eventstore2.saga;
 
 import akka.actor.*;
-import akka.cluster.pubsub.DistributedPubSubMediator;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import com.google.protobuf.Any;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
-import eventstore.*;
-import eventstore.j.SettingsBuilder;
+import eventstore.LiveProcessingStarted$;
+import eventstore.Messages;
+import eventstore.ResolvedEvent;
 import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.TakeBackup;
 import no.ks.eventstore2.TakeSnapshot;
@@ -23,18 +24,16 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
-import scala.Option;
 import scala.concurrent.duration.Duration;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-import static no.ks.eventstore2.eventstore.EventstoreConstants.getSystemCategoryStreamId;
-
-public class SagaManager extends UntypedActor {
+public class SagaManager extends AbstractActor {
     private static Logger log = LoggerFactory.getLogger(SagaManager.class);
 
     private static Set<String> aggregates = new HashSet<>();
@@ -115,55 +114,87 @@ public class SagaManager extends UntypedActor {
     }
 
     @Override
-    public void onReceive(Object o) throws Exception {
-        if (o instanceof LiveProcessingStarted$) {
-            String aggregate = subscriptions.get(getSender());
-            inSubscribe.put(aggregate, false);
-            log.info("Live processing started for \"{}\"", aggregate);
-        } else if (o instanceof Messages.SendAwake) {
-            timeoutstore.tell(Messages.ClearAwake.newBuilder().setSagaid(((Messages.SendAwake) o).getSagaid()).build(), self());
-            getOrCreateSaga((Class<? extends Saga>) Class.forName(((Messages.SendAwake) o).getSagaid().getClazz()), ((Messages.SendAwake) o).getSagaid().getId())
-                    .tell("awake",self());
-        } else if (o instanceof Messages.ClearAwake || o instanceof Messages.ScheduleAwake){
-            timeoutstore.tell(o,sender());
-        } else if (o instanceof ResolvedEvent) {
-            ResolvedEvent event = (ResolvedEvent) o;
-            Any anyEvent = Any.parseFrom(event.data().data().value().toArray());
-            EventMetadata metadata = JsonMetadataBuilder.readMetadata(event.data().metadata().value().toArray());
-            latestJournalidReceived.put(metadata.getAggregateType(), event.linkEvent().number().value());
+    public Receive createReceive() {
+        return receiveBuilder()
+                .match(ResolvedEvent.class, this::handleResolvedEvent)
+                .match(Messages.SendAwake.class, this::handleSendAwake)
+                .match(Messages.ClearAwake.class, this::handleClearAwake)
+                .match(Messages.ScheduleAwake.class, this::handleScheduleAwake)
+                .match(Messages.AcknowledgePreviousEventsProcessed.class, this::handleAcknowledgePreviousEventsProcessed)
+                .match(TakeBackup.class, this::handleTakeBackup)
+                .match(TakeSnapshot.class, this::handleTakeSnapshot)
+                .match(UpgradeSagaRepoStore.class, this::handleUpgradeSagaRepoStore)
+                .match(LiveProcessingStarted$.class, this::handleLiveProcessingStarted)
+                .matchEquals("shutdown", this::handleShutdown)
+                .build();
+    }
 
-            Set<SagaEventMapping> sagaClassesForEvent = getSagaClassesForType(metadata.getProtoSerializationType());
-            for (SagaEventMapping mapping : sagaClassesForEvent) {
-                String sagaId;
-                if(mapping.isUseAggregateRootID()){
-                    sagaId = metadata.getAggregateRootId();
-                } else {
-                    sagaId = (String) mapping.getPropertyMethod().invoke(ProtobufHelper.unPackAny(metadata.getProtoSerializationType(), anyEvent));
-                }
-                ActorRef sagaRef = getOrCreateSaga(mapping.getSagaClass(), sagaId);
-                sagaRef.tell(ProtobufHelper.unPackAny(metadata.getProtoSerializationType(), anyEvent), self());
+    private void handleResolvedEvent(ResolvedEvent event) throws InvalidProtocolBufferException, InvocationTargetException, ExecutionException, IllegalAccessException {
+        Any anyEvent = Any.parseFrom(event.data().data().value().toArray());
+        EventMetadata metadata = JsonMetadataBuilder.readMetadata(event.data().metadata().value().toArray());
+        latestJournalidReceived.put(metadata.getAggregateType(), event.linkEvent().number().value());
+
+        Set<SagaEventMapping> sagaClassesForEvent = getSagaClassesForType(metadata.getProtoSerializationType());
+        for (SagaEventMapping mapping : sagaClassesForEvent) {
+            String sagaId;
+            if(mapping.isUseAggregateRootID()){
+                sagaId = metadata.getAggregateRootId();
+            } else {
+                sagaId = (String) mapping.getPropertyMethod().invoke(ProtobufHelper.unPackAny(metadata.getProtoSerializationType(), anyEvent));
             }
-        } else if (o instanceof UpgradeSagaRepoStore) {
-            repository.open();
-            if (repository.getState("Saga", "upgradedH2Db") != (byte) 1) {
-                log.info("Upgrading sagaRepository");
-                ((UpgradeSagaRepoStore) o).getSagaRepository().readAllStatesToNewRepository(repository);
-                repository.saveState("Saga", "upgradedH2Db", (byte) 1);
-            }
+            ActorRef sagaRef = getOrCreateSaga(mapping.getSagaClass(), sagaId);
+            sagaRef.tell(ProtobufHelper.unPackAny(metadata.getProtoSerializationType(), anyEvent), self());
         }
-        else if (o instanceof TakeBackup) {
-            repository.doBackup(((TakeBackup) o).getBackupdir(), "backupSagaRepo" + FORMAT.format(new Date()));
-        } else if (o instanceof Messages.AcknowledgePreviousEventsProcessed) {
-            sender().tell(Messages.Success.getDefaultInstance(), self());
-        } else if (o instanceof TakeSnapshot) {
-            for (String aggregate : latestJournalidReceived.keySet()) {
-                log.info("Saving latestJournalId {} for sagaManager aggregate {}", latestJournalidReceived.get(aggregate), aggregate);
-                repository.saveLatestJournalId(aggregate, latestJournalidReceived.get(aggregate));
-            }
-        } else if("shutdown".equals(o)){
-            log.info("shutting down sagamanager");
-            removeOldActorsWithWrongState();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void handleSendAwake(Messages.SendAwake message) throws ClassNotFoundException, ExecutionException {
+        timeoutstore.tell(Messages.ClearAwake.newBuilder().setSagaid(message.getSagaid()).build(), self());
+        getOrCreateSaga((Class<? extends Saga>) Class.forName(message.getSagaid().getClazz()), message.getSagaid().getId())
+                .tell("awake",self());
+    }
+
+    private void handleClearAwake(Messages.ClearAwake message) {
+        timeoutstore.tell(message, sender());
+    }
+
+    private void handleScheduleAwake(Messages.ScheduleAwake message) {
+        timeoutstore.tell(message, sender());
+    }
+
+    private void handleAcknowledgePreviousEventsProcessed(Messages.AcknowledgePreviousEventsProcessed message) {
+        sender().tell(Messages.Success.getDefaultInstance(), self());
+    }
+
+    private void handleTakeBackup(TakeBackup o) {
+        repository.doBackup(o.getBackupdir(), "backupSagaRepo" + FORMAT.format(new Date()));
+    }
+
+    private void handleTakeSnapshot(TakeSnapshot o) {
+        for (String aggregate : latestJournalidReceived.keySet()) {
+            log.info("Saving latestJournalId {} for sagaManager aggregate {}", latestJournalidReceived.get(aggregate), aggregate);
+            repository.saveLatestJournalId(aggregate, latestJournalidReceived.get(aggregate));
         }
+    }
+
+    private void handleUpgradeSagaRepoStore(UpgradeSagaRepoStore upgradeSagaRepoStore) {
+        repository.open();
+        if (repository.getState("Saga", "upgradedH2Db") != (byte) 1) {
+            log.info("Upgrading sagaRepository");
+            upgradeSagaRepoStore.getSagaRepository().readAllStatesToNewRepository(repository);
+            repository.saveState("Saga", "upgradedH2Db", (byte) 1);
+        }
+    }
+
+    private void handleLiveProcessingStarted(LiveProcessingStarted$ o) {
+        String aggregate = subscriptions.get(getSender());
+        inSubscribe.put(aggregate, false);
+        log.info("Live processing started for \"{}\"", aggregate);
+    }
+
+    private void handleShutdown(Object o) {
+        log.info("shutting down sagamanager");
+        removeOldActorsWithWrongState();
     }
 
     private ActorRef getOrCreateSaga(Class<? extends Saga> clz, String sagaId) throws ExecutionException {

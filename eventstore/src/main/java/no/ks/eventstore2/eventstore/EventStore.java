@@ -53,20 +53,11 @@ public class EventStore extends AbstractActor {
                 .match(Messages.RetreiveAggregateEvents.class, this::readAggregateEvents)
                 .match(Messages.RetreiveCorrelationIdEventsAsync.class, this::readAggregateEvents)
                 .match(Messages.AcknowledgePreviousEventsProcessed.class, o -> sender().tell(Messages.Success.getDefaultInstance(), self()))
-                .match(TakeSnapshot.class, this::handleTakeSnapshot)
                 .build();
     }
 
     private void handleFail(Object o) {
-//        eventstoresingeltonProxy.tell(o, sender());
-        throw new RuntimeException("Failing by force"); // TODO: What to do? singleton kastet exception
-    }
-
-    private void handleTakeSnapshot(TakeSnapshot o) { // TODO: Sende til alle projeksjoner via ProjectionManager
-        throw new RuntimeException("Implement this!");
-//                for (ActorRef actorRef : aggregateSubscribers.values()) {
-//                    actorRef.tell(o, self());
-//                }
+        throw new RuntimeException("Failing by force");
     }
 
     private void readAggregateEvents(Messages.RetreiveAggregateEventsAsync retreiveAggregateEvents) {
@@ -119,7 +110,7 @@ public class EventStore extends AbstractActor {
         Lists.partition(o.getEventsList(), 500).forEach(subBatch -> storage.saveEventsBatch(subBatch));
     }
 
-    private void readAggregateEvents(Messages.RetreiveAggregateEvents retreiveAggregateEvents) {
+    private void readAggregateEvents(Messages.RetreiveAggregateEvents retreiveAggregateEvents) throws Exception {
         sender().tell(
                 storage.loadEventWrappersForAggregateId(
                         retreiveAggregateEvents.getAggregateType(),

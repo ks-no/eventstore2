@@ -9,7 +9,7 @@ import no.ks.eventstore2.saga.SagaEventIdProperty;
 import no.ks.eventstore2.saga.SagaRepository;
 
 @SagaEventIdProperty(useAggregateRootId = true)
-@Subscriber("Test")
+@Subscriber("no.ks.events.svarut.Test")
 public class SagaWithNewAnnotation extends Saga {
 
     SagaWithNewAnnotation(String id, ActorRef commandDispatcher, SagaRepository repository) {

@@ -1,12 +1,12 @@
 package no.ks.eventstore2.testkit;
 
 import akka.actor.ActorRef;
-import events.test.Order.Order;
 import eventstore.Messages;
 import eventstore.Settings;
 import eventstore.j.SettingsBuilder;
 import eventstore.tcp.ConnectionActor;
 import no.ks.events.svarut.Form.EventStoreForm;
+import no.ks.events.svarut.Order.EventstoreOrder;
 import no.ks.eventstore2.eventstore.EventstoreJournalStorage;
 import no.ks.eventstore2.eventstore.JournalStorage;
 
@@ -23,12 +23,12 @@ public class EventstoreEventstore2TestKit extends Eventstore2TestKit {
 
     public EventstoreEventstore2TestKit() {
         final Settings settings = new SettingsBuilder()
-                .address(new InetSocketAddress("127.0.0.1", 1113))
+                .address(new InetSocketAddress("127.0.0.1", 51113))
                 .defaultCredentials("admin", "changeit")
                 .build();
 
         this.eventstoreConnection = _system.actorOf(ConnectionActor.getProps(settings));
-        this.journal = new EventstoreJournalStorage(eventstoreConnection);
+        this.journal = new EventstoreJournalStorage(eventstoreConnection, _system.dispatcher());
         journal.open();
     }
 
@@ -41,34 +41,42 @@ public class EventstoreEventstore2TestKit extends Eventstore2TestKit {
     }
 
     protected Messages.EventWrapper getLastEvent(String category) {
-        final List<Messages.EventWrapper> events = getAllEvents(category);
+        try {
+            final List<Messages.EventWrapper> events = getAllEvents(category);
 
-        if (events.isEmpty()) {
-            return null;
+            if (events.isEmpty()) {
+                return null;
+            }
+            return events.get(events.size() - 1);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
-        return events.get(events.size() - 1);
     }
 
     protected List<Messages.EventWrapper> getAllEvents(String category) {
-        final ArrayList<Messages.EventWrapper> events = new ArrayList<>();
-        boolean finished = journal.loadEventsAndHandle(category, events::add);
-        while(!finished){
-            finished = journal.loadEventsAndHandle(category, events::add, events.size());
-        }
+        try {
+            final ArrayList<Messages.EventWrapper> events = new ArrayList<>();
+            boolean finished = journal.loadEventsAndHandle(category, events::add);
+            while(!finished){
+                finished = journal.loadEventsAndHandle(category, events::add, events.size());
+            }
 
-        return events;
+            return events;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    protected Order.SearchRequest buildSearchRequest() {
-        return Order.SearchRequest.newBuilder()
+    protected EventstoreOrder.SearchRequest buildSearchRequest() {
+        return EventstoreOrder.SearchRequest.newBuilder()
                 .setQuery(UUID.randomUUID().toString())
                 .setPageNumber(ThreadLocalRandom.current().nextInt(0, 100) + 1)
                 .setResultPerPage(ThreadLocalRandom.current().nextInt(0, 100) + 1)
                 .build();
     }
 
-    protected Order.SearchResult buildSearchResult() {
-        Order.SearchResult.Builder builder = Order.SearchResult.newBuilder();
+    protected EventstoreOrder.SearchResult buildSearchResult() {
+        EventstoreOrder.SearchResult.Builder builder = EventstoreOrder.SearchResult.newBuilder();
 
         for (int i = 0; i < ThreadLocalRandom.current().nextInt(10); i++) {
             builder = builder.addResult(UUID.randomUUID().toString());

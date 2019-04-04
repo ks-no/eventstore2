@@ -56,7 +56,7 @@ public class CommandDispatcher extends AbstractActor {
     private void handleCommand(Command command) {
         log.debug("Got command " + command);
         ActorRef actorRef = commandHandlers.get(command.getClass());
-        if (actorRef == null && remainingCommandHandlers > 0) { // TODO: Denne gikk plutselig i loop randomly
+        if (actorRef == null && remainingCommandHandlers > 0) {
             log.debug("RemainingCommandHandlers is " + remainingCommandHandlers + " sending message to self");
             self().tell(command, sender());
         } else {

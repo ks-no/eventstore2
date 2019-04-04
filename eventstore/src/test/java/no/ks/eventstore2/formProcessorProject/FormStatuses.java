@@ -11,7 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-@Subscriber("Form")
+@Subscriber("no.ks.events.svarut.Form")
 public class FormStatuses extends Projection {
 
     private Map<String, FormStatus> statuses = new LinkedHashMap<>();

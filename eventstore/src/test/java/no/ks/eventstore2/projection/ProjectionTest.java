@@ -54,7 +54,7 @@ class ProjectionTest extends EventstoreEventstore2TestKit {
 
 
 
-    @Subscriber("Order")
+    @Subscriber("no.ks.events.svarut.Order")
     private static class TestProjection extends Projection {
 
         private List<EventstoreOrder.SearchRequest> handledRequestEvents = new ArrayList<>();

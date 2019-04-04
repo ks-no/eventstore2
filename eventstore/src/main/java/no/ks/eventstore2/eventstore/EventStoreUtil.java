@@ -11,8 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
 
-import static no.ks.eventstore2.eventstore.EventstoreConstants.getSystemCategoryStreamId;
-
 public final class EventStoreUtil {
 
     private static final Logger log = LoggerFactory.getLogger(EventStoreUtil.class);
@@ -24,7 +22,7 @@ public final class EventStoreUtil {
     }
 
     public static Props getCategorySubscriptionsProps(ActorRef connection, ActorRef client, String category, Long fromId) {
-        EventStream.Id streamId = new EventStream.System(getSystemCategoryStreamId(category));
+        EventStream.Id streamId = new EventStream.System("ce-" + category);
         Option<EventNumber> eventNumber = getEventNumber(fromId);
         log.info("Subscribing to \"{}\" from {}", streamId.streamId(), eventNumber);
         return StreamSubscriptionActor.props(

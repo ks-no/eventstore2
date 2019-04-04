@@ -9,7 +9,7 @@ import no.ks.eventstore2.saga.SagaEventIdProperty;
 import no.ks.eventstore2.saga.SagaRepository;
 
 @SagaEventIdProperty(useAggregateRootId = true)
-@Subscriber("Form")
+@Subscriber("no.ks.events.svarut.Form")
 public class FormProcess extends Saga {
     private static final byte FORM_RECEIVED = 2;
     private static final byte FORM_PARSED = 3;

@@ -71,7 +71,7 @@ class ProjectionSnapshotTest extends MongoDbEventstore2TestKit {
     }
 
 
-    @Subscriber("Order")
+    @Subscriber("no.ks.events.svarut.Order")
     private static class TestProjection extends MongoDbProjection {
 
         private List<EventstoreOrder.SearchRequest> handledRequestEvents = new ArrayList<>();

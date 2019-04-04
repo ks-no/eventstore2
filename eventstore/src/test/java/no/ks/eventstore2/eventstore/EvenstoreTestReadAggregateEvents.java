@@ -26,7 +26,7 @@ class EvenstoreTestReadAggregateEvents extends EventstoreEventstore2TestKit {
     public void setUp() throws Exception {
         super.setUp();
 
-        journal = new EventstoreJournalStorage(eventstoreConnection);
+        journal = new EventstoreJournalStorage(eventstoreConnection, _system.dispatcher());
     }
 
     @Test
@@ -42,7 +42,7 @@ class EvenstoreTestReadAggregateEvents extends EventstoreEventstore2TestKit {
 
         actorTestActorRef.tell(
                 Messages.RetreiveAggregateEvents.newBuilder()
-                        .setAggregateType("Test")
+                        .setAggregateType("no.ks.events.svarut.Test")
                         .setAggregateRootId(aggregateRootId)
                         .build(),
                 inbox.getRef());
@@ -54,7 +54,7 @@ class EvenstoreTestReadAggregateEvents extends EventstoreEventstore2TestKit {
 
     @Test
     void testReadEventsForOneAggregateIdAndContinueWhenBatchIsFull() throws Exception {
-        EventstoreJournalStorage journal = new EventstoreJournalStorage(eventstoreConnection, 10);
+        EventstoreJournalStorage journal = new EventstoreJournalStorage(eventstoreConnection, _system.dispatcher(), 10);
 
         String aggregateRootId = UUID.randomUUID().toString();
         for(int i = 0; i < 12; i++) {
@@ -67,7 +67,7 @@ class EvenstoreTestReadAggregateEvents extends EventstoreEventstore2TestKit {
 
         actorTestActorRef.tell(
                 Messages.RetreiveAggregateEvents.newBuilder()
-                        .setAggregateType("Test")
+                        .setAggregateType("no.ks.events.svarut.Test")
                         .setAggregateRootId(aggregateRootId)
                         .build(),
                 inbox.getRef());
@@ -80,7 +80,7 @@ class EvenstoreTestReadAggregateEvents extends EventstoreEventstore2TestKit {
 
         actorTestActorRef.tell(
                 Messages.RetreiveAggregateEvents.newBuilder()
-                        .setAggregateType("Test")
+                        .setAggregateType("no.ks.events.svarut.Test")
                         .setAggregateRootId(aggregateRootId)
                         .setFromJournalId(10)
                         .build(),

@@ -7,7 +7,7 @@ import no.ks.eventstore2.Handler;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-@Subscriber("Form")
+@Subscriber("no.ks.events.svarut.Form")
 public class FailingProjection extends Projection {
 
     private boolean failed = false;

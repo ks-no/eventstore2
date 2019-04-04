@@ -5,8 +5,8 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
 import com.google.common.cache.LoadingCache;
-import events.test.Order.Order;
 import no.ks.events.svarut.Form.EventStoreForm;
+import no.ks.events.svarut.Order.EventstoreOrder;
 import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.TestInvoker;
 import no.ks.eventstore2.formProcessorProject.DeliverForm;
@@ -38,8 +38,8 @@ class SagaManagerTest extends EventstoreEventstore2TestKit {
         this.invoker = new TestInvoker().withInterval(Duration.ofMillis(100));
 
         sagaInMemoryRepository = new SagaInMemoryRepository();
-        ProtobufHelper.registerDeserializeMethod(Order.SearchRequest.getDefaultInstance());
-        ProtobufHelper.registerDeserializeMethod(Order.SearchResult.getDefaultInstance());
+        ProtobufHelper.registerDeserializeMethod(EventstoreOrder.SearchRequest.getDefaultInstance());
+        ProtobufHelper.registerDeserializeMethod(EventstoreOrder.SearchResult.getDefaultInstance());
         ProtobufHelper.registerDeserializeMethod(EventStoreForm.FormReceived.getDefaultInstance());
         ProtobufHelper.registerDeserializeMethod(EventStoreForm.FormParsed.getDefaultInstance());
     }
@@ -61,7 +61,6 @@ class SagaManagerTest extends EventstoreEventstore2TestKit {
         TestActorRef<SagaManager> sagaManager = TestActorRef.create(_system, getSagaManagerProps(), "sagaManager1");
         waitForLive(sagaManager.underlyingActor());
         int sizeBefore = commandDispatcher.received.size();
-
 
         String aggregateRootId = UUID.randomUUID().toString();
         EventStoreForm.FormReceived formReceived = EventStoreForm.FormReceived.newBuilder().setFormId(UUID.randomUUID().toString()).build();

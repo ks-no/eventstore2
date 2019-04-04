@@ -2,6 +2,9 @@ package no.ks.eventstore2.eventstore;
 
 import akka.actor.ActorRef;
 import akka.actor.Status;
+import akka.dispatch.Futures;
+import akka.dispatch.OnFailure;
+import akka.dispatch.OnSuccess;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
@@ -15,8 +18,11 @@ import org.apache.commons.lang3.time.StopWatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.Await;
+import scala.concurrent.ExecutionContextExecutor;
 import scala.concurrent.Future;
+import scala.concurrent.Promise;
 import scala.concurrent.duration.Duration;
+import scala.runtime.AbstractFunction1;
 
 import java.util.Collections;
 import java.util.List;
@@ -34,31 +40,31 @@ public class EventstoreJournalStorage implements JournalStorage {
     private int eventLimit = 500;
     private static final int EVENTSTORE_TIMEOUT_MILLIS = 15000;
 
-    private ActorRef connection;
+    private final ActorRef connection;
+    private final ExecutionContextExecutor context;
 
-    public EventstoreJournalStorage(ActorRef connection) {
+    public EventstoreJournalStorage(ActorRef connection, ExecutionContextExecutor context) {
         this.connection = connection;
+        this.context = context;
     }
 
-    public EventstoreJournalStorage(ActorRef connection, int eventLimit) {
+    public EventstoreJournalStorage(ActorRef connection, ExecutionContextExecutor context, int eventLimit) {
         this.connection = connection;
+        this.context = context;
         this.eventLimit = eventLimit;
     }
 
     @Override
     public void open() {
-        // TODO: Ta inn connection i konstruktør eller lage her?
-//        final Settings settings = new SettingsBuilder()
-//                .address(new InetSocketAddress("127.0.0.1", 1113))
-//                .defaultCredentials("admin", "changeit")
-//                .build();
-//
-//        connection = system.actorOf(ConnectionActor.getProps(settings));
     }
 
     @Override
     public void close() {
-        // TODO: Trenger vi denne?
+    }
+
+    @Override
+    public Messages.EventWrapper saveEvent(Messages.EventWrapper eventWrapper) {
+        return saveEventsBatch(Collections.singletonList(eventWrapper)).get(0);
     }
 
     @Override
@@ -100,7 +106,9 @@ public class EventstoreJournalStorage implements JournalStorage {
                 final WriteEventsCompleted completed = (WriteEventsCompleted) result;
                 log.info("Saved {} events (range: {}, position: {}) in {}", events.size(), completed.numbersRange(), completed.position(), stopWatch);
 
-                return readEvents(streamId, completed.numbersRange().get().start().value(), events.size());
+                return Await.result(
+                        readEvents(streamId, completed.numbersRange().get().start().value(), events.size()),
+                        Duration.apply(EVENTSTORE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS));
             } else if (result instanceof Status.Failure) {
                 final Status.Failure failure = ((Status.Failure) result);
                 throw new RuntimeException("Failure while saving events", failure.cause());
@@ -113,8 +121,10 @@ public class EventstoreJournalStorage implements JournalStorage {
     }
 
     @Override
-    public boolean loadEventsAndHandle(String aggregateType, Consumer<Messages.EventWrapper> handleEvent) {
-        List<Messages.EventWrapper> events = readEvents("$ce-" + aggregateType, 0, eventLimit);
+    public boolean loadEventsAndHandle(String category, Consumer<Messages.EventWrapper> handleEvent) throws Exception {
+        List<Messages.EventWrapper> events = Await.result(
+                readEvents("$ce-" + category, 0, eventLimit),
+                Duration.apply(EVENTSTORE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS));
         for (Messages.EventWrapper event : events) {
             handleEvent.accept(event);
         }
@@ -122,15 +132,17 @@ public class EventstoreJournalStorage implements JournalStorage {
     }
 
     @Override
-    public boolean loadEventsAndHandle(String aggregateType, Consumer<Messages.EventWrapper> handleEvent, long fromKey) {
-        List<Messages.EventWrapper> events = readEvents("$ce-" + aggregateType, fromKey, eventLimit);
+    public boolean loadEventsAndHandle(String category, Consumer<Messages.EventWrapper> handleEvent, long fromKey) throws Exception {
+        List<Messages.EventWrapper> events = Await.result(
+                readEvents("$ce-" + category, fromKey, eventLimit),
+                Duration.apply(EVENTSTORE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS));
         for (Messages.EventWrapper event : events) {
             handleEvent.accept(event);
         }
         return events.size() < eventLimit;
     }
 
-    private List<Messages.EventWrapper> readEvents(String streamId, long fromKey, int limit) {
+    private Future<List<Messages.EventWrapper>> readEvents(String streamId, long fromKey, int limit) {
         StopWatch stopWatch = StopWatch.createStarted();
         try {
             ReadStreamEventsBuilder builder = new ReadStreamEventsBuilder(streamId)
@@ -138,36 +150,40 @@ public class EventstoreJournalStorage implements JournalStorage {
                     .fromNumber(fromKey)
                     .maxCount(limit);
 
-            Object result = Await.result(ask(connection, builder.build(), EVENTSTORE_TIMEOUT_MILLIS), Duration.create(EVENTSTORE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS));
+            Promise<List<Messages.EventWrapper>> promise = Futures.promise();
+            Future<Object> ask = ask(connection, builder.build(), EVENTSTORE_TIMEOUT_MILLIS);
+            ask.onSuccess(new OnSuccess<Object>() {
+                @Override
+                public void onSuccess(Object result) {
+                    ReadStreamEventsCompleted completed = (ReadStreamEventsCompleted) result;
+                    List<Messages.EventWrapper> events = completed.eventsJava().stream()
+                            .map(e -> {
+                                try {
+                                    return JsonMetadataBuilder.readMetadataAsWrapper(e.data().metadata().value().toArray())
+                                            .setVersion(e.number().value()) // Event number of aggregate stream
+                                            .setJournalid(getEventJournalId(e)) // Event number of link event, or -1
+                                            .setEvent(Any.parseFrom(e.data().data().value().toArray()))
+                                            .build();
+                                } catch (InvalidProtocolBufferException e1) {
+                                    throw new RuntimeException(e1);
+                                }
+                            })
+                            .collect(Collectors.toList());
+                    log.info("Read {} events from \"{}\" (fromKey: {}, limit: {}) in {}", events.size(), streamId, fromKey, limit, stopWatch);
+                    promise.success(events);
+                }
+            }, context);
+            ask.onFailure(new OnFailure() {
+                @Override
+                public void onFailure(Throwable throwable) {
+                    promise.failure(new RuntimeException("Failure while reading events", throwable));
+                }
+            }, context);
 
-            if (result instanceof ReadStreamEventsCompleted) {
-                ReadStreamEventsCompleted completed = (ReadStreamEventsCompleted) result;
-                List<Messages.EventWrapper> events = completed.eventsJava().stream()
-                        .map(e -> {
-                            try {
-                                return JsonMetadataBuilder.readMetadataAsWrapper(e.data().metadata().value().toArray())
-                                        .setVersion(e.number().value()) // Event number of aggregate stream
-                                        .setJournalid(getEventJournalId(e)) // Event number of link event, or -1
-                                        .setEvent(Any.parseFrom(e.data().data().value().toArray()))
-                                        .build();
-                            } catch (InvalidProtocolBufferException e1) {
-                                throw new RuntimeException(e1);
-                            }
-                        })
-                        .collect(Collectors.toList());
-
-                log.info("Read {} events from \"{}\" (fromKey: {}, limit: {}) in {}", events.size(), streamId, fromKey, limit, stopWatch);
-                return events;
-
-            } else if (result instanceof Status.Failure) {
-                Status.Failure failure = ((Status.Failure) result);
-                throw new RuntimeException("Failure while reading events", failure.cause());
-            } else {
-                throw new RuntimeException(String.format("Got unknown response while reading events: %s", result.getClass()));
-            }
+            return promise.future();
         } catch (StreamNotFoundException e) {
             log.warn("Got StreamNotFoundException while reading events, returning empty list");
-            return Collections.emptyList();
+            return Futures.<List<Messages.EventWrapper>>promise().success(Collections.emptyList()).future();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -181,27 +197,45 @@ public class EventstoreJournalStorage implements JournalStorage {
     }
 
     @Override
-    public Messages.EventWrapper saveEvent(Messages.EventWrapper eventWrapper) {
-        return saveEventsBatch(Collections.singletonList(eventWrapper)).get(0);
+    public Messages.EventWrapperBatch loadEventWrappersForAggregateId(String aggregateType, String aggregateRootId, long fromJournalId) throws Exception {
+        log.debug("Loading events for type \"{}\" and aggregate id \"{}\" from {}", aggregateType, aggregateRootId, fromJournalId);
+        List<Messages.EventWrapper> events = Await.result(
+                readEvents(aggregateType + "-" + aggregateRootId, fromJournalId, eventLimit),
+                Duration.apply(EVENTSTORE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS));
+        return Messages.EventWrapperBatch.newBuilder()
+                .setAggregateType(aggregateType)
+                .setAggregateRootId(aggregateRootId)
+                .addAllEvents(events)
+                .build();
     }
 
     @Override
     public Future<Messages.EventWrapperBatch> loadEventWrappersForAggregateIdAsync(String aggregateType, String aggregateRootId, long fromJournalId) {
-        return null; // TODO: Les fra aggregat stream (trenger vi async og sync?)
+        log.debug("Loading events async for type \"{}\" and aggregate id \"{}\" from {}", aggregateType, aggregateRootId, fromJournalId);
+        return readEvents(aggregateType + "-" + aggregateRootId, fromJournalId, eventLimit)
+                .map(new AbstractFunction1<List<Messages.EventWrapper>, Messages.EventWrapperBatch>() {
+                    @Override
+                    public Messages.EventWrapperBatch apply(List<Messages.EventWrapper> eventWrappers) {
+                        return Messages.EventWrapperBatch.newBuilder()
+                                .setAggregateType(aggregateType)
+                                .setAggregateRootId(aggregateRootId)
+                                .addAllEvents(eventWrappers)
+                                .build();
+                    }
+                }, context);
     }
 
     @Override
     public Future<Messages.EventWrapperBatch> loadEventWrappersForCorrelationIdAsync(String aggregateType, String correlationId, long fromJournalId) {
-        throw new UnsupportedOperationException(); // TODO: Er denne i bruk?
-    }
-
-    @Override
-    public Messages.EventWrapperBatch loadEventWrappersForAggregateId(String aggregateType, String aggregateRootId, long fromJournalId) {
-        log.debug("Loading events for type \"{}\" and aggregate id \"{}\" from {}", aggregateType, aggregateRootId, fromJournalId);
-        return Messages.EventWrapperBatch.newBuilder()
-                .setAggregateType(aggregateType)
-                .setAggregateRootId(aggregateRootId)
-                .addAllEvents(readEvents(EventstoreConstants.getAggregateStreamId(aggregateType, aggregateRootId), fromJournalId, eventLimit))
-                .build();
+        log.debug("Loading events async for type \"{}\" and correlation id \"{}\" from {}", aggregateType, correlationId, fromJournalId);
+        return readEvents("$bc-" + correlationId, fromJournalId, eventLimit)
+                .map(new AbstractFunction1<List<Messages.EventWrapper>, Messages.EventWrapperBatch>() {
+                    @Override
+                    public Messages.EventWrapperBatch apply(List<Messages.EventWrapper> eventWrappers) {
+                        return Messages.EventWrapperBatch.newBuilder()
+                                .addAllEvents(eventWrappers)
+                                .build();
+                    }
+                }, context);
     }
 }

@@ -5,7 +5,7 @@ import akka.dispatch.Futures;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 
-@Subscriber("Form")
+@Subscriber("no.ks.events.svarut.Form")
 public class FutureCallProjection extends Projection {
 
     public FutureCallProjection(ActorRef eventstoreConnection) {

@@ -28,6 +28,10 @@ public class JsonMetadataBuilder {
     static String build(Messages.EventWrapper protoEvent, String aggregate) {
         ObjectNode metadata = mapper.createObjectNode();
 
+        if (StringUtils.isNotBlank(protoEvent.getCorrelationId())) {
+            metadata.put(CORRELATION_ID, protoEvent.getCorrelationId());
+        }
+
         metadata.put(AGGREGATE, aggregate);
         metadata.put(AGGREGATE_ID, protoEvent.getAggregateRootId());
         metadata.put(OCCURRED_ON, protoEvent.getOccurredOn());
@@ -36,9 +40,6 @@ public class JsonMetadataBuilder {
 
         if (StringUtils.isNotBlank(protoEvent.getCreatedByUser())) {
             metadata.put(USER, protoEvent.getCreatedByUser());
-        }
-        if (StringUtils.isNotBlank(protoEvent.getCorrelationId())) {
-            metadata.put(CORRELATION_ID, protoEvent.getCorrelationId());
         }
 
         try {

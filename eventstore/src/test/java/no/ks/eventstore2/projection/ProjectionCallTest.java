@@ -92,7 +92,7 @@ class ProjectionCallTest extends EventstoreEventstore2TestKit {
     }
 
     @Test
-    void testFailingFufutreCall() throws Exception {
+    void testFailingFutureCall() throws Exception {
         TestActorRef<FutureCallProjection> projection = TestActorRef.create(_system, Props.create(FutureCallProjection.class, eventstoreConnection));
         final Future<Object> getString = ask(projection, call("getFailure"), 3000);
         final Object result = Await.result(getString, Duration.create(3, TimeUnit.SECONDS));

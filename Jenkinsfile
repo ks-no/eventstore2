@@ -1,3 +1,4 @@
 libPipeline(
-        branch: "develop"
+        branch: "develop",
+        dockerComposeProjectName: "eventstore2"
 )

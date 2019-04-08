@@ -206,6 +206,7 @@ public class EventstoreJournalStorage implements JournalStorage {
                 .setAggregateType(aggregateType)
                 .setAggregateRootId(aggregateRootId)
                 .addAllEvents(events)
+                .setReadAllEvents(events.size() != eventLimit)
                 .build();
     }
 
@@ -220,6 +221,7 @@ public class EventstoreJournalStorage implements JournalStorage {
                                 .setAggregateType(aggregateType)
                                 .setAggregateRootId(aggregateRootId)
                                 .addAllEvents(eventWrappers)
+                                .setReadAllEvents(eventWrappers.size() != eventLimit)
                                 .build();
                     }
                 }, context);
@@ -234,6 +236,7 @@ public class EventstoreJournalStorage implements JournalStorage {
                     public Messages.EventWrapperBatch apply(List<Messages.EventWrapper> eventWrappers) {
                         return Messages.EventWrapperBatch.newBuilder()
                                 .addAllEvents(eventWrappers)
+                                .setReadAllEvents(eventWrappers.size() != eventLimit)
                                 .build();
                     }
                 }, context);

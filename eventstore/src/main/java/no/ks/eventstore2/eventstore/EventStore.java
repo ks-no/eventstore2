@@ -6,8 +6,8 @@ import akka.actor.Props;
 import akka.dispatch.OnFailure;
 import akka.dispatch.OnSuccess;
 import com.google.common.collect.Lists;
+import com.google.protobuf.Message;
 import eventstore.Messages;
-import no.ks.eventstore2.TakeSnapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.PartialFunction;
@@ -49,57 +49,15 @@ public class EventStore extends AbstractActor {
                 .matchEquals("fail", this::handleFail)
                 .match(Messages.EventWrapper.class, this::storeEventWrapper)
                 .match(Messages.EventWrapperBatch.class, this::storeEventWrapperBatch)
-                .match(Messages.RetreiveAggregateEventsAsync.class, this::readAggregateEvents)
                 .match(Messages.RetreiveAggregateEvents.class, this::readAggregateEvents)
-                .match(Messages.RetreiveCorrelationIdEventsAsync.class, this::readAggregateEvents)
+                .match(Messages.RetreiveAggregateEventsAsync.class, this::readAggregateEventsAsync)
+                .match(Messages.RetreiveCorrelationIdEventsAsync.class, this::readCorrelationIdEventsAsync)
                 .match(Messages.AcknowledgePreviousEventsProcessed.class, o -> sender().tell(Messages.Success.getDefaultInstance(), self()))
                 .build();
     }
 
     private void handleFail(Object o) {
         throw new RuntimeException("Failing by force");
-    }
-
-    private void readAggregateEvents(Messages.RetreiveAggregateEventsAsync retreiveAggregateEvents) {
-        final ActorRef sender = sender();
-        final ActorRef self = self();
-        final Future<Messages.EventWrapperBatch> future =
-                storage.loadEventWrappersForAggregateIdAsync(
-                        retreiveAggregateEvents.getAggregateType(),
-                        retreiveAggregateEvents.getAggregateRootId(),
-                        retreiveAggregateEvents.getFromJournalId());
-        future.onSuccess(new OnSuccess<Messages.EventWrapperBatch>() {
-            @Override
-            public void onSuccess(Messages.EventWrapperBatch result) throws Throwable {
-                sender.tell(result, self);
-            }
-        }, getContext().dispatcher());
-        future.onFailure(new OnFailure() {
-                             @Override
-                             public void onFailure(Throwable failure) throws Throwable {
-                                 log.error("failed to read events from journalstorage {} ", retreiveAggregateEvents, failure);
-                             }
-                         }, getContext().dispatcher()
-        );
-    }
-
-    private void readAggregateEvents(Messages.RetreiveCorrelationIdEventsAsync retreiveAggregateEvents) {
-        final ActorRef sender = sender();
-        final ActorRef self = self();
-        final Future<Messages.EventWrapperBatch> future = storage.loadEventWrappersForCorrelationIdAsync(retreiveAggregateEvents.getAggregateType(), retreiveAggregateEvents.getCorrelationId(), retreiveAggregateEvents.getFromJournalId());
-        future.onSuccess(new OnSuccess<Messages.EventWrapperBatch>() {
-            @Override
-            public void onSuccess(Messages.EventWrapperBatch result) throws Throwable {
-                sender.tell(result, self);
-            }
-        }, getContext().dispatcher());
-        future.onFailure(new OnFailure() {
-                             @Override
-                             public void onFailure(Throwable failure) throws Throwable {
-                                 log.error("failed to read events from journalstorage {} ", retreiveAggregateEvents, failure);
-                             }
-                         }, getContext().dispatcher()
-        );
     }
 
     private void storeEventWrapper(Messages.EventWrapper o) {
@@ -117,5 +75,38 @@ public class EventStore extends AbstractActor {
                         retreiveAggregateEvents.getAggregateRootId(),
                         retreiveAggregateEvents.getFromJournalId()),
                 self());
+    }
+
+    private void readAggregateEventsAsync(Messages.RetreiveAggregateEventsAsync retreiveAggregateEventsAsync) {
+        final Future<Messages.EventWrapperBatch> future =
+                storage.loadEventWrappersForAggregateIdAsync(
+                        retreiveAggregateEventsAsync.getAggregateType(),
+                        retreiveAggregateEventsAsync.getAggregateRootId(),
+                        retreiveAggregateEventsAsync.getFromJournalId());
+        setupEventWrapperBatchFutureHandling(future, retreiveAggregateEventsAsync, self(), sender());
+    }
+
+    private void readCorrelationIdEventsAsync(Messages.RetreiveCorrelationIdEventsAsync retreiveCorrelationIdEventsAsync) {
+        final Future<Messages.EventWrapperBatch> future =
+                storage.loadEventWrappersForCorrelationIdAsync(
+                        retreiveCorrelationIdEventsAsync.getAggregateType(),
+                        retreiveCorrelationIdEventsAsync.getCorrelationId(),
+                        retreiveCorrelationIdEventsAsync.getFromJournalId());
+        setupEventWrapperBatchFutureHandling(future, retreiveCorrelationIdEventsAsync, self(), sender());
+    }
+
+    private void setupEventWrapperBatchFutureHandling(Future<Messages.EventWrapperBatch> future, Message message, ActorRef self, ActorRef sender) {
+        future.onSuccess(new OnSuccess<Messages.EventWrapperBatch>() {
+            @Override
+            public void onSuccess(Messages.EventWrapperBatch result) {
+                sender.tell(result, self);
+            }
+        }, getContext().dispatcher());
+        future.onFailure(new OnFailure() {
+            @Override
+            public void onFailure(Throwable failure) {
+                log.error("Failed to read events from Journal Storage: {} ", message, failure);
+            }
+        }, getContext().dispatcher());
     }
 }

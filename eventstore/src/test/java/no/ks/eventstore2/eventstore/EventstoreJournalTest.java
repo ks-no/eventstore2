@@ -370,28 +370,28 @@ public class EventstoreJournalTest extends EventstoreEventstore2TestKit {
         assertEventEquals(events2.get(2), batch2.getEvents(2));
     }
 
-    @Test
-    void testLoadEventWrappersForCorrelationIdAsync() throws Exception {
-        String correlationId = UUID.randomUUID().toString();
-        String aggregateId1 = UUID.randomUUID().toString();
-        EventstoreOrder.SearchRequest request1 = buildSearchRequest();
-        Messages.EventWrapper wrapper1 = ProtobufHelper.newEventWrapper("order", aggregateId1, request1, correlationId, UUID.randomUUID().toString());
-        EventstoreOrder.SearchRequest request2 = buildSearchRequest();
-        Messages.EventWrapper wrapper2 = ProtobufHelper.newEventWrapper("order", aggregateId1, request2, correlationId, UUID.randomUUID().toString());
-        journal.saveEventsBatch(Arrays.asList(wrapper1, wrapper2));
-        EventstoreOrder.SearchRequest request3 = buildSearchRequest();
-        Messages.EventWrapper wrapper3 = ProtobufHelper.newEventWrapper("order", UUID.randomUUID().toString(), request3, correlationId, UUID.randomUUID().toString());
-        journal.saveEvent(wrapper3);
-
-        Messages.EventWrapperBatch batch = Await.result(
-                journal.loadEventWrappersForCorrelationIdAsync("no.ks.events.svarut.Order", correlationId, 0),
-                Duration.apply(3, TimeUnit.SECONDS));
-//        assertThat(batch1.getAggregateType(), is("Order"));
-//        assertThat(batch1.getAggregateRootId(), is(aggregateRootId));
-//        assertThat(batch1.getEventsList().size(), is(10));
-//        assertEventEquals(events1.get(0), batch1.getEvents(0));
-//        assertEventEquals(events1.get(TEST_BATCH_SIZE_LIMIT - 1), batch1.getEvents(TEST_BATCH_SIZE_LIMIT - 1));
-    }
+//    @Test
+//    void testLoadEventWrappersForCorrelationIdAsync() throws Exception {
+//        String correlationId = UUID.randomUUID().toString();
+//        String aggregateId1 = UUID.randomUUID().toString();
+//        EventstoreOrder.SearchRequest request1 = buildSearchRequest();
+//        Messages.EventWrapper wrapper1 = ProtobufHelper.newEventWrapper("order", aggregateId1, request1, correlationId, UUID.randomUUID().toString());
+//        EventstoreOrder.SearchRequest request2 = buildSearchRequest();
+//        Messages.EventWrapper wrapper2 = ProtobufHelper.newEventWrapper("order", aggregateId1, request2, correlationId, UUID.randomUUID().toString());
+//        journal.saveEventsBatch(Arrays.asList(wrapper1, wrapper2));
+//        EventstoreOrder.SearchRequest request3 = buildSearchRequest();
+//        Messages.EventWrapper wrapper3 = ProtobufHelper.newEventWrapper("order", UUID.randomUUID().toString(), request3, correlationId, UUID.randomUUID().toString());
+//        journal.saveEvent(wrapper3);
+//
+//        Messages.EventWrapperBatch batch = Await.result(
+//                journal.loadEventWrappersForCorrelationIdAsync("no.ks.events.svarut.Order", correlationId, 0),
+//                Duration.apply(3, TimeUnit.SECONDS));
+////        assertThat(batch1.getAggregateType(), is("Order"));
+////        assertThat(batch1.getAggregateRootId(), is(aggregateRootId));
+////        assertThat(batch1.getEventsList().size(), is(10));
+////        assertEventEquals(events1.get(0), batch1.getEvents(0));
+////        assertEventEquals(events1.get(TEST_BATCH_SIZE_LIMIT - 1), batch1.getEvents(TEST_BATCH_SIZE_LIMIT - 1));
+//    }
 
     private void assertEventEquals(Messages.EventWrapper first, Messages.EventWrapper second) {
         assertThat(first.getCorrelationId(), is(second.getCorrelationId()));

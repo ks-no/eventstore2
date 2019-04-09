@@ -149,6 +149,16 @@ public class ProtobufHelper {
                 .setEvent(Any.pack(event)).build();
     }
 
+    public static Messages.EventWrapper newEventWrapper(String aggregateType, String aggregateRootId, Message event, DateTime occuredOn) {
+        return Messages.EventWrapper.newBuilder()
+                .setAggregateType(aggregateType)
+                .setAggregateRootId(aggregateRootId)
+                .setVersion(-1)
+                .setOccurredOn(occuredOn.getMillis())
+                .setProtoSerializationType(classToType.get(event.getClass()))
+                .setEvent(Any.pack(event)).build();
+    }
+
     public static Messages.EventWrapper newEventWrapper(String aggregateType, String aggregateRootId, Message event, String correlationid, String createdByUser) {
         return Messages.EventWrapper.newBuilder()
                 .setAggregateType(aggregateType)

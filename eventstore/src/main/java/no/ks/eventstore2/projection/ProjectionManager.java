@@ -42,7 +42,10 @@ public class ProjectionManager extends AbstractActor {
             projections.put((Class<? extends Projection>) prop.actorClass(), projectionRef);
             inSubscribePhase.add(projectionRef);
         }
+    }
 
+    public static void restartManager(ActorRef projectionManager){
+        projectionManager.tell("restart", ActorRef.noSender());
     }
 
     @Override

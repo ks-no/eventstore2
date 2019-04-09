@@ -8,11 +8,14 @@ import akka.cluster.Member;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.japi.pf.DeciderBuilder;
+import akka.serialization.Serialization;
+import eventstore.Messages;
 import no.ks.eventstore2.RestartActorException;
 import no.ks.eventstore2.TakeSnapshot;
 import scala.concurrent.duration.Duration;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static akka.actor.SupervisorStrategy.restart;
 import static akka.actor.SupervisorStrategy.resume;
@@ -26,6 +29,8 @@ public class ProjectionManager extends AbstractActor {
 
     private Map<Class<? extends AbstractActor>, ActorRef> projections = new HashMap<>();
     private Set<ActorRef> inSubscribePhase = new HashSet<>();
+    private Set<ActorRef> liveSubscriptions = new HashSet<>();
+
     private ActorRef errorListener;
     private Cluster cluster;
 
@@ -81,6 +86,7 @@ public class ProjectionManager extends AbstractActor {
                 .matchEquals("restart", this::handleRestart)
                 .match(ClusterEvent.ReachableMember.class, this::handleReachableMember)
                 .match(TakeSnapshot.class, this::handleTakeSnapshot)
+                .match(Messages.GetSubscribers.class, this::handleGetSubscribers)
                 .match(Call.class, call -> "getProjectionRef".equals(call.getMethodName()), this::handleGetProjectionRef)
                 .match(Call.class, call -> "isAnyoneInSubscribePhase".equals(call.getMethodName()), this::handleIsAnyoneInSubscribePhase)
                 .matchEquals(IN_SUBSCRIBE, this::handleInSubscribe)
@@ -121,6 +127,14 @@ public class ProjectionManager extends AbstractActor {
         }
     }
 
+    private void handleGetSubscribers(Messages.GetSubscribers getSubscribers) {
+        final Messages.Subscribers subscribers = Messages.Subscribers.newBuilder()
+                .addAllLiveSubscriptions(liveSubscriptions.stream().map(Serialization::serializedActorPath).collect(Collectors.toList()))
+                .addAllInSubscribePhase(inSubscribePhase.stream().map(Serialization::serializedActorPath).collect(Collectors.toList()))
+                .build();
+        sender().tell(subscribers, self());
+    }
+
     private void handleGetProjectionRef(Call call) {
         sender().tell(projections.get(call.getArgs()[0]), self());
     }
@@ -135,6 +149,7 @@ public class ProjectionManager extends AbstractActor {
 
     private void handleSubscribeFinished(Object o) {
         inSubscribePhase.remove(sender());
+        liveSubscriptions.add(sender());
     }
 
     private void handleGetProjections(Object o) {

@@ -66,3 +66,11 @@ message SendAwake{
 message ClearAwake{
     SagaCompositeId sagaid = 1;
 }
+
+message GetSubscribers {
+}
+
+message Subscribers {
+    repeated string liveSubscriptions = 1;
+    repeated string inSubscribePhase = 2;
+}

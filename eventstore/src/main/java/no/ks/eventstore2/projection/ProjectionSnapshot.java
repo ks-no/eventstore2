@@ -5,8 +5,8 @@ import akka.actor.ActorRef;
 import no.ks.eventstore2.TakeSnapshot;
 
 public abstract class ProjectionSnapshot extends Projection {
-    public ProjectionSnapshot(ActorRef eventstoreConnection) {
-        super(eventstoreConnection);
+    public ProjectionSnapshot(ActorRef eventStoreConnection) {
+        super(eventStoreConnection);
     }
 
     @Override

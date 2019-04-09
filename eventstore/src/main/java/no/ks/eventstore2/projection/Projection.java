@@ -33,7 +33,7 @@ public abstract class Projection extends AbstractActor {
 
     private static final Logger log = LoggerFactory.getLogger(Projection.class);
 
-    private final ActorRef connection;
+    private final ActorRef eventStoreConnection;
     private Map<Class<? extends Message>, Method> handleEventMap = null;
 
     protected Long latestJournalidReceived;
@@ -42,8 +42,8 @@ public abstract class Projection extends AbstractActor {
 
     private List<PendingCall> pendingCalls = new ArrayList<>();
 
-    public Projection(ActorRef connection) {
-        this.connection = connection;
+    public Projection(ActorRef eventStoreConnection) {
+        this.eventStoreConnection = eventStoreConnection;
         init();
     }
 
@@ -255,7 +255,7 @@ public abstract class Projection extends AbstractActor {
             log.debug("Starting subscription");
             setInSubscribe();
             getContext().actorOf(EventStoreUtil.getCategorySubscriptionsProps(
-                    connection,
+                    eventStoreConnection,
                     getSelf(),
                     getSubscribe(),
                     latestJournalidReceived));

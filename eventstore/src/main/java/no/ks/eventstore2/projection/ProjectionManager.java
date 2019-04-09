@@ -17,7 +17,7 @@ import java.util.*;
 import static akka.actor.SupervisorStrategy.restart;
 import static akka.actor.SupervisorStrategy.resume;
 
-public class ProjectionManager extends UntypedAbstractActor {
+public class ProjectionManager extends AbstractActor {
 
     private LoggingAdapter log = Logging.getLogger(getContext().system(), this);
 
@@ -43,10 +43,6 @@ public class ProjectionManager extends UntypedAbstractActor {
             inSubscribePhase.add(projectionRef);
         }
 
-    }
-
-    public static void restartManager(ActorRef projectionManager){
-        projectionManager.tell("restart", ActorRef.noSender());
     }
 
     @Override
@@ -77,45 +73,69 @@ public class ProjectionManager extends UntypedAbstractActor {
     }
 
     @Override
-    public void onReceive(Object o) throws Exception {
-        if ("restart".equals(o)) {
+    public Receive createReceive() {
+        return receiveBuilder()
+                .matchEquals("restart", this::handleRestart)
+                .match(ClusterEvent.ReachableMember.class, this::handleReachableMember)
+                .match(TakeSnapshot.class, this::handleTakeSnapshot)
+                .match(Call.class, call -> "getProjectionRef".equals(call.getMethodName()), this::handleGetProjectionRef)
+                .match(Call.class, call -> "isAnyoneInSubscribePhase".equals(call.getMethodName()), this::handleIsAnyoneInSubscribePhase)
+                .matchEquals(IN_SUBSCRIBE, this::handleInSubscribe)
+                .matchEquals(SUBSCRIBE_FINISHED, this::handleSubscribeFinished)
+                .matchEquals("getProjections", this::handleGetProjections)
+                .build();
+    }
+
+    private void handleRestart(Object o) {
+        for (ActorRef actorRef : projections.values()) {
+            actorRef.tell("restart", self());
+            log.debug("Sending restart to actorref {}", actorRef);
+        }
+    }
+
+    private void handleReachableMember(ClusterEvent.ReachableMember event) {
+        log.info("Member reachable: {}", event.member());
+
+        final Iterable<Member> members = cluster.state().getMembers();
+        Member oldest = event.member();
+        for (Member member : members) {
+            if(member.isOlderThan(oldest)){
+                oldest = member;
+            }
+        }
+        log.info("Member oldest {}", oldest );
+        if (oldest.equals(event.member())) {
             for (ActorRef actorRef : projections.values()) {
                 actorRef.tell("restart", self());
                 log.debug("Sending restart to actorref {}", actorRef);
             }
-        } else if (o instanceof ClusterEvent.ReachableMember) {
-            ClusterEvent.ReachableMember reachable = (ClusterEvent.ReachableMember) o;
-            log.info("Member reachable: {}", reachable.member());
-
-            final Iterable<Member> members = cluster.state().getMembers();
-            Member oldest = reachable.member();
-            for (Member member : members) {
-                if(member.isOlderThan(oldest)){
-                    oldest = member;
-                }
-            }
-            log.info("Member oldest {}", oldest );
-            if (oldest.equals(reachable.member())) {
-                for (ActorRef actorRef : projections.values()) {
-                    actorRef.tell("restart", self());
-                    log.debug("Sending restart to actorref {}", actorRef);
-                }
-            }
-        } else if (o instanceof Call && "getProjectionRef".equals(((Call) o).getMethodName())) {
-        	sender().tell(projections.get(((Call) o).getArgs()[0]), self());
-        } else if (o instanceof Call && "isAnyoneInSubscribePhase".equals(((Call) o).getMethodName())) {
-        	isAnyoneInSubscribePhase();
-        } else if(o instanceof TakeSnapshot) {
-            for (ActorRef actorRef : projections.values()) {
-                actorRef.tell(o, sender());
-            }
-        } else if(IN_SUBSCRIBE.equals(o)){
-            inSubscribePhase.add(sender());
-        } else if(SUBSCRIBE_FINISHED.equals(o)){
-            inSubscribePhase.remove(sender());
-        } else if("getProjections".equals(o)){
-            sender().tell(projections, self());
         }
+    }
+
+    private void handleTakeSnapshot(TakeSnapshot takeSnapshot) {
+        for (ActorRef actorRef : projections.values()) {
+            actorRef.tell(takeSnapshot, sender());
+        }
+    }
+
+    private void handleGetProjectionRef(Call call) {
+        sender().tell(projections.get(call.getArgs()[0]), self());
+    }
+
+    private void handleIsAnyoneInSubscribePhase(Call call) {
+        isAnyoneInSubscribePhase();
+    }
+
+    private void handleInSubscribe(Object o) {
+        inSubscribePhase.add(sender());
+    }
+
+    private void handleSubscribeFinished(Object o) {
+        inSubscribePhase.remove(sender());
+    }
+
+    private void handleGetProjections(Object o) {
+        sender().tell(projections, self());
     }
 
     private void isAnyoneInSubscribePhase() {

@@ -53,6 +53,15 @@ public class ProtobufHelper {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    public static <T extends Message> T unPackAny(Messages.EventWrapper wrapper) {
+        try {
+            return (T) wrapper.getEvent().unpack(deserializeClasses.get(wrapper.getProtoSerializationType()));
+        } catch (Exception e) {
+            throw new RuntimeException("Klarte ikke å pakke opp type " + wrapper.getProtoSerializationType() + " any " + wrapper.getEvent(), e);
+        }
+    }
+
     public static Messages.EventWrapper newEventWrapper(String aggregateRootId, Message event) {
         return Messages.EventWrapper.newBuilder()
                 .setAggregateRootId(aggregateRootId)

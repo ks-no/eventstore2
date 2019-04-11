@@ -25,7 +25,7 @@ public class JsonMetadataBuilder {
 
     private JsonMetadataBuilder() { }
 
-    static String build(Messages.EventWrapper protoEvent, String aggregate) {
+    public static String build(Messages.EventWrapper protoEvent, String aggregate) {
         ObjectNode metadata = mapper.createObjectNode();
 
         if (StringUtils.isNotBlank(protoEvent.getCorrelationId())) {

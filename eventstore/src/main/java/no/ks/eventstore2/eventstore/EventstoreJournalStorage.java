@@ -100,7 +100,9 @@ public class EventstoreJournalStorage implements JournalStorage {
                         .eventId(UUID.randomUUID())
                         .build());
             });
-            Object result = Await.result(ask(connection, builder.build(), EVENTSTORE_TIMEOUT_MILLIS), Duration.create(EVENTSTORE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS));
+            Object result = Await.result(
+                    ask(connection, builder.build(), EVENTSTORE_TIMEOUT_MILLIS),
+                    Duration.create(EVENTSTORE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS));
 
             if (result instanceof WriteEventsCompleted) {
                 final WriteEventsCompleted completed = (WriteEventsCompleted) result;

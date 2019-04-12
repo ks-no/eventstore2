@@ -129,15 +129,14 @@ public abstract class Projection extends AbstractActor {
 
     private void handleResolvedEvent(ResolvedEvent event) throws InvalidProtocolBufferException {
         log.trace("Handling ResolvedEvent: {}", event);
-        latestJournalidReceived = event.linkEvent().number().value();
+        latestJournalidReceived = event.linkEvent().number().value(); // TODO: Før eller etter håndtering av event?
 
-        Any anyEvent = Any.parseFrom(event.data().data().value().toArray());
         Messages.EventWrapper eventWrapper = JsonMetadataBuilder.readMetadataAsWrapper(event.data().metadata().value().toArray())
-                .setEvent(anyEvent)
+                .setEvent(Any.parseFrom(event.data().data().value().toArray()))
                 .build();
-        currentMessage = eventWrapper;
 
-        dispatchToCorrectEventHandler(ProtobufHelper.unPackAny(eventWrapper.getProtoSerializationType(), anyEvent));
+        currentMessage = eventWrapper;
+        dispatchToCorrectEventHandler(ProtobufHelper.unPackAny(eventWrapper));
     }
 
     private void handleLiveProcessingStarted(LiveProcessingStarted$ live) {

@@ -78,7 +78,7 @@ public abstract class Saga extends AbstractActor {
 	}
 
 	private void handleEventWrapper(Messages.EventWrapper event) throws InvocationTargetException, IllegalAccessException {
-		log.debug("Received event {}", event);
+		log.trace("Received EventWrapper: {}", event);
 		currentEventWrapper = event;
 
 		final Message message = ProtobufHelper.unPackAny(event.getProtoSerializationType(), event.getEvent());

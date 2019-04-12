@@ -74,8 +74,7 @@ public abstract class Saga extends AbstractActor {
 
 	protected ReceiveBuilder createReceiveBuilder() {
 		return receiveBuilder()
-				.match(Messages.EventWrapper.class, this::handleEventWrapper)
-				.match(Message.class, this::handleMessage);
+				.match(Messages.EventWrapper.class, this::handleEventWrapper);
 	}
 
 	private void handleEventWrapper(Messages.EventWrapper event) throws InvocationTargetException, IllegalAccessException {
@@ -83,11 +82,6 @@ public abstract class Saga extends AbstractActor {
 		currentEventWrapper = event;
 
 		final Message message = ProtobufHelper.unPackAny(event.getProtoSerializationType(), event.getEvent());
-		Method method = HandlerFinder.findHandlingMethod(handleEventMap, message);
-		method.invoke(this, message);
-	}
-
-	private void handleMessage(Message message) throws InvocationTargetException, IllegalAccessException {
 		Method method = HandlerFinder.findHandlingMethod(handleEventMap, message);
 		method.invoke(this, message);
 	}

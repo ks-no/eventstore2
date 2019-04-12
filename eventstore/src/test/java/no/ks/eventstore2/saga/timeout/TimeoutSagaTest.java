@@ -8,8 +8,10 @@ import akka.testkit.TestKit;
 import com.typesafe.config.ConfigFactory;
 import eventstore.Messages;
 import no.ks.events.svarut.Form.EventStoreForm;
+import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.saga.Saga;
 import no.ks.eventstore2.saga.SagaInMemoryRepository;
+import no.ks.eventstore2.testkit.Eventstore2TestKit;
 import org.joda.time.DateTime;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -21,13 +23,11 @@ import java.util.concurrent.TimeUnit;
 import static org.springframework.test.util.AssertionErrors.assertTrue;
 
 
-class TimeoutSagaTest extends TestKit {
+class TimeoutSagaTest extends Eventstore2TestKit {
 
-    private static ActorSystem _system = ActorSystem.create("TestSys", ConfigFactory.load().getConfig("TestSys"));
     private SagaInMemoryRepository sagaInMemoryRepository;
 
     TimeoutSagaTest() {
-        super(_system);
         sagaInMemoryRepository = new SagaInMemoryRepository();
     }
 
@@ -39,7 +39,7 @@ class TimeoutSagaTest extends TestKit {
         final TestActorRef<SagaTimerUt> ref = TestActorRef.create(_system, sagaprop, super.testActor(), "sagatimerut");
         final SagaTimerUt saga = ref.underlyingActor();
 
-        ref.tell(EventStoreForm.FormParsed.newBuilder().setFormId(UUID.randomUUID().toString()).build(), super.testActor());
+        ref.tell(ProtobufHelper.newEventWrapper(UUID.randomUUID().toString(), EventStoreForm.FormParsed.newBuilder().setFormId(UUID.randomUUID().toString()).build()), null);
 
         expectMsgClass(Messages.ScheduleAwake.class);
         ref.tell("awake", super.testActor());
@@ -54,7 +54,7 @@ class TimeoutSagaTest extends TestKit {
         final TestActorRef<SagaTimerUt> ref = TestActorRef.create(_system, sagaprop, super.testActor(), "sagatimerut");
         final SagaTimerUt saga = ref.underlyingActor();
 
-        ref.tell(EventStoreForm.FormReceived.newBuilder().setFormId(UUID.randomUUID().toString()).build(), super.testActor());
+        ref.tell(ProtobufHelper.newEventWrapper(UUID.randomUUID().toString(), EventStoreForm.FormReceived.newBuilder().setFormId(UUID.randomUUID().toString()).build()), null);
 
         final Messages.ScheduleAwake receive = (Messages.ScheduleAwake) receiveOne(Duration.create(3, TimeUnit.SECONDS));
 

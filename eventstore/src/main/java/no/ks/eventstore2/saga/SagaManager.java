@@ -143,7 +143,12 @@ public class SagaManager extends AbstractActor {
                 sagaId = (String) mapping.getPropertyMethod().invoke(ProtobufHelper.unPackAny(metadata.getProtoSerializationType(), anyEvent));
             }
             ActorRef sagaRef = getOrCreateSaga(mapping.getSagaClass(), sagaId);
-            sagaRef.tell(ProtobufHelper.unPackAny(metadata.getProtoSerializationType(), anyEvent), self());
+
+            Messages.EventWrapper eventWrapper = JsonMetadataBuilder.readMetadataAsWrapper(event.data().metadata().value().toArray())
+                    .setEvent(Any.parseFrom(event.data().data().value().toArray()))
+                    .build();
+
+            sagaRef.tell(eventWrapper, self());
         }
     }
 

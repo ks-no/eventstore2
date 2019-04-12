@@ -24,6 +24,6 @@ public class SagaWithNewAnnotation extends Saga {
     @Handler
     public void handleEvent(EventstoreTest.TestEvent event) {
         transitionState(STATE_FINISHED);
-        commandDispatcher.tell(EventstoreTest.TestEvent.newBuilder().setMessage("EventstoreTest.TestEvent received").build() ,self());
+        commandDispatcher.tell("EventstoreTest.TestEvent received", self());
     }
 }

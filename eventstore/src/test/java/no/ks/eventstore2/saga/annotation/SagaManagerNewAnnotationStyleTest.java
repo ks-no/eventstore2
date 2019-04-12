@@ -28,8 +28,7 @@ class SagaManagerNewAnnotationStyleTest extends EventstoreEventstore2TestKit {
         journal.saveEvent(ProtobufHelper.newEventWrapper("Test", aggregateRootId,
                 EventstoreTest.TestEvent.newBuilder().setMessage(UUID.randomUUID().toString()).build()));
 
-        EventstoreTest.TestEvent testEvent = expectMsgClass(EventstoreTest.TestEvent.class);
-        assertThat(testEvent.getMessage(), is("EventstoreTest.TestEvent received"));
+        assertThat(expectMsgClass(String.class), is("EventstoreTest.TestEvent received"));
         new TestInvoker().invoke(() -> assertThat(Saga.STATE_FINISHED, is(sagaInMemoryRepository.getState("SagaWithNewAnotation", aggregateRootId))));
     }
 }

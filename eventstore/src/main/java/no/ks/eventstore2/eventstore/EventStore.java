@@ -52,7 +52,7 @@ public class EventStore extends AbstractActor {
                 .match(Messages.RetreiveAggregateEvents.class, this::readAggregateEvents)
                 .match(Messages.RetreiveAggregateEventsAsync.class, this::readAggregateEventsAsync)
                 .match(Messages.RetreiveCorrelationIdEventsAsync.class, this::readCorrelationIdEventsAsync)
-                .match(Messages.AcknowledgePreviousEventsProcessed.class, o -> sender().tell(Messages.Success.getDefaultInstance(), self()))
+                .match(Messages.AcknowledgePreviousEventsProcessed.class, this::handleAcknowledgePreviousEventsProcessed)
                 .build();
     }
 
@@ -108,5 +108,9 @@ public class EventStore extends AbstractActor {
                 log.error("Failed to read events from Journal Storage: {} ", message, failure);
             }
         }, getContext().dispatcher());
+    }
+
+    private void handleAcknowledgePreviousEventsProcessed(Object message) {
+        sender().tell(Messages.Success.getDefaultInstance(), self());
     }
 }

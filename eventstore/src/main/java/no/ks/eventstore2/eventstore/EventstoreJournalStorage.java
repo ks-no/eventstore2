@@ -108,6 +108,7 @@ public class EventstoreJournalStorage implements JournalStorage {
                 final WriteEventsCompleted completed = (WriteEventsCompleted) result;
                 log.info("Saved {} events (range: {}, position: {}) in {}", events.size(), completed.numbersRange(), completed.position(), stopWatch);
 
+                // TODO: Trenger ikke returnere events?
                 return Await.result(
                         readEvents(streamId, completed.numbersRange().get().start().value(), events.size()),
                         Duration.apply(EVENTSTORE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS));
@@ -178,7 +179,11 @@ public class EventstoreJournalStorage implements JournalStorage {
             ask.onFailure(new OnFailure() {
                 @Override
                 public void onFailure(Throwable throwable) {
-                    promise.failure(new RuntimeException("Failure while reading events", throwable));
+                    if (throwable instanceof StreamNotFoundException) {
+                        promise.success(Collections.emptyList());
+                    } else {
+                        promise.failure(new RuntimeException("Failure while reading events", throwable));
+                    }
                 }
             }, context);
 

@@ -5,7 +5,6 @@ import akka.actor.Props;
 import eventstore.EventNumber;
 import eventstore.EventStream;
 import eventstore.StreamSubscriptionActor;
-import eventstore.UserCredentials;
 import eventstore.j.SettingsBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,20 +23,20 @@ public final class EventStoreUtil {
     public static Props getCategorySubscriptionsProps(ActorRef connection, ActorRef client, String category, Long fromId) {
         EventStream.Id streamId = new EventStream.System("ce-" + category);
         Option<EventNumber> eventNumber = getEventNumber(fromId);
-        log.info("Subscribing to \"{}\" from {}", streamId.streamId(), eventNumber);
+        log.debug("Built StreamSubscriptionActor for stream id \"{}\" from event number {}", streamId.streamId(), eventNumber);
         return StreamSubscriptionActor.props(
                 connection,
                 client,
                 streamId,
                 eventNumber,
-                Option.<UserCredentials>empty(),
+                Option.empty(),
                 new SettingsBuilder().resolveLinkTos(true).build());
     }
 
     private static Option<EventNumber> getEventNumber(Long fromId) {
         if (fromId == null || fromId < 0) {
-            return Option.<EventNumber>empty();
+            return Option.empty();
         }
-        return Option.<EventNumber>apply(new EventNumber.Exact(fromId));
+        return Option.apply(new EventNumber.Exact(fromId));
     }
 }

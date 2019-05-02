@@ -77,7 +77,7 @@ public class SagaManager extends AbstractActor {
                     removalNotification.getValue().tell(PoisonPill.getInstance(), null);
                 }).build(new CacheLoader<SagaCompositeId, ActorRef>() {
                     @Override
-                    public ActorRef load(SagaCompositeId k1) throws Exception {
+                    public ActorRef load(SagaCompositeId k1) {
                         return getContext().actorOf(Props.create(k1.getClz(), k1.getId(), commandDispatcher, repository));
                     }
                 });
@@ -304,7 +304,7 @@ public class SagaManager extends AbstractActor {
     }
 
     private void subscribeForAggregate(String aggregate) {
-        log.debug("Starting subscription for \"{}\"", aggregate);
+        log.debug("Subscribing to category \"{}\" from {}", aggregate, latestJournalidReceived.get(aggregate));
         latestJournalidReceived.put(aggregate, repository.loadLatestJournalID(aggregate));
         ActorRef subscription = getContext().actorOf(EventStoreUtil.getCategorySubscriptionsProps(
                 eventstoreConnection,

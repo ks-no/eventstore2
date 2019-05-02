@@ -18,7 +18,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <events.version>1.0.1</events.version>
+        <events.version>1.0.2-SNAPSHOT</events.version>
         <akka.version>2.5.21</akka.version>
         <commons-io.version>2.6</commons-io.version>
         <embed-mongo.version>2.0.1</embed-mongo.version>

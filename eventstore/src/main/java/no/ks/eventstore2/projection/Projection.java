@@ -31,7 +31,7 @@ import java.util.*;
 
 public abstract class Projection extends AbstractActor {
 
-    private static final Logger log = LoggerFactory.getLogger(Projection.class);
+    private final Logger log = LoggerFactory.getLogger(this.getClass());
 
     private final ActorRef eventStoreConnection;
     private Map<Class<? extends Message>, Method> handleEventMap = null;
@@ -251,12 +251,13 @@ public abstract class Projection extends AbstractActor {
 
     private void subscribe() {
         if (!subscribePhase) {
-            log.debug("Starting subscription");
             setInSubscribe();
+            String category = getSubscribe();
+            log.debug("Subscribing to category \"{}\" from {}", category, latestJournalidReceived);
             getContext().actorOf(EventStoreUtil.getCategorySubscriptionsProps(
                     eventStoreConnection,
                     getSelf(),
-                    getSubscribe(),
+                    category,
                     latestJournalidReceived));
         } else {
             log.warn("Trying to subscribe but is already in subscribe phase.");

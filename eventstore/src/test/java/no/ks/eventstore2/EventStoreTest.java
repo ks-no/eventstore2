@@ -11,10 +11,10 @@ import org.junit.jupiter.api.Test;
 class EventStoreTest extends EventstoreEventstore2TestKit {
 
     @Test
-    void testAcknowledgeRespondsCorrectly() {
-        TestProbe testProbe = new TestProbe(_system);
-        ActorRef eventstore = _system.actorOf(EventStore.mkProps(journal), "eventstore");
-        eventstore.tell(Messages.AcknowledgePreviousEventsProcessed.getDefaultInstance(), testProbe.ref());
-        testProbe.expectMsgClass(Messages.Success.class);
+    void testAcknowledgeIsSentToProjectionManager() {
+        TestProbe projectionManagerProbe = new TestProbe(_system);
+        ActorRef eventstore = _system.actorOf(EventStore.mkProps(projectionManagerProbe.ref(), journal), "eventstore");
+        eventstore.tell(Messages.AcknowledgePreviousEventsProcessed.getDefaultInstance(), null);
+        projectionManagerProbe.expectMsgClass(Messages.AcknowledgePreviousEventsProcessed.class);
     }
 }

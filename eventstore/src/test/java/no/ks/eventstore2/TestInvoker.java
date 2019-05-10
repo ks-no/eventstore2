@@ -11,8 +11,8 @@ public class TestInvoker {
 
     private final Logger log = LoggerFactory.getLogger(this.getClass());
 
-    private Duration interval = Duration.ofMillis(250);
-    private Duration timeout = Duration.ofSeconds(3);
+    private Duration interval = Duration.ofMillis(500);
+    private Duration timeout = Duration.ofSeconds(10);
 
 
     public TestInvoker withInterval(Duration interval) {

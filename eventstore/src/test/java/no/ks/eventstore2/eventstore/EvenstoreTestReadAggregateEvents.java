@@ -26,7 +26,7 @@ class EvenstoreTestReadAggregateEvents extends EventstoreEventstore2TestKit {
     public void setUp() throws Exception {
         super.setUp();
 
-        journal = new EventstoreJournalStorage(eventstoreConnection, _system.dispatcher());
+        journal = new EventStoreJournalStorage(eventstoreConnection, _system.dispatcher());
     }
 
     @Test
@@ -37,7 +37,7 @@ class EvenstoreTestReadAggregateEvents extends EventstoreEventstore2TestKit {
                     EventstoreTest.TestEvent.newBuilder().setMessage(UUID.randomUUID().toString()).build()));
         }
 
-        TestActorRef<Actor> actorTestActorRef = TestActorRef.create(_system, EventStore.mkProps(journal));
+        TestActorRef<Actor> actorTestActorRef = TestActorRef.create(_system, EventStore.mkProps(super.testActor(), journal));
         Inbox inbox = Inbox.create(_system);
 
         actorTestActorRef.tell(
@@ -54,7 +54,7 @@ class EvenstoreTestReadAggregateEvents extends EventstoreEventstore2TestKit {
 
     @Test
     void testReadEventsForOneAggregateIdAndContinueWhenBatchIsFull() throws Exception {
-        EventstoreJournalStorage journal = new EventstoreJournalStorage(eventstoreConnection, _system.dispatcher(), 10);
+        EventStoreJournalStorage journal = new EventStoreJournalStorage(eventstoreConnection, _system.dispatcher(), 10);
 
         String aggregateRootId = UUID.randomUUID().toString();
         for(int i = 0; i < 12; i++) {
@@ -62,7 +62,7 @@ class EvenstoreTestReadAggregateEvents extends EventstoreEventstore2TestKit {
                     EventstoreTest.TestEvent.newBuilder().setMessage(aggregateRootId + "-" + i).build()));
         }
 
-        TestActorRef<Actor> actorTestActorRef = TestActorRef.create(_system, EventStore.mkProps(journal));
+        TestActorRef<Actor> actorTestActorRef = TestActorRef.create(_system, EventStore.mkProps(super.testActor(), journal));
         Inbox inbox = Inbox.create(_system);
 
         actorTestActorRef.tell(

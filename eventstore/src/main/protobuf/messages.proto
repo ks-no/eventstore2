@@ -24,10 +24,26 @@ message EventWrapperBatch {
     repeated EventWrapper events = 4;
 }
 
-message AcknowledgePreviousEventsProcessed {
+message StreamPosition {
+    string aggregateId = 1;
+    int64 eventNumber = 2;
 }
 
-message Success {
+message EventProcessed {
+    StreamPosition position = 1;
+}
+
+message Subscription {
+    string category = 1;
+    bool shouldNotifyProjectionManager = 2;
+}
+
+message AcknowledgePreviousEventsProcessed {
+    string category = 1;
+    StreamPosition awaitPosition = 2;
+}
+
+message PreviousEventsProcessed {
 
 }
 

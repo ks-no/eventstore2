@@ -31,7 +31,11 @@ public abstract class MongoDbProjection extends ProjectionSnapshot {
     private static String nodename = System.getProperty("nodename") != null ? System.getProperty("nodename") : "local";
 
     public MongoDbProjection(ActorRef eventStoreConnection, MongoClient mongoClient) {
-        super(eventStoreConnection);
+        this(eventStoreConnection, mongoClient, false);
+    }
+
+    public MongoDbProjection(ActorRef eventStoreConnection, MongoClient mongoClient, boolean shouldNotifyProjectionManager) {
+        super(eventStoreConnection, shouldNotifyProjectionManager);
         mongodatabase = mongoClient.getDatabase(nodename + "_SnapshotRepository");
         gridFS = GridFSBuckets.create(mongodatabase, nodename + "_snapshot_data");
         mongodatabase.getCollection("snapshot").createIndex(new BasicDBObject("dataVersion", 1).append("projectionId", 1));

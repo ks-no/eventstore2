@@ -3,6 +3,8 @@ package no.ks.eventstore2.projection;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.testkit.TestActorRef;
+import akka.testkit.TestProbe;
+import eventstore.Messages;
 import no.ks.eventstore2.formProcessorProject.FormStatuses;
 import no.ks.eventstore2.testkit.EventstoreEventstore2TestKit;
 import org.junit.jupiter.api.Test;
@@ -11,6 +13,7 @@ import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
 
 import java.util.Collections;
+import java.util.UUID;
 
 import static akka.pattern.Patterns.ask;
 import static no.ks.eventstore2.projection.CallProjection.call;
@@ -35,7 +38,7 @@ class ProjectionManagerTest extends EventstoreEventstore2TestKit {
     }
 
     @Test
-    void testProjectionsInSubscribePhase () throws Exception {
+    void testProjectionsInSubscribePhase() throws Exception {
         final TestActorRef<ProjectionManager> actorRef = TestActorRef.create(_system,
                 ProjectionManager.mkProps(super.testActor(),
                         Collections.singletonList(Props.create(FormStatuses.class, eventstoreConnection))),
@@ -48,6 +51,15 @@ class ProjectionManagerTest extends EventstoreEventstore2TestKit {
         Boolean isInSubscribePhase = (Boolean) Await.result(getProjectionref, Duration.create("3 seconds"));
 
         assertFalse(isInSubscribePhase);
+    }
 
+    @Test
+    void testAcknowledgePreviousEventsProcessed() {
+        TestProbe testProbe = new TestProbe(_system);
+        final TestActorRef<ProjectionManager> actorRef = TestActorRef.create(_system,
+                ProjectionManager.mkProps(super.testActor(), Collections.singletonList(Props.create(FormStatuses.class, eventstoreConnection))), UUID.randomUUID().toString());
+
+        actorRef.tell(Messages.AcknowledgePreviousEventsProcessed.getDefaultInstance(), testProbe.ref());
+        testProbe.expectMsgClass(Messages.PreviousEventsProcessed.class);
     }
 }

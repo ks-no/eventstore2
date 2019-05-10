@@ -17,6 +17,7 @@ import no.ks.svarut.events.EventUtil;
 import org.apache.commons.lang3.time.StopWatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.ExecutionContextExecutor;
 import scala.concurrent.Future;
@@ -33,9 +34,9 @@ import java.util.stream.Collectors;
 
 import static akka.pattern.Patterns.ask;
 
-public class EventstoreJournalStorage implements JournalStorage {
+public class EventStoreJournalStorage implements JournalStorage {
 
-    private static final Logger log = LoggerFactory.getLogger(EventstoreJournalStorage.class);
+    private static final Logger log = LoggerFactory.getLogger(EventStoreJournalStorage.class);
 
     private int eventLimit = 500;
     private static final int EVENTSTORE_TIMEOUT_MILLIS = 15000;
@@ -43,36 +44,28 @@ public class EventstoreJournalStorage implements JournalStorage {
     private final ActorRef connection;
     private final ExecutionContextExecutor context;
 
-    public EventstoreJournalStorage(ActorRef connection, ExecutionContextExecutor context) {
+    public EventStoreJournalStorage(ActorRef connection, ExecutionContextExecutor context) {
         this.connection = connection;
         this.context = context;
     }
 
-    public EventstoreJournalStorage(ActorRef connection, ExecutionContextExecutor context, int eventLimit) {
+    public EventStoreJournalStorage(ActorRef connection, ExecutionContextExecutor context, int eventLimit) {
         this.connection = connection;
         this.context = context;
         this.eventLimit = eventLimit;
     }
 
     @Override
-    public void open() {
+    public Option<EventNumber.Range> saveEvent(Messages.EventWrapper eventWrapper) {
+        return saveEventsBatch(Collections.singletonList(eventWrapper));
     }
 
     @Override
-    public void close() {
-    }
-
-    @Override
-    public Messages.EventWrapper saveEvent(Messages.EventWrapper eventWrapper) {
-        return saveEventsBatch(Collections.singletonList(eventWrapper)).get(0);
-    }
-
-    @Override
-    public List<Messages.EventWrapper> saveEventsBatch(List<Messages.EventWrapper> events) {
+    public Option<EventNumber.Range> saveEventsBatch(List<Messages.EventWrapper> events) {
         try {
             StopWatch stopWatch = StopWatch.createStarted();
             if (events == null || events.isEmpty()) {
-                return Collections.emptyList();
+                return Option.empty();
             } else if (events.size() > eventLimit) {
                 throw new RuntimeException(String.format("Max batch size is %s, but received %s", eventLimit, events.size()));
             }
@@ -106,12 +99,8 @@ public class EventstoreJournalStorage implements JournalStorage {
 
             if (result instanceof WriteEventsCompleted) {
                 final WriteEventsCompleted completed = (WriteEventsCompleted) result;
-                log.info("Saved {} events (range: {}, position: {}) in {}", events.size(), completed.numbersRange(), completed.position(), stopWatch);
-
-                // TODO: Trenger ikke returnere events?
-                return Await.result(
-                        readEvents(streamId, completed.numbersRange().get().start().value(), events.size()),
-                        Duration.apply(EVENTSTORE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS));
+                log.info("Saved {} events (range: {}, position: {}, stream: {}) in {}", events.size(), completed.numbersRange(), completed.position(), streamId, stopWatch);
+                return completed.numbersRange();
             } else if (result instanceof Status.Failure) {
                 final Status.Failure failure = ((Status.Failure) result);
                 throw new RuntimeException("Failure while saving events", failure.cause());

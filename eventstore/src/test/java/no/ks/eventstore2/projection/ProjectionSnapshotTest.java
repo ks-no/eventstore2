@@ -15,8 +15,11 @@ import no.ks.events.svarut.Order.EventstoreOrder;
 import no.ks.eventstore2.Handler;
 import no.ks.eventstore2.ProtobufHelper;
 import no.ks.eventstore2.TakeSnapshot;
+import no.ks.eventstore2.TestInvoker;
 import no.ks.eventstore2.testkit.MongoDbEventstore2TestKit;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.util.*;
@@ -38,8 +41,10 @@ class ProjectionSnapshotTest extends MongoDbEventstore2TestKit {
     void test_that_a_projection_can_save_and_load_snapshot() {
         Message event1 = saveEvent();
         TestActorRef<Actor> testActor = TestActorRef.create(_system, Props.create(TestProjection.class, eventstoreConnection, mongoClient), UUID.randomUUID().toString());
-        testActor.tell(call("assertSearchRequest", event1), super.testActor());
-        expectMsg("SEARCH_REQUEST_OK");
+        new TestInvoker().invoke(() -> {
+            testActor.tell(call("assertSearchRequest", event1), super.testActor());
+            expectMsg("SEARCH_REQUEST_OK");
+        });
 
         TestProjection testProjection = (TestProjection) testActor.underlyingActor();
         int count = testProjection.handledRequestEvents.size();
@@ -48,8 +53,10 @@ class ProjectionSnapshotTest extends MongoDbEventstore2TestKit {
         Message event2 = saveEvent();
 
         TestActorRef<Actor> testActorReader = TestActorRef.create(_system, Props.create(TestProjection.class, eventstoreConnection, mongoClient), UUID.randomUUID().toString());
-        testActorReader.tell(call("assertSearchRequest", event2), super.testActor());
-        expectMsg("SEARCH_REQUEST_OK");
+        new TestInvoker().invoke(() -> {
+            testActorReader.tell(call("assertSearchRequest", event2), super.testActor());
+            expectMsg("SEARCH_REQUEST_OK");
+        });
 
         TestProjection testProjectionRead = (TestProjection) testActorReader.underlyingActor();
         assertThat(testProjectionRead.snapshotData.size(), is(count));
@@ -74,10 +81,12 @@ class ProjectionSnapshotTest extends MongoDbEventstore2TestKit {
     @Subscriber("no.ks.events.svarut.Order")
     private static class TestProjection extends MongoDbProjection {
 
+        private static final Logger log = LoggerFactory.getLogger(TestProjection.class);
+
         private List<EventstoreOrder.SearchRequest> handledRequestEvents = new ArrayList<>();
         private List<EventstoreOrder.SearchRequest> snapshotData = new ArrayList<>();
 
-        public TestProjection(ActorRef eventstoreConnection, MongoClient client) throws Exception {
+        public TestProjection(ActorRef eventstoreConnection, MongoClient client) {
             super(eventstoreConnection, client);
             CollectionSerializer serializer = new CollectionSerializer();
             kryo.register(ArrayList.class, serializer);

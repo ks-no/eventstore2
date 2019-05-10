@@ -7,7 +7,7 @@ import eventstore.j.SettingsBuilder;
 import eventstore.tcp.ConnectionActor;
 import no.ks.events.svarut.Form.EventStoreForm;
 import no.ks.events.svarut.Order.EventstoreOrder;
-import no.ks.eventstore2.eventstore.EventstoreJournalStorage;
+import no.ks.eventstore2.eventstore.EventStoreJournalStorage;
 import no.ks.eventstore2.eventstore.JournalStorage;
 
 import java.net.InetSocketAddress;
@@ -28,8 +28,7 @@ public class EventstoreEventstore2TestKit extends Eventstore2TestKit {
                 .build();
 
         this.eventstoreConnection = _system.actorOf(ConnectionActor.getProps(settings));
-        this.journal = new EventstoreJournalStorage(eventstoreConnection, _system.dispatcher());
-        journal.open();
+        this.journal = new EventStoreJournalStorage(eventstoreConnection, _system.dispatcher());
     }
 
     protected long getLatestJournalId(String category) {

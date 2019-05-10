@@ -34,16 +34,24 @@ public abstract class Projection extends AbstractActor {
     private final Logger log = LoggerFactory.getLogger(this.getClass());
 
     private final ActorRef eventStoreConnection;
+    private final boolean shouldNotifyProjectionManager;
+
     private Map<Class<? extends Message>, Method> handleEventMap = null;
 
     protected Long latestJournalidReceived;
     private Messages.EventWrapper currentMessage;
+    private Messages.StreamPosition lastPosition;
     private boolean subscribePhase = false;
 
     private List<PendingCall> pendingCalls = new ArrayList<>();
 
     public Projection(ActorRef eventStoreConnection) {
+        this(eventStoreConnection, false);
+    }
+
+    public Projection(ActorRef eventStoreConnection, boolean shouldNotifyProjectionManager) {
         this.eventStoreConnection = eventStoreConnection;
+        this.shouldNotifyProjectionManager = shouldNotifyProjectionManager;
         init();
     }
 
@@ -52,8 +60,6 @@ public abstract class Projection extends AbstractActor {
         log.debug(getSelf().path().toString());
         subscribe();
     }
-
-
 
     @Override
     public void preRestart(Throwable reason, Optional<Object> message) {
@@ -80,7 +86,7 @@ public abstract class Projection extends AbstractActor {
                 .match(ResolvedEvent.class, this::handleResolvedEvent)
                 .match(Call.class, () -> subscribePhase, this::handlePendingCall)
                 .match(Call.class, () -> !subscribePhase, this::handleCall)
-                .match(LiveProcessingStarted$.class, this::handleLiveProcessingStarted);
+                .match(LiveProcessingStarted$.class, o -> this.handleLiveProcessingStarted());
     }
 
 
@@ -136,16 +142,36 @@ public abstract class Projection extends AbstractActor {
                 .build();
 
         currentMessage = eventWrapper;
+        lastPosition = buildStreamPosition(event, eventWrapper);
         dispatchToCorrectEventHandler(ProtobufHelper.unPackAny(eventWrapper));
+
+        if (!subscribePhase && shouldNotifyProjectionManager) {
+            notifyProjectionManager(lastPosition);
+        }
     }
 
-    private void handleLiveProcessingStarted(LiveProcessingStarted$ live) {
+    private Messages.StreamPosition buildStreamPosition(ResolvedEvent event, Messages.EventWrapper eventWrapper) {
+        return Messages.StreamPosition.newBuilder()
+                .setAggregateId(eventWrapper.getAggregateRootId())
+                .setEventNumber(event.linkedEvent().number().value())
+                .build();
+    }
+
+    private void notifyProjectionManager(Messages.StreamPosition position) {
+        context().parent().tell(Messages.EventProcessed.newBuilder().setPosition(position).build(), self());
+    }
+
+    private void handleLiveProcessingStarted() {
         setSubscribeFinished();
         for (PendingCall pendingCall : pendingCalls) {
             self().tell(pendingCall.getCall(), pendingCall.getSender());
         }
         pendingCalls.clear();
         log.info("Live processing started!");
+
+        if (shouldNotifyProjectionManager) {
+            log.info("Notifying ProjectionManager with last position: {}", lastPosition);
+        }
     }
 
     private void setSubscribeFinished() {
@@ -153,9 +179,12 @@ public abstract class Projection extends AbstractActor {
         context().parent().tell(ProjectionManager.SUBSCRIBE_FINISHED, self());
     }
 
-    protected void setInSubscribe() {
+    protected void setInSubscribe(String category) {
         subscribePhase = true;
-        context().parent().tell(ProjectionManager.IN_SUBSCRIBE, self());
+        context().parent().tell(Messages.Subscription.newBuilder()
+                .setCategory(category)
+                .setShouldNotifyProjectionManager(shouldNotifyProjectionManager)
+                .build(), self());
     }
 
     public final void dispatchToCorrectEventHandler(Message message) {
@@ -223,6 +252,25 @@ public abstract class Projection extends AbstractActor {
         return subscribePhase;
     }
 
+    private void subscribe() {
+        if (!subscribePhase) {
+            String category = getSubscribe();
+            setInSubscribe(category);
+            log.debug("Subscribing to category \"{}\" from {}", category, latestJournalidReceived);
+            getContext().actorOf(EventStoreUtil.getCategorySubscriptionsProps(
+                    eventStoreConnection,
+                    getSelf(),
+                    category,
+                    latestJournalidReceived));
+        } else {
+            log.warn("Trying to subscribe but is already in subscribe phase.");
+        }
+    }
+
+    public Messages.EventWrapper currentMessage() {
+        return currentMessage;
+    }
+
     private static final class PendingCall {
         private Call call;
         private ActorRef sender;
@@ -249,22 +297,7 @@ public abstract class Projection extends AbstractActor {
         }
     }
 
-    private void subscribe() {
-        if (!subscribePhase) {
-            setInSubscribe();
-            String category = getSubscribe();
-            log.debug("Subscribing to category \"{}\" from {}", category, latestJournalidReceived);
-            getContext().actorOf(EventStoreUtil.getCategorySubscriptionsProps(
-                    eventStoreConnection,
-                    getSelf(),
-                    category,
-                    latestJournalidReceived));
-        } else {
-            log.warn("Trying to subscribe but is already in subscribe phase.");
-        }
-    }
-
-    public Messages.EventWrapper currentMessage() {
-        return currentMessage;
+    public boolean shouldNotifyProjectionManager() {
+        return shouldNotifyProjectionManager;
     }
 }

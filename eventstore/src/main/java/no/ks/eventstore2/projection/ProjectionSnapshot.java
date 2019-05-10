@@ -6,8 +6,13 @@ import akka.japi.pf.ReceiveBuilder;
 import no.ks.eventstore2.TakeSnapshot;
 
 public abstract class ProjectionSnapshot extends Projection {
+
     public ProjectionSnapshot(ActorRef eventStoreConnection) {
         super(eventStoreConnection);
+    }
+
+    public ProjectionSnapshot(ActorRef eventStoreConnection, boolean shouldNotifyProjectionManager) {
+        super(eventStoreConnection, shouldNotifyProjectionManager);
     }
 
     @Override

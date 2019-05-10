@@ -120,7 +120,6 @@ public class SagaManager extends AbstractActor {
                 .match(Messages.SendAwake.class, this::handleSendAwake)
                 .match(Messages.ClearAwake.class, this::handleClearAwake)
                 .match(Messages.ScheduleAwake.class, this::handleScheduleAwake)
-                .match(Messages.AcknowledgePreviousEventsProcessed.class, this::handleAcknowledgePreviousEventsProcessed)
                 .match(TakeBackup.class, this::handleTakeBackup)
                 .match(TakeSnapshot.class, this::handleTakeSnapshot)
                 .match(UpgradeSagaRepoStore.class, this::handleUpgradeSagaRepoStore)
@@ -165,10 +164,6 @@ public class SagaManager extends AbstractActor {
 
     private void handleScheduleAwake(Messages.ScheduleAwake message) {
         timeoutstore.tell(message, sender());
-    }
-
-    private void handleAcknowledgePreviousEventsProcessed(Messages.AcknowledgePreviousEventsProcessed message) {
-        sender().tell(Messages.Success.getDefaultInstance(), self());
     }
 
     private void handleTakeBackup(TakeBackup o) {

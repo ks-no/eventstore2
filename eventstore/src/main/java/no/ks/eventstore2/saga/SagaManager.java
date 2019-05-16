@@ -1,6 +1,11 @@
 package no.ks.eventstore2.saga;
 
+import akka.ConfigurationException;
 import akka.actor.*;
+import akka.cluster.singleton.ClusterSingletonManager;
+import akka.cluster.singleton.ClusterSingletonManagerSettings;
+import akka.cluster.singleton.ClusterSingletonProxy;
+import akka.cluster.singleton.ClusterSingletonProxySettings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -67,7 +72,19 @@ public class SagaManager extends AbstractActor {
         if(dispatcher != null){
             singletonProps = singletonProps.withDispatcher(dispatcher);
         }
-        return singletonProps;
+        try {
+            final ClusterSingletonManagerSettings settings = ClusterSingletonManagerSettings.create(system);
+
+            system.actorOf(ClusterSingletonManager.props(singletonProps, "shutdown", settings), "sagamanagersingleton");
+
+            ClusterSingletonProxySettings proxySettings = ClusterSingletonProxySettings.create(system);
+            proxySettings.withBufferSize(10000);
+
+            return ClusterSingletonProxy.props("/user/sagamanagersingleton", proxySettings);
+        } catch (ConfigurationException e) {
+            log.info("System is not clustered");
+            return singletonProps;
+        }
     }
 
     public SagaManager(ActorRef commandDispatcher, SagaRepository repository, ActorRef eventstoreConnection, String packageScanPath) {

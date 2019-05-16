@@ -3,10 +3,12 @@ package no.ks.eventstore2.command;
 import akka.actor.ActorRef;
 import akka.cluster.ClusterEvent;
 import no.ks.eventstore2.AkkaClusterInfo;
-import scala.PartialFunction;
-import scala.runtime.BoxedUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class OnlyExecuteOnLeaderCommandHandler extends CommandHandler {
+
+	public static final Logger log = LoggerFactory.getLogger(OnlyExecuteOnLeaderCommandHandler.class);
 
     private AkkaClusterInfo akkaClusterInfo;
 
@@ -22,20 +24,18 @@ public abstract class OnlyExecuteOnLeaderCommandHandler extends CommandHandler {
 		super.preStart();
 	}
 
-	// TODO: Trenger vi denne? Hvis ja, test at leader greiene fungerer som forventet
-	@Override
-	public void aroundReceive(PartialFunction<Object, BoxedUnit> receive, Object msg) {
-		super.aroundReceive(receive, msg);
-
-		if(akkaClusterInfo.isLeader() || "HandlesClasses".equals(msg)) {
-			super.createReceive().onMessage().apply(msg);
-		}
-	}
-
 	@Override
 	public Receive createReceive() {
 		return receiveBuilder()
-				.match(ClusterEvent.LeaderChanged.class, o -> akkaClusterInfo.updateLeaderState(o))
+				.match(ClusterEvent.LeaderChanged.class, event -> akkaClusterInfo.updateLeaderState(event))
+				.matchEquals("HandlesClasses", this::handleHandlesClasses)
+				.match(Command.class, command -> {
+					if (akkaClusterInfo.isLeader()) {
+						this.handleCommand(command);
+					} else {
+						log.debug("Not handling command {}, because node is not leader", command);
+					}
+				})
 				.build();
 	}
 }

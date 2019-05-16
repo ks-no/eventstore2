@@ -42,12 +42,12 @@ public class ProjectionManager extends AbstractActor {
     private ActorRef errorListener;
     private Cluster cluster;
 
-    public static Props mkProps(ActorRef errorListener, List<Props> props){
-        return Props.create(ProjectionManager.class,errorListener,props);
+    public static Props mkProps(ActorRef errorListener, List<Props> props) {
+        return Props.create(ProjectionManager.class, errorListener, props);
     }
 
     @SuppressWarnings("unchecked")
-    public ProjectionManager(ActorRef errorListener, List<Props> props){
+    public ProjectionManager(ActorRef errorListener, List<Props> props) {
         this.errorListener = errorListener;
 
         for (Props prop : props) {

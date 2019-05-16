@@ -54,7 +54,7 @@ public abstract class CommandHandler extends AbstractActor {
                 .matchEquals("HandlesClasses", this::handleHandlesClasses);
     }
 
-    private void handleCommand(Command command) {
+    protected void handleCommand(Command command) {
         log.debug("Received command {}", command);
         Method method = handleCommandMap.get(command.getClass());
         try {
@@ -64,7 +64,7 @@ public abstract class CommandHandler extends AbstractActor {
         }
     }
 
-    private void handleHandlesClasses(Object o) {
+    protected void handleHandlesClasses(Object o) {
         log.debug("Handles classes received sending map to " + sender());
         sender().tell(ImmutableSet.copyOf(handleCommandMap.keySet()), self());
     }

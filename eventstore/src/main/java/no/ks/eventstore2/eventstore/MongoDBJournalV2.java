@@ -318,8 +318,7 @@ public class MongoDBJournalV2 implements JournalStorage {
                 } else {
                     log.error("failed to upgrade event {}", event);
                 }
-            }
-            ,String.valueOf(count));
+            }, String.valueOf(count));
             if(events.size() > 0)
                 count = Long.parseLong(events.get(events.size()-1).getJournalid());
             else

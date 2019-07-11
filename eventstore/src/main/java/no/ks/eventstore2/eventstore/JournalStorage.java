@@ -18,7 +18,7 @@ public interface JournalStorage {
      * @param handleEvent
      * @return true if all events sent
      */
-    boolean loadEventsAndHandle(String aggregateType, final HandleEvent handleEvent);
+    boolean loadEventsAndHandle(String aggregateType, HandleEvent handleEvent);
 
     boolean loadEventsAndHandle(String aggregateType, HandleEventMetadata handleEvent);
 
@@ -29,7 +29,7 @@ public interface JournalStorage {
      * @param fromKey from this key
      * @return true if all events sent
      */
-    boolean loadEventsAndHandle(String aggregateType, final HandleEvent handleEvent, String fromKey);
+    boolean loadEventsAndHandle(String aggregateType, HandleEvent handleEvent, String fromKey);
 
     /**
      * LoadEvent from a key
@@ -38,7 +38,7 @@ public interface JournalStorage {
      * @param fromKey from this key
      * @return true if all events sent
      */
-    boolean loadEventsAndHandle(String aggregateType, final HandleEventMetadata handleEvent, long fromKey);
+    boolean loadEventsAndHandle(String aggregateType, HandleEventMetadata handleEvent, long fromKey);
 
     void open();
     void close();
@@ -68,7 +68,7 @@ public interface JournalStorage {
      * @param fromJournalId null if read from begining
      * @return
      */
-    Future<EventBatch> loadEventsForAggregateIdAsync(final String aggregateType, final String aggregateId, final String fromJournalId);
+    Future<EventBatch> loadEventsForAggregateIdAsync(String aggregateType, String aggregateId, String fromJournalId);
 
     void saveEvents(List<? extends Event> events);
 

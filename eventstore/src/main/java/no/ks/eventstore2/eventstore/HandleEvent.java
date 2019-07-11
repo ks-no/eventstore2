@@ -4,5 +4,5 @@ import no.ks.eventstore2.Event;
 
 public interface HandleEvent {
 
-    void handleEvent(final Event event);
+    void handleEvent(Event event);
 }

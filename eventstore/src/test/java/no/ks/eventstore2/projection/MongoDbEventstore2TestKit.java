@@ -35,11 +35,6 @@ public class MongoDbEventstore2TestKit extends Eventstore2TestKit {
 
         IRuntimeConfig runtimeConfig = new RuntimeConfigBuilder()
                 .defaults(command)
-                .artifactStore(new ExtractedArtifactStoreBuilder()
-                        .defaults(command)
-                        .download(new DownloadConfigBuilder()
-                                .defaultsForCommand(command)
-                                .downloadPath("http://jenkins.usrv.ubergenkom.no/apps/")))
                 .build();
         runtime = MongodStarter.getInstance(runtimeConfig);
 

@@ -41,7 +41,7 @@ public class FormProcessorIntegrationTest extends MongoDbEventstore2TestKit {
 
     @AfterClass
     public static void teardown() {
-        system.shutdown();
+        system.terminate();
     }
 
     @Test

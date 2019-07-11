@@ -21,7 +21,7 @@
         <akka.version>2.4.17</akka.version>
         <commons-io.version>2.4</commons-io.version>
         <embed-mongo.version>2.2.0</embed-mongo.version>
-        <guava.version>19.0</guava.version>
+        <guava.version>28.0-jre</guava.version>
         <h2.version>1.4.191</h2.version>
         <joda-time.version>2.9.2</joda-time.version>
         <junit.version>4.12</junit.version>

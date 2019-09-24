@@ -123,7 +123,11 @@ public class ProjectionProtobuf extends UntypedActor {
         subscribePhase = false;
         context().parent().tell(ProjectionManager.SUBSCRIBE_FINISHED, self());
         cancelSubscribeTimeout();
+        onSubscribeFinished();
     }
+
+    protected void onSubscribeFinished(){}
+
     private Method getCallMethod(Call call) throws NoSuchMethodException {
         if (call == null) {
             throw new IllegalArgumentException("Call can't be null");

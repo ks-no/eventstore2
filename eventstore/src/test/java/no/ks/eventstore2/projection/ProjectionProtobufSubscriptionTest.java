@@ -14,6 +14,9 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.junit.Assert.assertTrue;
 
 public class ProjectionProtobufSubscriptionTest extends MongoDbEventstore2TestKit{
 
@@ -30,14 +33,27 @@ public class ProjectionProtobufSubscriptionTest extends MongoDbEventstore2TestKi
         testActor.tell(Messages.CompleteSubscriptionRegistered.newBuilder().setAggregateType("TestAggregate").build(),super.testActor());
     }
 
+    @Test
+    public void test_that_a_projection_invokes_on_finished_when_subscribe_is_finished() throws InterruptedException {
+        TestActorRef<Actor> testActor = TestActorRef.create(_system, Props.create(TestProjection.class, super.testActor()), UUID.randomUUID().toString());
+        testActor.tell(Messages.CompleteSubscriptionRegistered.newBuilder().setAggregateType(UUID.randomUUID().toString()).build(), super.testActor());
+        assertTrue(((TestProjection) testActor.underlyingActor()).invoked);
+    }
+
     @Subscriber("TestAggregate")
     private static class TestProjection extends ProjectionProtobuf {
 
         public boolean testEventRecieved = false;
         private Map<String, Event> data = new HashMap<String, Event>();
+        boolean invoked = false;
 
         public TestProjection(ActorRef eventStore) {
             super(eventStore);
+        }
+
+        @Override
+        protected void onSubscribeFinished(){
+            invoked = true;
         }
 
         @Handler

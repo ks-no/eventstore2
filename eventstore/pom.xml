@@ -24,7 +24,7 @@
         <guava.version>28.0-jre</guava.version>
         <h2.version>1.4.191</h2.version>
         <joda-time.version>2.9.2</joda-time.version>
-        <junit.version>4.12</junit.version>
+        <junit.version>4.13.1</junit.version>
         <kryo.version>2.22</kryo.version>
         <kryo-serializers.version>0.26</kryo-serializers.version>
         <leveldbjni.version>1.8</leveldbjni.version>

@@ -18,7 +18,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <akka.version>2.5.21</akka.version>
+        <akka.version>2.5.32</akka.version>
         <commons-io.version>2.4</commons-io.version>
         <embed-mongo.version>2.2.0</embed-mongo.version>
         <guava.version>28.0-jre</guava.version>

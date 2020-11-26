@@ -31,7 +31,7 @@
         <logback.version>1.2.3</logback.version>
         <mongodb.version>3.6.3</mongodb.version>
         <slf4j.version>1.7.19</slf4j.version>
-        <spring.version>5.1.5.RELEASE</spring.version>
+        <spring.version>5.3.1</spring.version>
         <zip4j.version>1.3.2</zip4j.version>
 
         <maven-checkstyle-plugin.version>3.1.0</maven-checkstyle-plugin.version>

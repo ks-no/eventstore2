@@ -4,7 +4,7 @@
     <parent>
         <groupId>no.ks</groupId>
         <artifactId>eventstore2-parent</artifactId>
-        <version>3.2.0</version>
+        <version>3.2.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>eventstore2</artifactId>
